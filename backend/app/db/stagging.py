@@ -3,13 +3,15 @@ import re
 from flask import current_app
 
 DUMP_INCLUSION_LIST = [
-    'cities', 'continents', 'divisions', 'language_data', 'languages',
-    'league_history', 'leagues', 'nations', 'players.mysql',
-    'players_batting', 'players_fielding', 'players_career',
-    'players_contract', 'players_injury', 'players_pitching',
-    'players_roster_status', 'players_salary_history', 'players_value',
-    'team_affiliations', 'states', 'team_roster', 'teams.mysql',
-    'trade_history'
+    # 'cities', 'continents', 'divisions', 'language_data', 'languages',
+    # 'league_history', 'leagues', 'nations', 'players.mysql',
+    'players_batting', 'players_fielding',
+    # 'players_career',
+    # 'players_contract', 'players_injury', 
+    'players_pitching',
+    # 'players_roster_status', 'players_salary_history', 'players_value',
+    # 'team_affiliations', 'states', 'team_roster', 'teams.mysql',
+    # 'trade_history'
 ]
 
 def check_new_heaps():
