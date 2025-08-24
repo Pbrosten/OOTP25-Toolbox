@@ -1,0 +1,606 @@
+openapi: 3.0.0
+info:
+  title: Player API
+  version: 1.0.0
+paths:
+  /api/players:
+    get:
+      summary: Retrieve players
+      description: |
+        Returns a list of all players, or a specific player if the `player_id` query parameter is provided.
+      tags: [Players]
+      parameters:
+        - in: query
+          name: player_id
+          schema:
+            type: integer
+          required: false
+          description: The ID of the player to retrieve
+      responses:
+        '200':
+          description: A list of players or a single player
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items:
+                      $ref: '#/components/schemas/Player'
+                  - $ref: '#/components/schemas/Player'
+        '404':
+          description: Player not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+
+  /api/players/{player_id}:
+    get:
+      summary: Retrieve a single player by ID
+      description: Returns detailed info for a specific player.
+      tags: [Players]
+      parameters:
+        - in: path
+          name: player_id
+          required: true
+          schema:
+            type: integer
+          description: The ID of the player to retrieve
+      responses:
+        '200':
+          description: Player found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Player'
+        '404':
+          description: Player not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+  
+  /api/players/stats/expected/batting:
+    get:
+      summary: Retrieve all player expected batting stat entries
+      tags: [Projections, Batting]
+      responses:
+        '200':
+          description: List of expected batting stats
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BattingExpected'
+
+  /api/players/stats/expected/batting/{rating_id}:
+    get:
+      summary: Retrieve batting expected stats by ID
+      tags: [Projections, Batting]
+      parameters:
+        - name: rating_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Player batting expected stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BattingExpected'
+        '404':
+          description: Not found
+
+  /api/players/stats/expected/basepath:
+    get:
+      summary: Retrieve all basepath expected stats
+      tags: [Projections, Basepath]
+      responses:
+        '200':
+          description: List of expected basepath stats
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BasepathExpected'
+
+  /api/players/stats/expected/basepath/{rating_id}:
+    get:
+      summary: Retrieve basepath expected stats by ID
+      tags: [Projections, Basepath]
+      parameters:
+        - name: rating_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Player basepath expected stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BasepathExpected'
+        '404':
+          description: Not found
+
+  /api/players/stats/expected/fielding:
+    get:
+      summary: Retrieve all fielding expected stats
+      description: Returns a list of all player rating records.
+      tags: [Projections, Fielding]
+      responses:
+        '200':
+          description: List of expected fielding stats
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FieldingExpected'
+
+  /api/players/stats/expected/fielding/{rating_id}:
+    get:
+      summary: Retrieve fielding expected stats by ID
+      description: Returns a list of all player rating records.
+      tags: [Projections, Fielding]
+      parameters:
+        - in: path
+          name: rating_id
+          required: true
+          description: The ID of the rating to retrieve
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Player fielding expected stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FieldingExpected'
+        '404':
+          description: Rating not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+
+  /api/ratings:
+    get:
+      summary: Get all player ratings
+      description: Returns a list of all player rating records.
+      tags: [Ratings]
+      responses:
+        '200':
+          description: A list of player ratings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PlayerRating'
+
+  /api/ratings/{rating_id}:
+    get:
+      summary: Get a specific rating by ID
+      description: Returns a player rating record by its unique rating ID.
+      tags: [Ratings]
+      parameters:
+        - in: path
+          name: rating_id
+          required: true
+          description: The ID of the rating to retrieve
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Rating found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlayerRating'
+        '404':
+          description: Rating not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                
+  /api/ratings/batting:
+    get:
+      summary: Get all player batting ratings
+      description: Returns a list of all player batting rating records.
+      tags: [Ratings, Batting]
+      responses:
+        '200':
+          description: A list of batting ratings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BattingRating'
+
+  /api/ratings/batting/{rating_id}:
+    get:
+      summary: Get a specific batting rating by ID
+      description: Returns a single batting rating entry by rating ID.
+      tags: [Ratings, Batting]
+      parameters:
+        - in: path
+          name: rating_id
+          required: true
+          description: The unique ID of the batting rating entry
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Batting rating found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BattingRating'
+        '404':
+          description: Rating not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+
+  /api/ratings/basepath:
+    get:
+      summary: Get all player basepath ratings
+      description: Returns a list of all player basepath rating records.
+      tags: [Ratings, Basepath]
+      responses:
+        '200':
+          description: A list of basepath ratings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BasepathRating'
+
+  /api/ratings/basepath/{rating_id}:
+    get:
+      summary: Get a specific basepath rating by ID
+      description: Returns a basepath rating entry by its unique rating ID.
+      tags: [Ratings, Basepath]
+      parameters:
+        - in: path
+          name: rating_id
+          required: true
+          description: The ID of the basepath rating entry
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Basepath rating found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BasepathRating'
+        '404':
+          description: Rating not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+  
+  /api/ratings/fielding:
+    get:
+      summary: Get all player fielding ratings
+      description: Returns a list of all player fielding rating records.
+      tags: [Ratings, Fielding]
+      responses:
+        '200':
+          description: A list of fielding ratings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FieldingRating'
+
+  /api/ratings/fielding/{rating_id}:
+    get:
+      summary: Get a specific fielding rating by ID
+      description: Returns a fielding rating entry by its unique rating ID.
+      tags: [Ratings, Fielding]
+      parameters:
+        - in: path
+          name: rating_id
+          required: true
+          schema:
+            type: integer
+          description: The rating ID to look up
+      responses:
+        '200':
+          description: Fielding rating found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FieldingRating'
+        '404':
+          description: Rating not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+
+  /api/ratings/positions:
+    get:
+      summary: Get all player position ratings
+      description: Returns a list of all player position rating records.
+      tags: [Ratings, Fielding]
+      responses:
+        '200':
+          description: A list of position ratings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PositionRating'
+
+  /api/ratings/positions/{rating_id}:
+    get:
+      summary: Get a specific position rating by ID
+      description: Returns a position rating entry by its unique rating ID.
+      tags: [Ratings, Fielding]
+      parameters:
+        - in: path
+          name: rating_id
+          required: true
+          schema:
+            type: integer
+          description: The rating ID to look up
+      responses:
+        '200':
+          description: Position rating found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PositionRating'
+        '404':
+          description: Rating not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+
+components:
+  schemas:
+    Player:
+      type: object
+      properties:
+        player_id:
+          type: integer
+        first_name:
+          type: string
+        last_name:
+          type: string
+        birth_date:
+          type: string
+          format: date
+        position:
+          type: string
+        height:
+          type: integer
+        weight:
+          type: integer
+        bats:
+          type: string
+        throws:
+          type: string
+        free_agent:
+          type: boolean
+        team_id:
+          type: integer
+
+    PlayerRating:
+      type: object
+      properties:
+        rating_id:
+          type: integer
+        player_id:
+          type: integer
+        rating_date:
+          type: string
+          format: date
+    
+    BattingRating:
+      type: object
+      properties:
+        rating_id:
+          type: integer
+        contact:
+          type: integer
+        gap:
+          type: integer
+        eye:
+          type: integer
+        strikeouts:
+          type: integer
+        power:
+          type: integer
+        babip:
+          type: integer
+        bunt:
+          type: integer
+        bunt_for_hit:
+          type: integer
+    
+    BasepathRating:
+      type: object
+      properties:
+        rating_id:
+          type: integer
+        speed:
+          type: integer
+        steal_rate:
+          type: integer
+        steal:
+          type: integer
+        baserunning:
+          type: integer
+
+    FieldingRating:
+      type: object
+      properties:
+        rating_id:
+          type: integer
+        catcher_arm:
+          type: integer
+        catcher_ability:
+          type: integer
+        catcher_framing:
+          type: integer
+        infield_range:
+          type: integer
+        infield_arm:
+          type: integer
+        infield_doubleplay:
+          type: integer
+        infield_error:
+          type: integer
+        outfield_range:
+          type: integer
+        outfield_arm:
+          type: integer
+        outfield_error:
+          type: integer
+
+    PositionRating:
+      type: object
+      properties:
+        rating_id:
+          type: integer
+        pos1:
+          type: integer
+        pos2:
+          type: integer
+        pos3:
+          type: integer
+        pos4:
+          type: integer
+        pos5:
+          type: integer
+        pos6:
+          type: integer
+        pos7:
+          type: integer
+        pos8:
+          type: integer
+        pos9:
+          type: integer
+    
+    BattingExpected:
+      type: object
+      properties:
+        rating_id:
+          type: integer
+        PA:
+          type: integer
+        AB:
+          type: integer
+        H:
+          type: integer
+        "1B":
+          type: integer
+        "2B":
+          type: integer
+        "3B":
+          type: integer
+        HR:
+          type: integer
+        BB:
+          type: integer
+        HBP:
+          type: integer
+        K:
+          type: integer
+        AVG:
+          type: number
+          format: float
+        OBP:
+          type: number
+          format: float
+        SLG:
+          type: number
+          format: float
+        wOBA:
+          type: number
+          format: float
+
+    BasepathExpected:
+      type: object
+      properties:
+        rating_id:
+          type: integer
+        SB:
+          type: integer
+        CS:
+          type: integer
+
+    FieldingExpected:
+      type: object
+      properties:
+        rating_id:
+          type: integer
+        C:
+          type: number
+          format: float
+        "1B":
+          type: number
+          format: float
+        "2B":
+          type: number
+          format: float
+        "3B":
+          type: number
+          format: float
+        SS:
+          type: number
+          format: float
+        LF:
+          type: number
+          format: float
+        CF:
+          type: number
+          format: float
+        RF:
+          type: number
+          format: float
+        DH:
+          type: number
+          format: float

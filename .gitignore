@@ -1,0 +1,76 @@
+.# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Flask / instance folder (for runtime config)
+instance/
+*.db
+*.sqlite3
+
+# Virtual environment
+venv/
+ENV/
+env/
+.venv/
+pip-wheel-metadata/
+
+# Environment variable files
+.env
+.env.*
+
+# Pytest / test output
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+
+# MyPy / Pyright / Pylint / VS Code stuff
+.mypy_cache/
+.pyright/
+.pyre/
+.dmypy.json
+.pytest_cache/
+
+# IDEs and editors
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# Mac/Linux system files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Gunicorn log files (optional)
+gunicorn-error.log
+gunicorn-access.log
