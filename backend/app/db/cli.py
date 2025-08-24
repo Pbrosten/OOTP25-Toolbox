@@ -53,12 +53,12 @@ def update_db():
             staging_db.close()
 
         logger.info("Starting migration")
-        with current_app.open_resource(os.path.join('sql','migration.sql'), 'r') as f:
+        with current_app.open_resource(os.path.join('db','sql_scripts','migration.sql'), 'r') as f:
             sql_script = inject_db_path(f.read(), current_app.config["STAGGING"])
             sql_script = inject_heap_date(sql_script, heap_date)
             db.executescript(sql_script)
 
-        with current_app.open_resource(os.path.join('sql','get_projection_inputs.sql'), 'r') as f:
+        with current_app.open_resource(os.path.join('db','sql_scripts','get_projection_inputs.sql'), 'r') as f:
             query = inject_heap_date(f.read(), heap_date)
             cursor = db.execute(query)
 
