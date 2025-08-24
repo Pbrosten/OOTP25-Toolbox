@@ -2,7 +2,7 @@ import os
 import click
 from flask import current_app
 from .connection import get_db, close_db
-from .stagging import check_new_heaps, sql_dump_to_staging
+from .stagging import check_new_heaps, sql_dump_to_staging, DUMP_INCLUSION_LIST
 from .migration import inject_db_path, inject_heap_date
 from .projection import process_player, update_projection_batches
 
