@@ -14,7 +14,7 @@ import sqlite3
 @click.command('init-db')
 def init_db_command():
     db = get_db()
-    with current_app.open_resource(os.path.join('sql','schema.sql'), 'r') as f:
+    with current_app.open_resource(os.path.join('db','sql_scripts','schema.sql'), 'r') as f:
         db.executescript(f.read())
     click.echo('Initialized the SQLite database.')
 
