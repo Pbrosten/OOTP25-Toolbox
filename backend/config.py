@@ -6,7 +6,7 @@ load_dotenv(path.join(basedir, '.env'))
 
 class Config:
     SECRET_KEY = environ.get('SECRET_KEY')
-    DUMP_PATH = f"{environ.get('GAME_PATH')}\\{environ.get('GAME_STATE')}.lg\\dump"
+    DUMP_PATH = path.join(environ.get('GAME_PATH'), f'{environ.get("GAME_STATE")}', 'dump_testing')
 
 class ProdConfig(Config):
     FLASK_ENV = 'production'
