@@ -6,6 +6,7 @@ from app.api.players import bp as players_bp
 def app():
     app = Flask(__name__)
     app.register_blueprint(players_bp)
+    app.config['DATABASE'] = ':memory:'
     return app
 
 @pytest.fixture
