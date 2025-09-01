@@ -1,15 +1,12 @@
 import os
 import click
-from flask import current_app
-from .connection import get_db, close_db
-from .stagging import check_new_heaps, sql_dump_to_staging, DUMP_INCLUSION_LIST
-from .migration import inject_db_path, inject_heap_date
-from .projection import process_player, update_projection_batches
 
-from pathlib import Path
-from tqdm import tqdm
-from multiprocessing import Pool, cpu_count
-import sqlite3
+from flask import current_app
+
+from .connection import get_db, close_db
+from .stagging import check_new_heaps
+from .update import process_single_heap
+
 
 @click.command('init-db')
 def init_db_command():
@@ -34,60 +31,7 @@ def update_db():
     db = get_db()
 
     for heap_number, heap in enumerate(heaps, 1):
-        heap_date = Path(heap).parts[-2].split('_')
-        logger.info(f"[{heap_number}/{len(heaps)}] Processing heap: {heap_date[1]}_{heap_date[2]}")
-        staging_db = sqlite3.connect(
-            current_app.config["STAGGING"],
-            detect_types=sqlite3.PARSE_DECLTYPES
-        )
-        staging_db.row_factory = sqlite3.Row
-
-        try:
-            for filename in tqdm(os.listdir(heap), desc="Processing dump files"):
-                if filename.startswith(tuple(DUMP_INCLUSION_LIST)):
-                    filepath = os.path.join(heap, filename)
-                    if os.path.isfile(filepath):
-                        sql_dump_to_staging(staging_db, filepath)
-            staging_db.commit()
-        finally:
-            staging_db.close()
-
-        logger.info("Starting migration")
-        with current_app.open_resource(os.path.join('db','sql_scripts','migration.sql'), 'r') as f:
-            sql_script = inject_db_path(f.read(), current_app.config["STAGGING"])
-            sql_script = inject_heap_date(sql_script, heap_date)
-            db.executescript(sql_script)
-
-        with current_app.open_resource(os.path.join('db','sql_scripts','get_projection_inputs.sql'), 'r') as f:
-            query = inject_heap_date(f.read(), heap_date)
-            cursor = db.execute(query)
-
-        players = [dict(row) for row in cursor.fetchall()]
-        cursor.close()
-        logger.info(f"Number of players: {len(players)}")
-
-        with Pool(processes=cpu_count()) as pool:
-            projections = list(tqdm(
-                pool.imap_unordered(process_player, players),
-                total=len(players),
-                desc="Projecting players"
-            ))
-        projections = [p for p in projections if p is not None]
-        logger.info(f"Generated {len(projections)} projections (after filtering None)")
-        if len(projections) > 0:
-            logger.debug(f"First projection: {projections[0]}")
-
-        batches = {
-            "offense": [],
-            "basepath": [],
-            "defense": [],
-            "value": []
-        }
-        batch_size = 1000
-        for i in range(0, len(projections), batch_size):
-            chunk = projections[i:i + batch_size]
-            batches = update_projection_batches(batches=batches, projections=chunk, inject=True, db=db)
-        update_projection_batches(batches=batches, db=db, final=True)
+        process_single_heap(heap, heap_number, len(heaps), db, logger)
 
     logger.info("Migration and projection complete!")
     close_db()
