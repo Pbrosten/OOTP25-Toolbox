@@ -7,6 +7,7 @@ def app():
     app = Flask(__name__)
     app.register_blueprint(players_bp)
     app.config['DATABASE'] = ':memory:'
+    app.config['STAGGING'] = ':memory'
     app.config['DUMP_PATH'] = "/fake/dump/path"  # Set config here or in test
     with app.app_context():
         yield app 
