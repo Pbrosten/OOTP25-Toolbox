@@ -16,10 +16,11 @@ CREATE TABLE players (
   player_id INTEGER PRIMARY KEY,
   first_name VARCHAR(50),
   last_name VARCHAR(50),
+  age INTEGER,
   birth_date DATE,
   position VARCHAR(2),  -- e.g., 'P', 'SS' 'CF', etc.
-  height INTEGER,            -- Height in cm
-  weight INTEGER,            -- Weight in pounds
+  height INTEGER, -- Height in cm
+  weight INTEGER, -- Weight in pounds
   bats VARCHAR(1), -- e.g., 'R', 'L', 'S'
   throws VARCHAR(1), -- e.g., 'R', 'L'
   free_agent BOOLEAN,  -- TRUE if current free_agent
