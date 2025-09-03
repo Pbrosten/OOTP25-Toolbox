@@ -1,5 +1,6 @@
 import os
 import sqlite3
+from datetime import date
 
 from pathlib import Path
 from flask import current_app
@@ -33,6 +34,40 @@ def process_single_heap(heap_path, heap_index, total_heaps, db, logger):
 
     insert_projections(projections, db)
 
+    # Update age feature in db.players
+    update_player_age(db=db, heap_date=heap_date)
+
+def update_player_age(db, heap_date):
+    current_date = date.fromisoformat(f"{heap_date[1]}-{heap_date[2]}-01")
+    rows = db.execute("SELECT player_id, birth_date FROM players").fetchall()
+    batch = []
+    for player_id, birth_date in rows:
+        if not birth_date:
+            continue
+        try:
+            delta = current_date - birth_date
+            age = round(delta.days / 365.25)
+
+            batch.append((age, player_id))
+
+            if len(batch) >= 500:
+                db.executemany(
+                    f"UPDATE players SET age = ? WHERE player_id = ?",
+                    batch
+                )
+                db.commit()
+                batch.clear()
+
+        except ValueError:
+            print(f"Skipping invalid birth_date format for player_id {player_id}: {birth_date}")
+
+    if batch:
+        db.executemany(
+            f"UPDATE players SET age = ? WHERE player_id = ?",
+            batch
+        )
+        db.commit()
+    
 def extract_heap_date_from_path(heap_path):
     # heap path should look like "{DUMP_PATH}/dump_yyyy_mm/mysql"
     return Path(heap_path).parts[-2].split('_')
