@@ -1,4 +1,5 @@
 DROP TABLE IF EXISTS players;
+DROP TABLE IF EXISTS teams;
 DROP TABLE IF EXISTS players_rating;
 DROP TABLE IF EXISTS players_batting;
 DROP TABLE IF EXISTS players_basepath;
@@ -26,7 +27,21 @@ CREATE TABLE players (
   free_agent BOOLEAN,  -- TRUE if current free_agent
   team_id INTEGER,
   prone_overall INTEGER,
-  FOREIGN KEY (team_id) REFERENCES team(team_id)
+  FOREIGN KEY (team_id) REFERENCES teams(team_id)
+);
+
+CREATE TABLE teams (
+  team_id INTEGER PRIMARY KEY,
+  name VARCHAR(50),
+  abbr VARCHAR(50),
+  nickname VARCHAR(50),
+  division_id INTEGER,
+  league_id INTEGER,
+  human_team TINYINT,
+  background_color VARCHAR(8),
+  text_color VARCHAR(8),
+  FOREIGN KEY (division_id) REFERENCES divisions(division_id),
+  FOREIGN KEY (league_id) REFERENCES leagues(league_id)
 );
 
 CREATE TABLE players_rating (
