@@ -33,8 +33,6 @@ def process_single_heap(heap_path, heap_index, total_heaps, db, logger, short_he
             logger.debug(f"First projection: {projections[0]}")
 
         insert_projections(projections, db)
-
-        # Update age feature in db.players
         update_player_age(db=db, heap_date=heap_date)
     else:
         run_migration_long(heap_date, db)
