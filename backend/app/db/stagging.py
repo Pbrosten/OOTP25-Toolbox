@@ -10,7 +10,8 @@ DUMP_INCLUSION_LIST = [
     # 'players_contract', 'players_injury', 
     'players_pitching',
     # 'players_roster_status', 'players_salary_history', 'players_value',
-    # 'team_affiliations', 'states', 'team_roster', 'teams.mysql',
+    # 'team_affiliations', 'states', 'team_roster', 
+    'teams.mysql',
     # 'trade_history'
 ]
 
@@ -18,13 +19,18 @@ def check_new_heaps():
     dump_path = current_app.config['DUMP_PATH']
     heaps = os.listdir(dump_path)
 
-    valid_heaps = [
+    valid_short_heaps = [
         heap for heap in heaps
         if "_" in heap and heap.split("_")[1].isdigit() and heap.split("_")[2].isdigit()
     ]
+    valid_long_heaps = [
+        heap for heap in heaps
+        if "_" in heap and heap.split("_")[1].isdigit() and heap.split("_")[2]=="yearly"
+    ]
 
-    sorted_heaps = sorted(valid_heaps, key=lambda h: (int(h.split("_")[1]), int(h.split("_")[2])))
-    return [os.path.join(dump_path, heap, "mysql") for heap in sorted_heaps]
+    sorted_short_heaps = sorted(valid_short_heaps, key=lambda h: (int(h.split("_")[1]), int(h.split("_")[2])))
+    sorted_long_heaps = sorted(valid_long_heaps, key=lambda h: (int(h.split("_")[1])))
+    return [os.path.join(dump_path, heap, "mysql") for heap in sorted_short_heaps], [os.path.join(dump_path, heap, "mysql") for heap in sorted_long_heaps]
 
 def fix_insert_ignore(sql: str) -> str:
     return re.sub(r'^insert\s+ignore', 'insert or ignore', sql, flags=re.IGNORECASE)
