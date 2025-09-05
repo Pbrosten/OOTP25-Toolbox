@@ -1,5 +1,6 @@
 DROP TABLE IF EXISTS players;
 DROP TABLE IF EXISTS teams;
+DROP TABLE IF EXISTS players_career_batting_stats;
 DROP TABLE IF EXISTS players_rating;
 DROP TABLE IF EXISTS players_batting;
 DROP TABLE IF EXISTS players_basepath;
@@ -41,6 +42,45 @@ CREATE TABLE teams (
   background_color VARCHAR(8),
   text_color VARCHAR(8),
   FOREIGN KEY (division_id) REFERENCES divisions(division_id),
+  FOREIGN KEY (league_id) REFERENCES leagues(league_id)
+);
+
+CREATE TABLE players_career_batting_stats (
+  player_id INTEGER,
+  year SMALLINT,
+  team_id INTEGER,
+  game_id INTEGER,
+  league_id INTEGER,
+  level_id SMALLINT,
+  split_id SMALLINT,
+  position SMALLINT,
+  ab SMALLINT,
+  h SMALLINT,
+  k SMALLINT,
+  pa SMALLINT,
+  pitches_seen SMALLINT,
+  g SMALLINT,
+  gs SMALLINT,
+  d SMALLINT,
+  t SMALLINT,
+  hr SMALLINT,
+  r SMALLINT,
+  rbi SMALLINT,
+  sb SMALLINT,
+  cs SMALLINT,
+  bb SMALLINT,
+  ibb SMALLINT,
+  gdp SMALLINT,
+  sh SMALLINT,
+  sf SMALLINT,
+  hp SMALLINT,
+  ci SMALLINT,
+  wpa REAL,
+  stint SMALLINT,
+  ubr REAL,
+  war REAL,
+  FOREIGN KEY (player_id) REFERENCES players(player_id),
+  FOREIGN KEY (team_id) REFERENCES teams(team_id),
   FOREIGN KEY (league_id) REFERENCES leagues(league_id)
 );
 
