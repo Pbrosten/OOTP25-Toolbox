@@ -87,18 +87,18 @@ def load_sql_dumps_into_staging(staging_db, heap_path):
                 sql_dump_to_staging(staging_db, filepath)
 
 def run_migration_short(heap_date, db):
-    with current_app.open_resource(os.path.join('db','sql_scripts','migration_short.sql'), 'r') as f:
+    with current_app.open_resource(os.path.join('db','sql_scripts','migration','migration_short.sql'), 'r') as f:
         sql_script = inject_db_path(f.read(), current_app.config["STAGGING"])
         sql_script = inject_heap_date(sql_script, heap_date)
         db.executescript(sql_script)
 
 def run_migration_long(heap_date, db):
-    with current_app.open_resource(os.path.join('db','sql_scripts','migration_long.sql'), 'r') as f:
+    with current_app.open_resource(os.path.join('db','sql_scripts','migration','migration_long.sql'), 'r') as f:
         sql_script = inject_db_path(f.read(), current_app.config["STAGGING"])
         db.executescript(sql_script)
 
 def fetch_projection_inputs(heap_date, db):
-    with current_app.open_resource(os.path.join('db', 'sql_scripts', 'get_projection_inputs.sql'), 'r') as f:
+    with current_app.open_resource(os.path.join('db', 'sql_scripts','migration','get_projection_inputs.sql'), 'r') as f:
         query = inject_heap_date(f.read(), heap_date)
         cursor = db.execute(query)
     return [dict(row) for row in cursor.fetchall()]
