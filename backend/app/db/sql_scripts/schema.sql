@@ -53,7 +53,6 @@ CREATE TABLE players_career_batting_stats (
   league_id INTEGER,
   level_id SMALLINT,
   split_id SMALLINT,
-  position SMALLINT,
   ab SMALLINT,
   h SMALLINT,
   k SMALLINT,
