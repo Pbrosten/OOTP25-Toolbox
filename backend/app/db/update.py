@@ -91,11 +91,13 @@ def run_migration_short(heap_date, db):
         sql_script = inject_db_path(f.read(), current_app.config["STAGGING"])
         sql_script = inject_heap_date(sql_script, heap_date)
         db.executescript(sql_script)
-
+    db.commit()
+    
 def run_migration_long(heap_date, db):
     with current_app.open_resource(os.path.join('db','sql_scripts','migration','migration_long.sql'), 'r') as f:
         sql_script = inject_db_path(f.read(), current_app.config["STAGGING"])
         db.executescript(sql_script)
+    db.commit()
 
 def fetch_projection_inputs(heap_date, db):
     with current_app.open_resource(os.path.join('db', 'sql_scripts','migration','get_projection_inputs.sql'), 'r') as f:

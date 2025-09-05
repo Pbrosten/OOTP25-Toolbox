@@ -65,5 +65,7 @@ SELECT
     wpa,
     stint,
     ubr,
-    war,
+    war
 FROM stage.players_career_batting_stats;
+
+DETACH DATABASE stage;

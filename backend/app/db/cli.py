@@ -27,7 +27,7 @@ def update_db():
         logger.info("No new heaps found.")
         return
 
-    logger.info(f"Found {len(short_heaps)} new short heap(s) and {len(long_heaps)} new long heap(s).")
+    logger.info(f"Found {len(long_heaps)} new long heap(s) and {len(short_heaps)} new short heap(s).")
     db = get_db()
     logger.info("Migrating long heaps")
     for heap_number, heap in enumerate(long_heaps, 1):
