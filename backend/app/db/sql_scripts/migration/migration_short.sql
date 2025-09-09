@@ -1,23 +1,6 @@
 ATTACH DATABASE '{{STAGGING_DB_PATH}}' AS stage;
 
 -- injection scripts
-INSERT OR IGNORE INTO players
-SELECT
-    player_id,
-    first_name,
-    last_name,
-    date_of_birth,
-    position,
-    height,
-    weight,
-    bats,
-    throws,
-    free_agent,
-    team_id,
-    prone_overall
-FROM stage.players
-WHERE retired = 0;
-
 INSERT OR IGNORE INTO players_rating(player_id, rating_date)
 SELECT
     player_id,

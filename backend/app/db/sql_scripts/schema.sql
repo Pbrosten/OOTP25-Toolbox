@@ -1,4 +1,6 @@
 DROP TABLE IF EXISTS players;
+DROP TABLE IF EXISTS teams;
+DROP TABLE IF EXISTS players_career_batting_stats;
 DROP TABLE IF EXISTS players_rating;
 DROP TABLE IF EXISTS players_batting;
 DROP TABLE IF EXISTS players_basepath;
@@ -16,16 +18,69 @@ CREATE TABLE players (
   player_id INTEGER PRIMARY KEY,
   first_name VARCHAR(50),
   last_name VARCHAR(50),
+  age INTEGER,
   birth_date DATE,
   position VARCHAR(2),  -- e.g., 'P', 'SS' 'CF', etc.
-  height INTEGER,            -- Height in cm
-  weight INTEGER,            -- Weight in pounds
+  height INTEGER, -- Height in cm
+  weight INTEGER, -- Weight in pounds
   bats VARCHAR(1), -- e.g., 'R', 'L', 'S'
   throws VARCHAR(1), -- e.g., 'R', 'L'
   free_agent BOOLEAN,  -- TRUE if current free_agent
   team_id INTEGER,
   prone_overall INTEGER,
-  FOREIGN KEY (team_id) REFERENCES team(team_id)
+  FOREIGN KEY (team_id) REFERENCES teams(team_id)
+);
+
+CREATE TABLE teams (
+  team_id INTEGER PRIMARY KEY,
+  name VARCHAR(50),
+  abbr VARCHAR(50),
+  nickname VARCHAR(50),
+  division_id INTEGER,
+  league_id INTEGER,
+  human_team TINYINT,
+  background_color VARCHAR(8),
+  text_color VARCHAR(8),
+  FOREIGN KEY (division_id) REFERENCES divisions(division_id),
+  FOREIGN KEY (league_id) REFERENCES leagues(league_id)
+);
+
+CREATE TABLE players_career_batting_stats (
+  player_id INTEGER,
+  year SMALLINT,
+  team_id INTEGER,
+  game_id INTEGER,
+  league_id INTEGER,
+  level_id SMALLINT,
+  split_id SMALLINT,
+  ab SMALLINT,
+  h SMALLINT,
+  k SMALLINT,
+  pa SMALLINT,
+  pitches_seen SMALLINT,
+  g SMALLINT,
+  gs SMALLINT,
+  d SMALLINT,
+  t SMALLINT,
+  hr SMALLINT,
+  r SMALLINT,
+  rbi SMALLINT,
+  sb SMALLINT,
+  cs SMALLINT,
+  bb SMALLINT,
+  ibb SMALLINT,
+  gdp SMALLINT,
+  sh SMALLINT,
+  sf SMALLINT,
+  hp SMALLINT,
+  ci SMALLINT,
+  wpa REAL,
+  stint SMALLINT,
+  ubr REAL,
+  war REAL,
+  FOREIGN KEY (player_id) REFERENCES players(player_id),
+  FOREIGN KEY (team_id) REFERENCES teams(team_id),
+  FOREIGN KEY (league_id) REFERENCES leagues(league_id)
 );
 
 CREATE TABLE players_rating (

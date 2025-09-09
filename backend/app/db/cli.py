@@ -22,16 +22,18 @@ def update_db_command():
 
 def update_db():
     logger = current_app.logger
-    heaps = check_new_heaps()
-    if not heaps:
+    short_heaps, long_heaps = check_new_heaps()
+    if not short_heaps and not long_heaps:
         logger.info("No new heaps found.")
         return
 
-    logger.info(f"Found {len(heaps)} new heap(s).")
+    logger.info(f"Found {len(long_heaps)} new long heap(s) and {len(short_heaps)} new short heap(s).")
     db = get_db()
-
-    for heap_number, heap in enumerate(heaps, 1):
-        process_single_heap(heap, heap_number, len(heaps), db, logger)
-
+    logger.info("Migrating long heaps")
+    for heap_number, heap in enumerate(long_heaps, 1):
+        process_single_heap(heap, heap_number, len(short_heaps), db, logger, short_heap=False)
+    logger.info("Migrating short heaps")
+    for heap_number, heap in enumerate(short_heaps, 1):
+        process_single_heap(heap, heap_number, len(short_heaps), db, logger, short_heap=True)
     logger.info("Migration and projection complete!")
     close_db()
