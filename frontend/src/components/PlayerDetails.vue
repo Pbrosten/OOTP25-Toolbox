@@ -1,14 +1,13 @@
 <script setup lang="ts">
-import { ref } from 'vue'
 
-defineProps<{ player_id: number}>()
+defineProps<{ playerId: number}>()
 </script>
 
 <template>
     <a id="player-picture">
       <img src="/baseball.png" class="logo" alt="Player picture" />
     </a>
-    <h1>Player Name {{ player_id }}</h1>
+    <h1>Player Name {{ playerId }}</h1>
     <span>
         <p>Player Position | Bats/Throws: R/R | Height Weight | Age: ##</p>
     </span>
