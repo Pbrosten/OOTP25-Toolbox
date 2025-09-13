@@ -107,7 +107,6 @@ def get_player_career_batting(player_id):
             if rows:
                 # process pulled data here.
                 df = pd.DataFrame([dict(row) for row in rows])
-                print(df.groupby(['year', 'abbr']).sum().reset_index().to_dict(orient='records'))
                 return jsonify(df.groupby(['year', 'abbr']).sum().reset_index().to_dict(orient='records'))
             else:
                 return jsonify({'error': 'Player not found'}), 404
