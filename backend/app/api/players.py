@@ -1,7 +1,7 @@
 import os
 import pandas as pd
 
-from flask import Blueprint, jsonify, current_app
+from flask import Blueprint, jsonify, current_app, request
 from app.db.connection import get_db, close_db
 
 bp = Blueprint('players', __name__, url_prefix='/api/players')
@@ -47,6 +47,33 @@ def get_player_by_id(player_id):
             return jsonify(dict(row))
         else:
             return jsonify({"error": "Player not found"}), 404
+    finally:
+        close_db()
+
+@bp.route('/search', methods=['GET'])
+def search_players():
+    """
+    Search for players based on a query string.
+
+    Query Parameters:
+        - q (str): The search query.
+
+    Returns:
+        JSON response:
+            - A list of players matching the search query.
+    """
+    query = request.args.get('q', '')
+    con = get_db()
+    try:
+        cursor = con.execute("""
+            SELECT p.player_id, p.first_name, p.last_name, p.position, t.abbr AS team_abbr
+            FROM players AS p
+            LEFT JOIN teams AS t ON p.team_id = t.team_id
+            WHERE p.first_name || ' ' || p.last_name LIKE ?
+        """, ('%' + query + '%',))
+        rows = cursor.fetchall()
+        players = [dict(row) for row in rows]
+        return jsonify(players[:5])
     finally:
         close_db()
 
