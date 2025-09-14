@@ -16,9 +16,10 @@ SELECT
     cb.rbi,
     cb.sb,
     cb.bb,
+    cb.hp,
     cb.wpa,
     cb.ubr,
     cb.war
 FROM players_career_batting_stats as cb
 LEFT JOIN teams as t on cb.team_id = t.team_id
-WHERE cb.player_id = ?;
+WHERE cb.player_id = ? AND cb.league_id = 203 AND cb.split_id = 1;
