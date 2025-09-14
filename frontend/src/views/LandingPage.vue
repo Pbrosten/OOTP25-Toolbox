@@ -18,14 +18,14 @@
 
 <script setup>
 import { useRouter } from 'vue-router'
-import ToolCard from '../components/ToolCard.vue'
+import ToolCard from '@/components/ToolCard.vue'
 
 const router = useRouter()
 
 const tools = [
   {
-    title: 'Kyle Shwarber',
-    route: '/players/12'
+    title: 'Player Search',
+    route: '/search'
   }
 ]
 
