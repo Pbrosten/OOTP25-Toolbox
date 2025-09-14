@@ -10,6 +10,7 @@
         v-for="tool in tools"
         :key="tool.title"
         :title="tool.title"
+        :description="tool.description"
         @click="navigateTo(tool.route)"
       />
     </main>
@@ -25,7 +26,13 @@ const router = useRouter()
 const tools = [
   {
     title: 'Player Search',
+    description: 'Search players',
     route: '/search'
+  },
+  {
+    title: 'Team Analytics',
+    description: 'Analyze team performance',
+    route: '/team-analytics'
   }
 ]
 

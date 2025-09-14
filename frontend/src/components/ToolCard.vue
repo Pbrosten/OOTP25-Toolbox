@@ -1,7 +1,7 @@
 <template>
   <div class="tool-card" @click="$emit('card-click')">
     <h2>{{ title }}</h2>
-    <p>Search players</p>
+    <p>{{ description }}</p>
   </div>
 </template>
 
