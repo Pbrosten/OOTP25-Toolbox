@@ -4,19 +4,30 @@ import { ref, onMounted } from 'vue'
 const props = defineProps<{ playerId: number }>()
 
 const playerDetails = ref<any>(null)
+const battingStats = ref<any[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
 
 onMounted(async () => {
+  loading.value = true
+  error.value = null
   try {
-    const response = await fetch(`/api/players/${props.playerId}/details`)
-    if (response.ok) {
-      playerDetails.value = await response.json()
+    // Fetch player details
+    const detailsRes = await fetch(`/api/players/${props.playerId}/details`)
+    if (detailsRes.ok) {
+      playerDetails.value = await detailsRes.json()
     } else {
       error.value = 'Failed to load player details.'
     }
+    // Fetch batting stats
+    const statsRes = await fetch(`/api/players/${props.playerId}/career/batting`)
+    if (statsRes.ok) {
+      battingStats.value = await statsRes.json()
+    } else {
+      error.value = 'Failed to load batting stats.'
+    }
   } catch (err) {
-    error.value = 'Failed to load player details.'
+    error.value = 'Failed to load player data.'
   } finally {
     loading.value = false
   }
@@ -39,19 +50,69 @@ onMounted(async () => {
       </p>
       <p v-else>Player Position | Bats/Throws: R/R | Height Weight | Age: ##</p>
     </span>
-    <div>
-      <ul v-if="playerDetails && playerDetails.battingStats">
-        <li v-for="(stat, idx) in playerDetails.battingStats" :key="idx">
-          {{ stat.year }}: {{ stat.stats }}
-        </li>
-      </ul>
-      <ul v-else>
-        <li>batting stats year -3</li>
-        <li>batting stats year -2</li>
-        <li>batting stats year -1</li>
-        <li>batting career stats</li>
-      </ul>
-    </div>
+    <h2>Career Batting Stats</h2>
+    <table v-if="battingStats.length">
+      <thead>
+        <tr>
+          <th>Year</th>
+          <th>Team</th>
+          <th>PA</th>
+          <th>AB</th>
+          <th>R</th>
+          <th>H</th>
+          <th>HR</th>
+          <th>SB</th>
+          <th>AVG</th>
+          <th>OBP</th>
+          <th>SLG</th>
+          <th>OPS</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="stat in battingStats" :key="stat.year + '-' + stat.abbr">
+          <td>{{ stat.year }}</td>
+          <td>{{ stat.abbr }}</td>
+          <td>{{ stat.pa }}</td>
+          <td>{{ stat.ab }}</td>
+          <td>{{ stat.r }}</td>
+          <td>{{ stat.h }}</td>
+          <td>{{ stat.hr }}</td>
+          <td>{{ stat.sb }}</td>
+          <td>
+            <span v-if="stat.ab > 0">
+              .{{ ((stat.h / stat.ab).toFixed(3)).split('.')[1] }}
+            </span>
+            <span v-else>
+              -
+            </span>
+          </td>
+          <td>
+            <span v-if="stat.pa > 0">
+              .{{ (( (stat.h + stat.bb + stat.hp) / stat.pa ).toFixed(3)).split('.')[1] }}
+            </span>
+            <span v-else>
+              -
+            </span>
+          </td>
+          <td>
+            <span v-if="stat.ab > 0">
+              .{{ (( (stat.h + stat.d + (2 * stat.t) + (3 * stat.hr)) / stat.ab ).toFixed(3)).split('.')[1] }}
+            </span>
+            <span v-else>
+              -
+            </span>
+          </td>
+          <td>
+            <span v-if="stat.pa > 0">
+              .{{ (( ( (stat.h + stat.bb + stat.hp) / stat.pa ) + ( (stat.h + stat.d + (2 * stat.t) + (3 * stat.hr)) / stat.ab ) ).toFixed(3)).split('.')[1] }}
+            </span>
+            <span v-else>
+              -
+            </span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
     <div v-if="loading">Loading...</div>
     <div v-if="error">{{ error }}</div>
   </div>
