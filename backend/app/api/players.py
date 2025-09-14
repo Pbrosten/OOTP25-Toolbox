@@ -77,7 +77,7 @@ def search_players():
     finally:
         close_db()
 
-@bp.route('/details/<int:player_id>', methods=['GET'])
+@bp.route('/<int:player_id>/details', methods=['GET'])
 def get_player_details_by_id(player_id):
     """
     Retrieve the player details for a single player by their unique ID.

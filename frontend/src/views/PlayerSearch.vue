@@ -12,7 +12,12 @@
       <h2>Results:</h2>
       <ul>
         <li v-for="result in filteredResults" :key="result.id">
-          {{ result.first_name }} {{ result.last_name }} | {{ result.position }} | {{ result.team_abbr }}
+          <router-link
+            :to="`/players/${result.player_id}`"
+            class="player-button"
+          >
+            {{ result.first_name }} {{ result.last_name }} | {{ result.position }} | {{ result.team_abbr }}
+          </router-link>
         </li>
       </ul>
     </div>
