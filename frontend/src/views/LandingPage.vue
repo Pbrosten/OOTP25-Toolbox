@@ -6,7 +6,7 @@
     </header>
 
     <main>
-      <PlayerCard
+      <ToolCard
         v-for="tool in tools"
         :key="tool.title"
         :title="tool.title"
@@ -18,7 +18,7 @@
 
 <script setup>
 import { useRouter } from 'vue-router'
-import PlayerCard from '@/components/PlayerCard.vue'
+import ToolCard from '../components/ToolCard.vue'
 
 const router = useRouter()
 
