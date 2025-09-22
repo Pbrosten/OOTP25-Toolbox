@@ -51,7 +51,7 @@ header {
   text-align: center;
   padding: 2rem 0 1rem 0;
   background: var(--color-primary);
-  color: var(--color-tertiary);
+  color: var(--color-text);
   border-radius: 0 0 16px 16px;
   box-shadow: 0 2px 8px rgba(30,41,59,0.08);
 }
