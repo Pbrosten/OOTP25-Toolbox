@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, defineExpose } from 'vue'
 
 const props = defineProps<{ playerId: number }>()
 
@@ -80,6 +80,10 @@ const totals = computed(() => {
     slg,
     ops,
   }
+})
+
+defineExpose({
+  playerDetails
 })
 </script>
 
