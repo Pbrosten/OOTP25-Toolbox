@@ -1,4 +1,5 @@
 import os
+import logging
 import pandas as pd
 
 from flask import Blueprint, jsonify, current_app, request
@@ -137,5 +138,37 @@ def get_player_career_batting(player_id):
                 return jsonify(df.groupby(['year', 'abbr']).sum().reset_index().to_dict(orient='records'))
             else:
                 return jsonify({'error': 'Player not found'}), 404
+    finally:
+        close_db()
+
+@bp.route('/<int:player_id>/ratings', methods=['GET'])
+def get_player_ratings(player_id):
+    """Retrieve the player rating ids for a single player by their unique id
+
+    Args:
+        player_id (int): The ID of the player to retrieve.
+
+    Returns:
+        JSON response:
+            - List of rating ids if found.
+            - Singleton list of most recent rating id.
+            - 404 errror if not found.
+    """
+    logger = logging.getLogger('api-testing')
+    con = get_db()
+    try:
+        latest = request.args.get('latest', 'false').lower() == 'true'
+
+        with current_app.open_resource(os.path.join('db','sql_scripts', 'api', 'get_player_ratings.sql'), 'r') as f:
+            cursor = con.execute(f.read(), (player_id,))
+            rows = cursor.fetchall()
+
+            if rows:
+                if latest:
+                    return jsonify(dict(rows[0]))
+                else:
+                    return jsonify([dict(row) for row in rows])
+            else:
+                return jsonify({"error": "Player ratings not found"}), 404
     finally:
         close_db()
