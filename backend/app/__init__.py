@@ -40,7 +40,8 @@ def create_app():
     db.init_app(app)
 
     # Register API Blueprints
-    from app.api import players#...
+    from app.api import players, projections
     app.register_blueprint(players.bp)
+    app.register_blueprint(projections.bp)
     
     return app

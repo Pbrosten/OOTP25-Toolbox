@@ -23,7 +23,7 @@ def get_expected_batting_stats():
         close_db()
 
 @bp.route('/batting/<int:rating_id>', methods=['GET'])
-def get_expected_batting_stats_by_id(player_id):
+def get_expected_batting_stats_by_id(rating_id):
     """
     Retrieve a single player batting projected stats by their unique ID.
 
@@ -37,7 +37,7 @@ def get_expected_batting_stats_by_id(player_id):
     """
     con = get_db()
     try:
-        cursor = con.execute("SELECT * FROM players_batting_expected WHERE player_id = ?", (rating_id,))
+        cursor = con.execute("SELECT * FROM players_batting_expected WHERE rating_id = ?", (rating_id,))
         row = cursor.fetchone()
         if row:
             return jsonify(dict(row))
@@ -65,7 +65,7 @@ def get_expected_basepath_stats():
         close_db()
 
 @bp.route('/basepath/<int:rating_id>', methods=['GET'])
-def get_expected_basepath_stats_by_id(player_id):
+def get_expected_basepath_stats_by_id(rating_id):
     """
     Retrieve a single player basepath projected stats by their unique ID.
 
@@ -79,7 +79,7 @@ def get_expected_basepath_stats_by_id(player_id):
     """
     con = get_db()
     try:
-        cursor = con.execute("SELECT * FROM players_basepath_expected WHERE player_id = ?", (rating_id,))
+        cursor = con.execute("SELECT * FROM players_basepath_expected WHERE rating_id = ?", (rating_id,))
         row = cursor.fetchone()
         if row:
             return jsonify(dict(row))
@@ -107,7 +107,7 @@ def get_expected_fielding_stats():
         close_db()
 
 @bp.route('/fielding/<int:rating_id>', methods=['GET'])
-def get_expected_fielding_stats_by_id(player_id):
+def get_expected_fielding_stats_by_id(rating_id):
     """
     Retrieve a single player fielding projected stats by their unique ID.
 
@@ -121,7 +121,7 @@ def get_expected_fielding_stats_by_id(player_id):
     """
     con = get_db()
     try:
-        cursor = con.execute("SELECT * FROM players_fielding_expected WHERE player_id = ?", (rating_id,))
+        cursor = con.execute("SELECT * FROM players_fielding_expected WHERE rating_id = ?", (rating_id,))
         row = cursor.fetchone()
         if row:
             return jsonify(dict(row))
