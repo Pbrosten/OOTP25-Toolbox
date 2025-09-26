@@ -2,7 +2,7 @@
 import { ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import PlayerDetails from '@/components/PlayerDetails.vue'
-import BatterPercentiles from '@/components/percentiles/BatterPercentiles'
+import BatterPercentiles from '@/components/percentiles/BatterPercentiles.vue'
 
 const route = useRoute()
 const playerId = Number(route.params.id)
@@ -22,7 +22,7 @@ watch(
 <template>
   <div>
     <PlayerDetails ref="playerDetailsRef" :playerId="playerId" />
-    <PitcherPercentiles v-if="playerDetailsRef.position === 'P'" :playerId="playerId"/>
-    <BatterPercentiles v-else :playerId="playerId"/>
+    <!-- <PitcherPercentiles v-if="playerDetailsRef.position === 'P'" :playerId="playerId"/> -->
+    <BatterPercentiles :playerId="playerId"/> 
   </div>
 </template>
