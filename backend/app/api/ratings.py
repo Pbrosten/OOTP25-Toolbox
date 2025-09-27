@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify
 from app.db.connection import get_db, close_db
 
-bp = Blueprint('ratings', __name__, url_prefix='/api/ratings')
+bp = Blueprint('ratings', __name__, url_prefix='/api/players/ratings')
 
 ################################# RATINGS ##################################
 @bp.route('', methods=['GET'])
