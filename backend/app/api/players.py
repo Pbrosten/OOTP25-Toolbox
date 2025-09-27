@@ -133,9 +133,7 @@ def get_player_career_batting(player_id):
             cursor = con.execute(f.read(), (player_id,))
             rows = cursor.fetchall()
             if rows:
-                # process pulled data here.
-                df = pd.DataFrame([dict(row) for row in rows])
-                return jsonify(df.groupby(['year', 'abbr']).sum().reset_index().to_dict(orient='records'))
+                return jsonify([dict(row) for row in rows])
             else:
                 return jsonify({'error': 'Player not found'}), 404
     finally:

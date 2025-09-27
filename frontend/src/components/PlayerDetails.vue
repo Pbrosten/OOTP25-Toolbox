@@ -12,20 +12,23 @@ onMounted(async () => {
   loading.value = true
   error.value = null
   try {
-    // Fetch player details
-    const detailsRes = await fetch(`/api/players/${props.playerId}/details`)
+    const [detailsRes, statsRes] = await Promise.all([
+      fetch(`/api/players/${props.playerId}/details`),
+      fetch(`/api/players/${props.playerId}/career/batting`)
+    ])
+
     if (detailsRes.ok) {
       playerDetails.value = await detailsRes.json()
     } else {
       error.value = 'Failed to load player details.'
     }
-    // Fetch batting stats
-    const statsRes = await fetch(`/api/players/${props.playerId}/career/batting`)
+
     if (statsRes.ok) {
       battingStats.value = await statsRes.json()
     } else {
       error.value = 'Failed to load batting stats.'
     }
+
   } catch (err) {
     error.value = 'Failed to load player data.'
   } finally {
