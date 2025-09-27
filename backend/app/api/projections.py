@@ -1,4 +1,6 @@
-from flask import Blueprint, jsonify
+import os
+
+from flask import Blueprint, jsonify, current_app
 from app.db.connection import get_db, close_db
 
 bp = Blueprint('projections', __name__, url_prefix='/api/players/stats/expected')
@@ -43,6 +45,28 @@ def get_expected_batting_stats_by_id(rating_id):
             return jsonify(dict(row))
         else:
             return jsonify({"error": "Player projection not found"}), 404
+    finally:
+        close_db()
+
+@bp.route('/batting/<int:rating_id>/percentiles', methods=['GET'])
+def get_expected_batting_percentiles(rating_id):
+    """
+    Retrieve a single player batting projected percentiles by their unique ID..
+
+    Returns:
+        JSON response:
+            - Player projection record if found.
+            - 404 error if not found.
+    """
+    con = get_db()
+    try:
+        with current_app.open_resource(os.path.join('db', 'sql_scripts', 'api', 'get_player_expected_batting_percentiles.sql'), 'r') as f:
+            cursor = con.execute(f.read(), (rating_id, rating_id))
+            columns = [desc[0] for desc in cursor.description]
+            row = cursor.fetchone()
+            result = dict(zip(columns, row))
+            return jsonify(result)
+
     finally:
         close_db()
     
