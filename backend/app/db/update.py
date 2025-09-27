@@ -13,7 +13,7 @@ from .projection import process_player, update_projection_batches
 
 def process_single_heap(heap_path, heap_index, total_heaps, db, logger, short_heap=True):
     heap_date = extract_heap_date_from_path(heap_path)
-    logger.info(f"[{heap_index}/{total_heaps}] Processing short heap: {heap_date[1]}_{heap_date[2]}")
+    logger.info(f"[{heap_index}/{total_heaps}] Processing {'short' if short_heap else 'long'} heap: {heap_date[1]}_{heap_date[2]}")
     staging_db = connect_staging_db()
     try:
         load_sql_dumps_into_staging(staging_db, heap_path)
