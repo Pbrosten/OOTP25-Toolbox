@@ -87,6 +87,7 @@ CREATE TABLE players_rating (
   rating_id INTEGER PRIMARY KEY AUTOINCREMENT,
   player_id INTEGER,
   rating_date DATE,
+  league_id INTEGER,
   FOREIGN KEY (player_id) REFERENCES players(player_id),
   UNIQUE(player_id, rating_date)
 );

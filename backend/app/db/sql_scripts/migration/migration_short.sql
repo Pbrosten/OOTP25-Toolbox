@@ -1,12 +1,14 @@
 ATTACH DATABASE '{{STAGGING_DB_PATH}}' AS stage;
 
 -- injection scripts
-INSERT OR IGNORE INTO players_rating(player_id, rating_date)
+INSERT OR IGNORE INTO players_rating(player_id, rating_date, league_id)
 SELECT
-    player_id,
-    '{{HEAP_DATE}}'
-FROM stage.players
-WHERE retired = 0;
+    p.player_id,
+    '{{HEAP_DATE}}',
+    t.league_id
+FROM stage.players AS p
+JOIN stage.teams AS t ON p.team_id = t.team_id
+WHERE p.retired = 0;
 
 INSERT OR IGNORE INTO players_batting
 SELECT
