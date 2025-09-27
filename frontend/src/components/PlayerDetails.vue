@@ -89,9 +89,9 @@ defineExpose({
 
 <template>
   <div>
-    <a id="player-picture">
+    <!-- <a id="player-picture">
       <img src="/baseball.png" class="logo" alt="Player picture" />
-    </a>
+    </a> -->
     <h1>
       <span v-if="playerDetails"> {{ playerDetails.first_name}} {{ playerDetails.last_name }} </span>
       <span v-else> {{ playerId }} </span>
