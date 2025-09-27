@@ -69,7 +69,7 @@ SELECT
     (
       SELECT COUNT(*) * 1.0
       FROM ratings_filtered
-      WHERE babip < target_rate.gap AND gap IS NOT NULL
+      WHERE babip < target_rate.babip AND babip IS NOT NULL
     ) * 100  /
     (
       SELECT COUNT(*) FROM ratings_filtered WHERE babip IS NOT NULL
@@ -91,10 +91,10 @@ SELECT
     (
       SELECT COUNT(*) * 1.0
       FROM ratings_filtered
-      WHERE power < target_rate.gap AND power IS NOT NULL
+      WHERE power < target_rate.power AND power IS NOT NULL
     ) * 100  /
     (
-      SELECT COUNT(*) FROM ratings_filtered WHERE gap IS NOT NULL
+      SELECT COUNT(*) FROM ratings_filtered WHERE power IS NOT NULL
     )
    ) AS swing_speed,
 
@@ -102,10 +102,10 @@ SELECT
     (
       SELECT COUNT(*) * 1.0
       FROM ratings_filtered
-      WHERE eye < target_rate.gap AND eye IS NOT NULL
+      WHERE eye < target_rate.eye AND eye IS NOT NULL
     ) * 100  /
     (
-      SELECT COUNT(*) FROM ratings_filtered WHERE gap IS NOT NULL
+      SELECT COUNT(*) FROM ratings_filtered WHERE eye IS NOT NULL
     )
    ) AS chase_rate,
 
@@ -113,10 +113,10 @@ SELECT
     (
       SELECT COUNT(*) * 1.0
       FROM ratings_filtered
-      WHERE strikeouts < target_rate.gap AND strikeouts IS NOT NULL
+      WHERE strikeouts < target_rate.strikeouts AND strikeouts IS NOT NULL
     ) * 100 / 
     (
-      SELECT COUNT(*) FROM ratings_filtered WHERE gap IS NOT NULL
+      SELECT COUNT(*) FROM ratings_filtered WHERE strikeouts IS NOT NULL
     )
    ) AS whiff_rate
 
