@@ -175,3 +175,25 @@ def get_expected_fielding_stats_by_id(rating_id):
             return jsonify({"error": "Player projection not found"}), 404
     finally:
         close_db()
+
+@bp.route('/fielding/<int:rating_id>/percentiles', methods=['GET'])
+def get_expected_fielding_percentiles(rating_id):
+    """
+    Retrieve a single player fielding projected percentiles by their unique ID..
+
+    Returns:
+        JSON response:
+            - Player projection record if found.
+            - 404 error if not found.
+    """
+    con = get_db()
+    try:
+        with current_app.open_resource(os.path.join('db', 'sql_scripts', 'api', 'get_player_expected_fielding_percentiles.sql'), 'r') as f:
+            cursor = con.execute(f.read(), {'provided_rating_id': rating_id})
+            columns = [desc[0] for desc in cursor.description]
+            row = cursor.fetchone()
+            result = dict(zip(columns, row))
+            return jsonify(result)
+
+    finally:
+        close_db()
