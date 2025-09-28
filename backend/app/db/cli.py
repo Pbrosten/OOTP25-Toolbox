@@ -31,9 +31,9 @@ def update_db():
     db = get_db()
     logger.info("Migrating long heaps")
     for heap_number, heap in enumerate(long_heaps, 1):
-        process_single_heap(heap, heap_number, len(short_heaps), db, logger, short_heap=False)
+        process_single_heap(heap, heap_number, len(short_heaps), db, short_heap=False)
     logger.info("Migrating short heaps")
     for heap_number, heap in enumerate(short_heaps, 1):
-        process_single_heap(heap, heap_number, len(short_heaps), db, logger, short_heap=True)
+        process_single_heap(heap, heap_number, len(short_heaps), db, short_heap=True)
     logger.info("Migration and projection complete!")
     close_db()

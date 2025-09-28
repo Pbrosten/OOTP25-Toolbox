@@ -1,5 +1,6 @@
 import os
 import sqlite3
+import logging
 from datetime import date
 
 from pathlib import Path
@@ -11,7 +12,9 @@ from .stagging import sql_dump_to_staging, DUMP_INCLUSION_LIST
 from .migration import inject_db_path, inject_heap_date
 from .projection import process_player, update_projection_batches
 
-def process_single_heap(heap_path, heap_index, total_heaps, db, logger, short_heap=True):
+logger =  logging.getLogger('api/db/update')
+
+def process_single_heap(heap_path, heap_index, total_heaps, db, short_heap=True):
     heap_date = extract_heap_date_from_path(heap_path)
     logger.info(f"[{heap_index}/{total_heaps}] Processing {'short' if short_heap else 'long'} heap: {heap_date[1]}_{heap_date[2]}")
     staging_db = connect_staging_db()
