@@ -29,21 +29,21 @@ onMounted(async () => {
 
         const ratingId = playerRating.value.rating_id
         // Fetch expected batting stats
-        const batRes = await fetch(`/api/players/stats/expected/batting/${ratingId}`)
+        const batRes = await fetch(`/api/players/stats/expected/batting/${ratingId}/percentiles`)
         if (batRes.ok) {
             xStatsBat.value = await batRes.json()
         } else {
             error.value = 'Failed to load expected batting stats.'
         }
         // Fetch expected batting stats
-        const runRes = await fetch(`/api/players/stats/expected/basepath/${ratingId}`)
+        const runRes = await fetch(`/api/players/stats/expected/basepath/${ratingId}/percentiles`)
         if (runRes.ok) {
             xStatsRun.value = await runRes.json()
         } else {
             error.value = 'Failed to load expected basepath stats.'
         }
         // Fetch expected batting stats
-        const fieldRes = await fetch(`/api/players/stats/expected/fielding/${ratingId}`)
+        const fieldRes = await fetch(`/api/players/stats/expected/fielding/${ratingId}/percentiles`)
         if (fieldRes.ok) {
             xStatsField.value = await fieldRes.json()
         } else {
