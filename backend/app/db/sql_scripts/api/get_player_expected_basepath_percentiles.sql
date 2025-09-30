@@ -49,7 +49,7 @@ SELECT
     (
       SELECT COUNT(*) FROM ratings_filtered WHERE baserunning IS NOT NULL
     )
-   ) AS baserunning_value
+   ) AS extra_base_taken
 
 
 FROM players_basepath AS target_rate 

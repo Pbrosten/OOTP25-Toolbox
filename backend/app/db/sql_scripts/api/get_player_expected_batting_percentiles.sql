@@ -40,7 +40,7 @@ SELECT
     (
       SELECT COUNT(*) FROM expected_filtered WHERE AVG IS NOT NULL
     )
-   ) AS xBA,
+   ) AS xba_percentile,
 
   ROUND(
     (
@@ -51,7 +51,7 @@ SELECT
     (
       SELECT COUNT(*) FROM expected_filtered WHERE SLG IS NOT NULL
     )
-   ) AS xSLG,
+   ) AS xslg_percentile,
 
   ROUND(
     (
@@ -62,7 +62,7 @@ SELECT
     (
       SELECT COUNT(*) FROM expected_filtered WHERE wOBA IS NOT NULL
     )
-   ) AS xWOBA,
+   ) AS xwoba_percentile,
 
   -- Rating based percentiles
   ROUND(
@@ -74,7 +74,7 @@ SELECT
     (
       SELECT COUNT(*) FROM ratings_filtered WHERE babip IS NOT NULL
     )
-   ) AS xBABIP,
+   ) AS xbabip_percentile,
 
   ROUND(
     (
