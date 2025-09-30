@@ -1,46 +1,4 @@
-<template>
-  <div>
-    <div v-if="loading">Loading...</div>
-    <div v-else-if="error">{{ error }}</div>
-    <div v-else>
-      <h2>Percentiles</h2>
-
-      <div v-if="xStatsBat">
-        <h3>Batting</h3>
-        <template v-for="(value, key) in xStatsBat" :key="key">
-          <PercentileBar
-            v-if="isValidPercentile(value)"
-            :label="String(key)"
-            :percentile="Number(value)"
-          />
-        </template>
-      </div>
-
-      <div v-if="xStatsRun">
-        <h3>Base Running</h3>
-        <template v-for="(value, key) in xStatsRun" :key="key">
-          <PercentileBar
-            v-if="isValidPercentile(value)"
-            :label="String(key)"
-            :percentile="Number(value)"
-          />
-        </template>
-      </div>
-
-      <div v-if="filteredFieldingPercentiles">
-        <h3>Fielding</h3>
-        <template v-for="(value, key) in filteredFieldingPercentiles" :key="key">
-            <PercentileBar
-            :label="String(key)"
-            :percentile="Number(value)"
-            />
-        </template>
-        </div>
-    </div>
-  </div>
-</template>
-
-<script setup lang="ts">
+<script setup lang='ts'>
 import { ref, onMounted, computed } from 'vue'
 import PercentileBar from './PercentileBar.vue'
 
@@ -61,6 +19,62 @@ const positionGroupFields = {
     'outfield_range_percentile',
     'fielding_value_percentile',
   ],
+}
+
+const statLabelMap: Record<string, string> = {
+  xwoba_percentile: 'xwOBA',
+  xba_percentile: 'xBA',
+  xslg_percentile: 'xSLG',
+  xbabip_percentile: 'xBABIP',
+  barrel_rate: 'Barrel %',
+  swing_speed: 'Bat Speed',
+  chase_rate: 'Chase %',
+  whiff_rate: 'Whiff %',
+  sprint_speed: 'Sprint Speed',
+  steal_value: 'Stealing Value',
+  extra_base_taken: 'Extra Bases',
+  fielding_value_percentile: 'Fielding Value',
+  catcher_arm_percentile: 'Arm Value',
+  catcher_framing_percentile: 'Framing',
+  infield_arm_percentile: 'Arm Value',
+  infield_range_percentile: 'Range Value',
+  outfield_arm_percentile: 'Arm Value',
+  outfield_range_percentile: 'Range Value',
+
+}
+
+const battingOrder = [
+  'xwoba_percentile',
+  'xba_percentile',
+  'xslg_percentile',
+  'xbabip_percentile',
+  'barrel_rate',
+  'swing_speed',
+  'chase_rate',
+  'whiff_rate',
+]
+const basepathOrder = [
+  'sprint_speed',
+  'steal_value',
+  'extra_base_taken',
+]
+const fieldOrder = [
+  'catcher_framing_percentile',
+  'infield_range_percentile',
+  'outfield_range_percentile',
+  'catcher_arm_percentile',
+  'infield_arm_percentile',
+  'outfield_arm_percentile',
+]
+
+function sortedEntries(obj: any, order: string[]) {
+  return order
+    .map(key => [key, obj[key]])
+    .filter(([_, value]) => isValidPercentile(value))
+}
+
+function getStatLabel(key: string): string {
+  return statLabelMap[key] || key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 }
 
 const playerRating = ref<any>(null)
@@ -152,3 +166,40 @@ const filteredFieldingPercentiles = computed(() => {
   )
 })
 </script>
+
+<template>
+  <div class="percentiles-wrapper">
+    <div v-if='loading'>Loading...</div>
+    <div v-else-if='error'>{{ error }}</div>
+    <div v-else>
+      <h2>Percentiles</h2>
+
+      <div v-if='xStatsBat'>
+        <h3>Batting</h3>
+        <template v-for="[key, value] in sortedEntries(xStatsBat, battingOrder)" :key="key">
+          <PercentileBar :label="getStatLabel(key)" :percentile="Number(value)" />
+        </template>
+      </div>
+
+      <div v-if='xStatsRun'>
+        <h3>Base Running</h3>
+        <template v-for="[key, value] in sortedEntries(xStatsRun, basepathOrder)" :key="key">
+          <PercentileBar :label="getStatLabel(key)" :percentile="Number(value)" />
+        </template>
+      </div>
+
+      <div v-if='filteredFieldingPercentiles'>
+        <h3>Fielding</h3>
+        <template v-for="[key, value] in sortedEntries(filteredFieldingPercentiles, fieldOrder)" :key="key">
+          <PercentileBar :label="getStatLabel(key)" :percentile="Number(value)" />
+        </template>
+        </div>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.percentiles-wrapper {
+  width: 100%;
+}
+</style>
