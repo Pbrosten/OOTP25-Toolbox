@@ -1,15 +1,3 @@
-<template>
-  <div class="percentile-bar">
-    <div class="label">{{ label }}</div>
-    <div class="bar-container">
-      <div
-        class="bar"
-        :style="{ width: percentile, backgroundColor: computedColor }"
-      ></div>
-      <div class="percentile-text">{{ percentile }}%</div>
-    </div>
-  </div>
-</template>
 
 <script>
 export default {
@@ -22,28 +10,32 @@ export default {
     percentile: {
       type: Number,
       required: true,
+      validator(val) {
+        return val >= 0 && val <= 100
+      },
     },
   },
   computed: {
     computedColor() {
-      const percent = this.percentile / 100
+      // Normalize to [0,1]
+      const p = this.percentile / 100
 
-      // Define colors
-      const high = [216, 33, 41]     // red
-      const mid = [180, 207, 209]    // light blue/gray
+      // Color anchors (rgb arrays)
+      const high = [216, 33, 41]     // red-ish
+      const mid = [180, 207, 209]    // neutral / light blue–gray
       const low = [54, 97, 173]      // deep blue
 
       let r, g, b
 
-      if (percent >= 0.5) {
-        // Interpolate from mid to high
-        const t = (percent - 0.5) * 2
+      if (p >= 0.5) {
+        // Interpolate from mid → high
+        const t = (p - 0.5) * 2  // maps 0.5→0 to 1.0→1
         r = Math.round(mid[0] + t * (high[0] - mid[0]))
         g = Math.round(mid[1] + t * (high[1] - mid[1]))
         b = Math.round(mid[2] + t * (high[2] - mid[2]))
       } else {
-        // Interpolate from low to mid
-        const t = percent * 2
+        // Interpolate from low → mid
+        const t = p * 2  // maps 0→0 to 0.5→1
         r = Math.round(low[0] + t * (mid[0] - low[0]))
         g = Math.round(low[1] + t * (mid[1] - low[1]))
         b = Math.round(low[2] + t * (mid[2] - low[2]))
@@ -55,14 +47,35 @@ export default {
 }
 </script>
 
+<template>
+  <div class="percentile-bar">
+    <div class="label">{{ label }}</div>
+    <div class="bar-container">
+      <div
+        class="bar"
+        :style="{
+          width: percentile + '%',
+          backgroundColor: computedColor
+        }"
+      ></div>
+      <div class="percentile-text">{{ percentile }}%</div>
+    </div>
+  </div>
+</template>
+
 <style scoped>
 .percentile-bar {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  align-items: center;
+  gap: 12px;
   margin: 12px 0;
+  width: 100%;
 }
 
 .label {
+  white-space: nowrap;
   font-weight: bold;
-  margin-bottom: 4px;
   font-size: 14px;
 }
 
@@ -72,6 +85,7 @@ export default {
   height: 28px;
   border-radius: 6px;
   overflow: hidden;
+  width: 100%;
 }
 
 .bar {
