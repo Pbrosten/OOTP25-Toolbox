@@ -91,7 +91,7 @@ defineExpose({
 </script>
 
 <template>
-  <div>
+  <div class="player-details-container">
     <!-- <a id="player-picture">
       <img src="/baseball.png" class="logo" alt="Player picture" />
     </a> -->
@@ -207,3 +207,15 @@ defineExpose({
     <div v-if="error">{{ error }}</div>
   </div>
 </template>
+
+<style scoped>
+.player-details-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 1rem;
+  box-sizing: border-box;
+  width: 100%;
+}
+</style>
