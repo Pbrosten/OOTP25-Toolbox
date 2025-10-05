@@ -161,6 +161,7 @@ def get_player_ratings(player_id):
 
     Args:
         player_id (int): The ID of the player to retrieve.
+        latest (bool): query arg for returning latest ratings
 
     Returns:
         JSON response:
