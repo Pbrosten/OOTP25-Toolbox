@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed} from 'vue'
 import { useRoute } from 'vue-router'
 import PlayerDetails from '@/components/PlayerDetails.vue'
 import BatterPercentiles from '@/components/percentiles/BatterPercentiles.vue'
@@ -10,8 +10,11 @@ const playerId = Number(route.params.id)
 
 const playerDetailsRef = ref<InstanceType<typeof PlayerDetails> | null>(null)
 
-const position = computed(() => playerDetailsRef.value?.playerDetails?.position ?? null)
-const leagueId = computed(() => playerDetailsRef.value?.PlayerDetails?.league_id ?? null)
+const playerDetails = computed(() => playerDetailsRef.value?.playerDetails ?? null)
+const position = computed(() => playerDetails.value?.position ?? null)
+const leagueId = computed(() => playerDetails.value?.league_id ?? null)
+
+const PitcherPercentiles = {}
 </script>
 
 <template>
@@ -19,14 +22,14 @@ const leagueId = computed(() => playerDetailsRef.value?.PlayerDetails?.league_id
     <div class="profile-container">
         <PlayerDetails ref="playerDetailsRef" :playerId="playerId" class="player-details"/>
 
-        <!-- <template v-if="position === 'P'">
-          <PitcherPercentiles :playerId="playerId" />
-        </template> -->
-
-        <template v-if="position">
-          <BatterPercentiles :playerId="playerId" :leagueId="leagueId" class="batter-percentiles"/>
+        <template v-if="playerDetails">
+          <template v-if="position === 'P'">
+            <PitcherPercentiles :playerId="playerId"/>
+          </template>
+          <template v-else>
+            <BatterPercentiles :playerId="playerId" :leagueId="leagueId" class="batter-percentiles"/>
+          </template>
         </template>
-
         <template v-else>
           <div>Loading player profile...</div>
         </template>
