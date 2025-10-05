@@ -1,7 +1,7 @@
 WITH target_player AS (
   SELECT r.rating_id, r.rating_date, r.league_id
   FROM players_rating r
-  WHERE r.rating_id = ?
+  WHERE r.rating_id = :rating_id
 ),
 
 -- Expected Stats Comparison Group
@@ -122,4 +122,4 @@ SELECT
 
 FROM players_batting_expected AS target_exp
 JOIN players_batting AS target_rate ON target_exp.rating_id = target_rate.rating_id
-WHERE target_exp.rating_id = ?;
+WHERE target_exp.rating_id = :rating_id;

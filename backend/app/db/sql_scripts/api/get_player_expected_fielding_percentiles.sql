@@ -14,7 +14,7 @@ WITH target_player AS (
     END AS position_group
   FROM players_rating pr
   JOIN players p ON pr.player_id = p.player_id
-  WHERE pr.rating_id = :provided_rating_id
+  WHERE pr.rating_id = :rating_id
 ),
 
 target_value AS (

@@ -1,7 +1,7 @@
 WITH target_player AS (
   SELECT r.rating_id, r.rating_date, r.league_id
   FROM players_rating r
-  WHERE r.rating_id = ?
+  WHERE r.rating_id = :rating_id
 ),
 
 -- Ratings Comparison Group
@@ -53,4 +53,4 @@ SELECT
 
 
 FROM players_basepath AS target_rate 
-WHERE target_rate.rating_id = ?;
+WHERE target_rate.rating_id = :rating_id;
