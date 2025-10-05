@@ -13,6 +13,8 @@ SELECT
     SUM(cb.t) AS t
 FROM players_career_batting_stats cb
 LEFT JOIN teams t ON cb.team_id = t.team_id
-WHERE cb.player_id = ? AND cb.league_id = 203 AND cb.split_id = 1
+WHERE cb.player_id = :player_id
+  AND cb.split_id = 1
+  AND cb.league_id != 203
 GROUP BY cb.year, t.abbr
 ORDER BY cb.year DESC;
