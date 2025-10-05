@@ -77,6 +77,7 @@ const loading = ref(true)
 const error = ref<string | null>(null)
 
 const mlbComp = ref<boolean>(props.leagueId==203)
+const mlbLock = computed(() => props.leagueId === 203)
 
 onMounted(() => {
   fetchPercentiles()
@@ -175,12 +176,18 @@ const filteredFieldingPercentiles = computed(() => {
         <h2 class="text-lg font-semibold">Percentiles</h2>
         <Switch
           v-model="mlbComp"
-          :class="mlbComp ? 'bg-teal-800' : 'bg-gray-200'"
-          class="relative inline-flex h-6 w-11 items-center rounded-full"
+          :class="[
+            'relative inline-flex h-6 w-11 items-center rounded-full',
+            mlbComp ? 'bg-teal-800' : 'bg-gray-200',
+            mlbLock ? 'cursor-not-allowed opacity-60' : ''
+          ]"
+          :disabled="mlbLock"
         >
           <span
-            :class="mlbComp ? 'translate-x-6' : 'translate-x-1'"
-            class="inline-block h-4 w-4 transform rounded-full bg-white transition"
+            :class="[
+              'inline-block h-4 w-4 transform rounded-full bg-white transition',
+              mlbComp ? 'translate-x-6' : 'translate-x-1'
+            ]"
           />
         </Switch>
         <span class="text-sm font-medium text-gray-700">Compare to MLB</span>
