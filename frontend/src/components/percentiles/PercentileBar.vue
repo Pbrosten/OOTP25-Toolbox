@@ -82,7 +82,7 @@ export default {
 .bar-container {
   position: relative;
   background: #e0e0e0;
-  height: 28px;
+  height: 20px;
   border-radius: 6px;
   overflow: hidden;
   width: 100%;
