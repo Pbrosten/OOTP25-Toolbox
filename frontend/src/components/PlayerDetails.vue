@@ -101,7 +101,12 @@ defineExpose({
       <span v-else>Player Position | Bats/Throws: R/R | Height Weight | Age: ##</span>
     </p>
 
-    <h2 class="text-2xl font-semibold mb-4">Career Batting Stats</h2>
+    <h2 class="text-2xl font-semibold mb-4">
+      Career Batting Stats
+      <span v-if="playerDetails">
+        ({{ playerDetails.league_id === 203 ? 'MLB' : 'MiLB' }})
+      </span>
+    </h2>
     <table class="w-full max-w-4xl table-auto border-collapse text-sm mb-6">
       <thead>
         <tr class="bg-gray-200 text-gray-700">
