@@ -12,7 +12,12 @@ expected_filtered AS (
   JOIN players AS p ON r.player_id = p.player_id
   JOIN target_player AS t 
     ON r.rating_date = t.rating_date
-    AND r.league_id = t.league_id
+    AND (
+        CASE 
+          WHEN :is_mlb THEN r.league_id = 203
+          ELSE r.league_id = t.league_id
+        END
+   )
   WHERE p.position != 'P'
 ),
 
@@ -24,7 +29,12 @@ ratings_filtered AS (
   JOIN players AS p ON r.player_id = p.player_id
   JOIN target_player AS t 
     ON r.rating_date = t.rating_date
-    AND r.league_id = t.league_id
+    AND (
+        CASE 
+          WHEN :is_mlb THEN r.league_id = 203
+          ELSE r.league_id = t.league_id
+        END
+   )
   WHERE p.position != 'P'
 )
 

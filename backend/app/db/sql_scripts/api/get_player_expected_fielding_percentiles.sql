@@ -88,7 +88,12 @@ catcher_cohort AS (
   JOIN players_fielding f ON pr.rating_id = f.rating_id
   JOIN target_value tv
     ON pr.rating_date = tv.rating_date
-   AND pr.league_id = tv.league_id
+   AND (
+        CASE 
+          WHEN :is_mlb THEN pr.league_id = 203
+          ELSE pr.league_id = tv.league_id
+        END
+   )
   WHERE p.position = 'C' AND p.age >= 20
 ),
 
@@ -102,7 +107,12 @@ infielder_cohort AS (
   JOIN players_fielding f ON pr.rating_id = f.rating_id
   JOIN target_value tv
     ON pr.rating_date = tv.rating_date
-   AND pr.league_id = tv.league_id
+   AND (
+        CASE 
+          WHEN :is_mlb THEN pr.league_id = 203
+          ELSE pr.league_id = tv.league_id
+        END
+   )
   WHERE p.position in ('1B', '2B', '3B', 'SS') AND p.age >= 20
 ),
 
@@ -116,7 +126,12 @@ outfielder_cohort AS (
   JOIN players_fielding f ON pr.rating_id = f.rating_id
   JOIN target_value tv
     ON pr.rating_date = tv.rating_date
-   AND pr.league_id = tv.league_id
+   AND (
+        CASE 
+          WHEN :is_mlb THEN pr.league_id = 203
+          ELSE pr.league_id = tv.league_id
+        END
+   )
   WHERE p.position in ('LF', 'CF', 'RF') AND p.age >= 20
 )
 
