@@ -102,47 +102,42 @@ defineExpose({
     </p>
 
     <h2 class="text-2xl font-semibold mb-4">Career Batting Stats</h2>
-
-    <table v-if="recentStats.length" class="w-full max-w-4xl table-auto border-collapse text-sm mb-6">
+    <table class="w-full max-w-4xl table-auto border-collapse text-sm mb-6">
       <thead>
         <tr class="bg-gray-200 text-gray-700">
           <th class="px-2 py-1">Year</th>
           <th class="px-2 py-1">Team</th>
-          <th class="px-2 py-1">PA</th>
-          <th class="px-2 py-1">AB</th>
-          <th class="px-2 py-1">R</th>
-          <th class="px-2 py-1">H</th>
+          <th class="hidden sm:table-cell px-2 py-1">PA</th>
+          <th class="hidden sm:table-cell px-2 py-1">AB</th>
+          <th class="hidden sm:table-cell px-2 py-1">R</th>
+          <th class="hidden sm:table-cell px-2 py-1">H</th>
           <th class="px-2 py-1">HR</th>
           <th class="px-2 py-1">SB</th>
           <th class="px-2 py-1">AVG</th>
-          <th class="px-2 py-1">OBP</th>
-          <th class="px-2 py-1">SLG</th>
+          <th class="hidden sm:table-cell px-2 py-1">OBP</th>
+          <th class="hidden sm:table-cell px-2 py-1">SLG</th>
           <th class="px-2 py-1">OPS</th>
         </tr>
       </thead>
       <tbody>
-        <tr
-          v-for="stat in recentStats"
-          :key="stat.year + '-' + stat.abbr"
-          class="even:bg-gray-50"
-        >
+        <tr v-for="stat in recentStats" :key="stat.year + '-' + stat.abbr" class="even:bg-gray-50">
           <td class="px-2 py-1">{{ stat.year }}</td>
           <td class="px-2 py-1">{{ stat.abbr }}</td>
-          <td class="px-2 py-1">{{ stat.pa }}</td>
-          <td class="px-2 py-1">{{ stat.ab }}</td>
-          <td class="px-2 py-1">{{ stat.r }}</td>
-          <td class="px-2 py-1">{{ stat.h }}</td>
+          <td class="hidden sm:table-cell px-2 py-1">{{ stat.pa }}</td>
+          <td class="hidden sm:table-cell px-2 py-1">{{ stat.ab }}</td>
+          <td class="hidden sm:table-cell px-2 py-1">{{ stat.r }}</td>
+          <td class="hidden sm:table-cell px-2 py-1">{{ stat.h }}</td>
           <td class="px-2 py-1">{{ stat.hr }}</td>
           <td class="px-2 py-1">{{ stat.sb }}</td>
           <td class="px-2 py-1">
             <span v-if="stat.ab > 0">.{{ ((stat.h / stat.ab).toFixed(3)).split('.')[1] }}</span>
             <span v-else>-</span>
           </td>
-          <td class="px-2 py-1">
+          <td class="hidden sm:table-cell px-2 py-1">
             <span v-if="stat.pa > 0">.{{ (((stat.h + stat.bb + stat.hp) / stat.pa).toFixed(3)).split('.')[1] }}</span>
             <span v-else>-</span>
           </td>
-          <td class="px-2 py-1">
+          <td class="hidden sm:table-cell px-2 py-1">
             <span v-if="stat.ab > 0">
               .{{ (((stat.h + stat.d + (2 * stat.t) + (3 * stat.hr)) / stat.ab).toFixed(3)).split('.')[1] }}
             </span>
@@ -150,17 +145,28 @@ defineExpose({
           </td>
           <td class="px-2 py-1">
             <span v-if="stat.pa > 0">
-              .{{ (( ((stat.h + stat.bb + stat.hp) / stat.pa) + ((stat.h + stat.d + (2 * stat.t) + (3 * stat.hr)) / stat.ab) ).toFixed(3)).split('.')[1] }}
+              .{{ (((stat.h + stat.bb + stat.hp) / stat.pa) + ((stat.h + stat.d + (2 * stat.t) + (3 * stat.hr)) / stat.ab)).toFixed(3).split('.')[1] }}
             </span>
             <span v-else>-</span>
           </td>
         </tr>
 
         <!-- Totals row -->
-        <tr v-if="totals" class="bg-gray-100 font-bold">
+         <tr v-if="totals" class="bg-gray-100 font-bold sm:hidden">
           <td class="px-2 py-1" colspan="2">Total</td>
-          <td class="px-2 py-1">{{ totals.totalPA }}</td>
-          <td class="px-2 py-1">{{ totals.totalAB }}</td>
+          <td class="px-2 py-1">{{ totals.totalHR }}</td>
+          <td class="px-2 py-1">{{ totals.totalSB }}</td>
+          <td class="px-2 py-1">
+            <span v-if="totals.avg !== null">.{{ (totals.avg.toFixed(3)).split('.')[1] }}</span>
+            <span v-else>-</span>
+          </td>
+          <td class="px-2 py-1">
+            <span v-if="totals.ops !== null">.{{ (totals.ops.toFixed(3)).split('.')[1] }}</span>
+            <span v-else>-</span>
+          </td>
+        </tr>
+        <tr v-if="totals" class="bg-gray-100 font-bold hidden sm:table-row">
+          <td class="px-2 py-1" colspan="4">Total</td>
           <td class="px-2 py-1">{{ totals.totalR }}</td>
           <td class="px-2 py-1">{{ totals.totalH }}</td>
           <td class="px-2 py-1">{{ totals.totalHR }}</td>
