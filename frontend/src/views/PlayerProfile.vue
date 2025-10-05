@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed} from 'vue'
+import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import PlayerDetails from '@/components/PlayerDetails.vue'
 import BatterPercentiles from '@/components/percentiles/BatterPercentiles.vue'
@@ -18,54 +18,34 @@ const PitcherPercentiles = {}
 </script>
 
 <template>
-  <div class="page-wrapper">
-    <div class="profile-container">
-        <PlayerDetails ref="playerDetailsRef" :playerId="playerId" class="player-details"/>
+  <div class="max-w-[1400px] mx-auto p-4">
+    <div
+      class="flex gap-4 items-start
+             md:flex-row
+             flex-col md:flex-row"
+    >
+      <PlayerDetails
+        ref="playerDetailsRef"
+        :playerId="playerId"
+        class="flex-1 max-w-[50%] md:max-w-[50%] w-full"
+      />
 
-        <template v-if="playerDetails">
-          <template v-if="position === 'P'">
-            <PitcherPercentiles :playerId="playerId"/>
-          </template>
-          <template v-else>
-            <BatterPercentiles :playerId="playerId" :leagueId="leagueId" class="batter-percentiles"/>
-          </template>
+      <template v-if="playerDetails">
+        <template v-if="position === 'P'">
+          <PitcherPercentiles :playerId="playerId" />
         </template>
         <template v-else>
-          <div>Loading player profile...</div>
+          <BatterPercentiles
+            :playerId="playerId"
+            :leagueId="leagueId"
+            class="flex-1 max-w-[50%] md:max-w-[50%] w-full"
+          />
         </template>
+      </template>
+
+      <template v-else>
+        <div>Loading player profile...</div>
+      </template>
     </div>
   </div>
 </template>
-
-<style scoped>
-@media (max-width: 768px) {
-  .profile-container {
-    flex-direction: column;
-  }
-
-  .player-details,
-  .batter-percentiles {
-    max-width: 100%;
-    flex: 1 1 100%;
-  }
-}
-
-.page-wrapper {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 1rem;
-}
-
-.profile-container {
-  display: flex;
-  gap: 1rem;
-  align-items: flex-start;
-}
-
-.player-details,
-.batter-percentiles {
-  flex: 1 1 50%;
-  max-width: 50%;
-  box-sizing: border-box;
-}
-</style>
