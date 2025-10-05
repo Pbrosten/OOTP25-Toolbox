@@ -10,7 +10,8 @@ const playerId = Number(route.params.id)
 
 const playerDetailsRef = ref<InstanceType<typeof PlayerDetails> | null>(null)
 
-const position = computed(() => playerDetailsRef.value?.playerDetails?.position || null)
+const position = computed(() => playerDetailsRef.value?.playerDetails?.position ?? null)
+const leagueId = computed(() => playerDetailsRef.value?.PlayerDetails?.league_id ?? null)
 </script>
 
 <template>
@@ -23,7 +24,7 @@ const position = computed(() => playerDetailsRef.value?.playerDetails?.position 
         </template> -->
 
         <template v-if="position">
-          <BatterPercentiles :playerId="playerId" class="batter-percentiles"/>
+          <BatterPercentiles :playerId="playerId" :leagueId="leagueId" class="batter-percentiles"/>
         </template>
 
         <template v-else>

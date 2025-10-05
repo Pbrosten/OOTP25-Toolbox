@@ -1,8 +1,9 @@
 <script setup lang='ts'>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
+import { Switch } from '@headlessui/vue'
 import PercentileBar from './PercentileBar.vue'
 
-const props = defineProps<{ playerId: number }>()
+const props = defineProps<{ playerId: number, leagueId: number }>()
 const positionGroupFields = {
   catcher: [
     'catcher_arm_percentile',
@@ -67,6 +68,24 @@ const fieldOrder = [
   'outfield_arm_percentile',
 ]
 
+const playerRating = ref<any>(null)
+const xStatsBat = ref<any>(null)
+const xStatsRun = ref<any>(null)
+const xStatsField = ref<any>(null)
+
+const loading = ref(true)
+const error = ref<string | null>(null)
+
+const mlbComp = ref<boolean>(props.leagueId==203)
+
+onMounted(() => {
+  fetchPercentiles()
+})
+
+watch(mlbComp, () => {
+  fetchPercentiles()
+})
+
 function sortedEntries(obj: any, order: string[]) {
   return order
     .map(key => [key, obj[key]])
@@ -77,65 +96,45 @@ function getStatLabel(key: string): string {
   return statLabelMap[key] || key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 }
 
-const playerRating = ref<any>(null)
-const xStatsBat = ref<any>(null)
-const xStatsRun = ref<any>(null)
-const xStatsField = ref<any>(null)
-
-const loading = ref(true)
-const error = ref<string | null>(null)
-
-onMounted(async () => {
+async function fetchPercentiles() {
   loading.value = true
   error.value = null
-  try {
-    // 1. Fetch most recent player rating ID
-    const ratingRes = await fetch(`/api/players/${props.playerId}/ratings?latest=true`)
-    if (ratingRes.ok) {
-      playerRating.value = await ratingRes.json()
-      console.log(playerRating.value)
-    } else {
-      error.value = 'Failed to load player rating info.'
-      return
-    }
 
-    if (!playerRating.value || !playerRating.value.rating_id) {
-      throw new Error('Player rating data is missing or invalid.')
+  try {
+    // Fetch latest rating ID if not loaded
+    if (!playerRating.value) {
+      const ratingRes = await fetch(`/api/players/${props.playerId}/ratings?latest=true`)
+      if (ratingRes.ok) {
+        playerRating.value = await ratingRes.json()
+      } else {
+        throw new Error('Failed to load player rating info.')
+      }
     }
 
     const ratingId = playerRating.value.rating_id
 
-    const batRes = await fetch(`/api/players/stats/expected/batting/${ratingId}/percentiles`)
-    if (batRes.ok) {
-      xStatsBat.value = await batRes.json()
-      console.log(xStatsBat.value)
-    } else {
-      error.value = 'Failed to load expected batting stats.'
-    }
+    // Fetch Batting Stats
+    const batRes = await fetch(`/api/players/stats/expected/batting/${ratingId}/percentiles?mlb=${mlbComp.value}`)
+    xStatsBat.value = batRes.ok ? await batRes.json() : null
+    if (!batRes.ok) throw new Error('Failed to load expected batting stats.')
 
-    // 3. Fetch expected basepath stats
-    const runRes = await fetch(`/api/players/stats/expected/basepath/${ratingId}/percentiles`)
-    if (runRes.ok) {
-      xStatsRun.value = await runRes.json()
-      console.log(xStatsRun.value)
-    } else {
-      error.value = 'Failed to load expected basepath stats.'
-    }
+    // Fetch Basepath Stats
+    const runRes = await fetch(`/api/players/stats/expected/basepath/${ratingId}/percentiles?mlb=${mlbComp.value}`)
+    xStatsRun.value = runRes.ok ? await runRes.json() : null
+    if (!runRes.ok) throw new Error('Failed to load expected basepath stats.')
 
-    // 4. Fetch expected fielding stats
-    const fieldRes = await fetch(`/api/players/stats/expected/fielding/${ratingId}/percentiles`)
-    if (fieldRes.ok) {
-      xStatsField.value = await fieldRes.json()
-      console.log(xStatsField.value)
-    } else {
-      error.value = 'Failed to load expected fielding stats.'
-    }
+    // Fetch Fielding Stats
+    const fieldRes = await fetch(`/api/players/stats/expected/fielding/${ratingId}/percentiles?mlb=${mlbComp.value}`)
+    xStatsField.value = fieldRes.ok ? await fieldRes.json() : null
+    if (!fieldRes.ok) throw new Error('Failed to load expected fielding stats.')
+
   } catch (err: any) {
     error.value = err.message || 'An error occurred.'
   } finally {
     loading.value = false
   }
-})
+}
+
 
 // Helper: Check if value is a valid percentile (0–100)
 function isValidPercentile(value: any): boolean {
@@ -172,8 +171,20 @@ const filteredFieldingPercentiles = computed(() => {
     <div v-if='loading'>Loading...</div>
     <div v-else-if='error'>{{ error }}</div>
     <div v-else>
-      <h2>Percentiles</h2>
-
+      <div class="flex items-center space-x-4">
+        <h2 class="text-lg font-semibold">Percentiles</h2>
+        <Switch
+          v-model="mlbComp"
+          :class="mlbComp ? 'bg-teal-800' : 'bg-gray-200'"
+          class="relative inline-flex h-6 w-11 items-center rounded-full"
+        >
+          <span
+            :class="mlbComp ? 'translate-x-6' : 'translate-x-1'"
+            class="inline-block h-4 w-4 transform rounded-full bg-white transition"
+          />
+        </Switch>
+        <span class="text-sm font-medium text-gray-700">Compare to MLB</span>
+      </div>
       <div v-if='xStatsBat'>
         <h3>Batting</h3>
         <template v-for="[key, value] in sortedEntries(xStatsBat, battingOrder)" :key="key">
