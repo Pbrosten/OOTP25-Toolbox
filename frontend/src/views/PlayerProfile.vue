@@ -20,7 +20,7 @@ const PitcherPercentiles = {}
 <template>
   <div class="max-w-[1400px] mx-auto p-4">
     <div
-      class="flex gap-4 items-start
+      class="flex gap-4 items-center
              md:flex-row
              flex-col md:flex-row"
     >
