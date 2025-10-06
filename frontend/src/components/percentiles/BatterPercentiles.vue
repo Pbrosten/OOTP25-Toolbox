@@ -3,7 +3,8 @@ import { ref, onMounted, computed, watch } from 'vue'
 import { Switch } from '@headlessui/vue'
 import PercentileBar from './PercentileBar.vue'
 
-const props = defineProps<{ playerId: number, leagueId: number }>()
+const props = defineProps<{ playerId: number, leagueId: number | null }>()
+const leagueId = props.leagueId ?? 203
 const positionGroupFields = {
   catcher: [
     'catcher_arm_percentile',
@@ -76,8 +77,8 @@ const xStatsField = ref<any>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
 
-const mlbComp = ref<boolean>(props.leagueId==203)
-const mlbLock = computed(() => props.leagueId === 203)
+const mlbComp = ref<boolean>(leagueId==203)
+const mlbLock = computed(() => leagueId === 203)
 
 onMounted(() => {
   fetchPercentiles()
