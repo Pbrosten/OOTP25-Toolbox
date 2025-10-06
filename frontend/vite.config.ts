@@ -6,7 +6,7 @@ import path from 'path'
 export default defineConfig({
   plugins: [
     vue(),
-  tailwindcss(),
+    tailwindcss(),
 ],
   resolve: {
     alias: {
@@ -14,6 +14,12 @@ export default defineConfig({
     }
   },
   server: {
+    host: '0.0.0.0',
+    port: 5173,
+    strictPort: true,
+    watch: {
+      usePolling: true,
+    },
     proxy: {
       '/api': 'http://backend:5000',
     },
