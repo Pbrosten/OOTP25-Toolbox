@@ -1,41 +1,26 @@
-<template>
-  <div class="search-landing-page">
-    <h1>Search</h1>
-    <input
-      v-model="searchQuery"
-      @input="handleSearch"
-      type="text"
-      placeholder="Search for something..."
-    />
-
-    <div v-if="filteredResults.length">
-      <h2>Results:</h2>
-      <ul>
-        <li v-for="result in filteredResults" :key="result.id">
-          <router-link
-            :to="`/players/${result.player_id}`"
-            class="player-button"
-          >
-            {{ result.first_name }} {{ result.last_name }} | {{ result.position }} | {{ result.team_abbr }}
-          </router-link>
-        </li>
-      </ul>
-    </div>
-    <p v-else-if="searchQuery">No results found.</p>
-  </div>
-</template>
-
 <script setup>
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+import {
+  Combobox,
+  ComboboxInput,
+  ComboboxOptions,
+  ComboboxOption
+} from '@headlessui/vue'
 
 const searchQuery = ref('')
 const filteredResults = ref([])
+const selectedPlayer = ref(null)
+const router = useRouter()
 
-const handleSearch = async () => {
+const handleSearch = async (event) => {
+  searchQuery.value = event.target.value
+
   if (!searchQuery.value) {
     filteredResults.value = []
     return
   }
+
   try {
     const response = await fetch(`/api/players/search?q=${encodeURIComponent(searchQuery.value)}`)
     if (response.ok) {
@@ -47,19 +32,70 @@ const handleSearch = async () => {
     filteredResults.value = []
   }
 }
+
+const goToPlayer = (player) => {
+  console.log('Selected player:', player)
+  if (player?.player_id) {
+    router.push(`/players/${player.player_id}`)
+  }
+}
+
+const handleEnter = () => {
+  if (filteredResults.value.length === 1) {
+    goToPlayer(filteredResults.value[0])
+  }
+}
+
+const onPlayerSelect = (player) => {
+  selectedPlayer.value = player
+  goToPlayer(player)
+}
 </script>
 
-<!-- <style scoped>
-.search-landing-page {
-  max-width: 600px;
-  margin: auto;
-  padding: 2rem;
-}
+<template>
+  <div class="max-w-xl mx-auto p-6">
+    <h1 class="text-2xl font-semibold mb-4">Search</h1>
 
-input[type="text"] {
-  width: 100%;
-  padding: 0.5rem;
-  margin-bottom: 1rem;
-  font-size: 1rem;
-}
-</style> -->
+    <Combobox :modelValue="selectedPlayer" @update:modelValue="onPlayerSelect">
+      <div class="relative">
+        <ComboboxInput
+          class="w-full border border-gray-300 rounded-md py-2 px-4 focus:outline-none focus:ring-2 focus:ring-white focus:border-teal-500"
+          placeholder="Search for a player..."
+          @input="handleSearch"
+          :display-value="(player) => player ? player.first_name + ' ' + player.last_name : searchQuery"
+        />
+
+        <ComboboxOptions
+          v-if="filteredResults.length"
+          class="absolute mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm z-50"
+        >
+          <ComboboxOption
+            v-for="result in filteredResults"
+            :key="result.player_id"
+            :value="result"
+            as="template"
+          >
+            <template #default="{ active, selected }">
+              <li
+                class="relative cursor-pointer select-none py-2 pl-10 pr-4"
+                :class="{
+                  'bg-blue-500 text-white': active,
+                  'font-semibold': selected,
+                  'text-gray-900': !active
+                }"
+              >
+                <span class="block truncate">
+                  {{ result.first_name }} {{ result.last_name }} | {{ result.position }} | {{ result.team_abbr }}
+                </span>
+              </li>
+            </template>
+          </ComboboxOption>
+        </ComboboxOptions>
+      </div>
+    </Combobox>
+
+    <div v-if="!filteredResults.length && searchQuery" class="mt-4 text-gray-500">
+      No results found.
+    </div>
+  </div>
+</template>
