@@ -194,25 +194,46 @@ const filteredFieldingPercentiles = computed(() => {
         <span class="text-sm font-medium text-gray-700">Compare to MLB</span>
       </div>
       <div v-if='xStatsBat'>
-        <h3>Batting</h3>
+        <div class="relative w-full h-10">
+          <div class="absolute inset-x-0 bottom-1.25 h-0.5 bg-teal-600"></div>
+
+          <div class="relative flex items-center space-x-2 h-full px-4">
+            <img src="@/assets/slider-batter.png" class="w-10 h-10" />
+            <h3 class="text-base font-semibold">Batting</h3>
+          </div>
+        </div>
         <template v-for="[key, value] in sortedEntries(xStatsBat, battingOrder)" :key="key">
           <PercentileBar :label="getStatLabel(key)" :percentile="Number(value)" />
         </template>
       </div>
 
-      <div v-if='xStatsRun'>
-        <h3>Base Running</h3>
-        <template v-for="[key, value] in sortedEntries(xStatsRun, basepathOrder)" :key="key">
+      <div v-if='filteredFieldingPercentiles'>
+        <div class="relative w-full h-10">
+          <div class="absolute inset-x-0 bottom-1.25 h-0.5 bg-teal-600"></div>
+
+          <div class="relative flex items-center space-x-2 h-full px-4">
+            <img src="@/assets/slider-fielder.png" class="w-10 h-10" />
+            <h3 class="text-base font-semibold">Fielding</h3>
+          </div>
+        </div>
+        <template v-for="[key, value] in sortedEntries(filteredFieldingPercentiles, fieldOrder)" :key="key">
           <PercentileBar :label="getStatLabel(key)" :percentile="Number(value)" />
         </template>
       </div>
 
-      <div v-if='filteredFieldingPercentiles'>
-        <h3>Fielding</h3>
-        <template v-for="[key, value] in sortedEntries(filteredFieldingPercentiles, fieldOrder)" :key="key">
+      <div v-if='xStatsRun'>
+        <div class="relative w-full h-10">
+          <div class="absolute inset-x-0 bottom-1.25 h-0.5 bg-teal-600"></div>
+
+          <div class="relative flex items-center space-x-2 h-full px-4">
+            <img src="@/assets/slider-runner.png" class="w-10 h-10" />
+            <h3 class="text-base font-semibold">Base Running</h3>
+          </div>
+        </div>
+        <template v-for="[key, value] in sortedEntries(xStatsRun, basepathOrder)" :key="key">
           <PercentileBar :label="getStatLabel(key)" :percentile="Number(value)" />
         </template>
-        </div>
+      </div>
     </div>
   </div>
 </template>

@@ -48,58 +48,21 @@ export default {
 </script>
 
 <template>
-  <div class="percentile-bar">
-    <div class="label">{{ label }}</div>
-    <div class="bar-container">
+  <div class="grid grid-cols-[150px_1fr] items-center gap-3 my-3 w-full">
+    <div class="whitespace-nowrap font-bold text-sm">
+      {{ label }}
+    </div>
+    <div class="relative bg-gray-300 h-5 rounded-md overflow-hidden w-full">
       <div
-        class="bar"
+        class="h-full transition-all duration-500 rounded-l-md"
         :style="{
           width: percentile + '%',
           backgroundColor: computedColor
         }"
       ></div>
-      <div class="percentile-text">{{ percentile }}%</div>
+      <div class="absolute right-2 top-1 font-bold text-xs text-gray-900">
+        {{ percentile }}%
+      </div>
     </div>
   </div>
 </template>
-
-<style scoped>
-.percentile-bar {
-  display: grid;
-  grid-template-columns: 150px 1fr;
-  align-items: center;
-  gap: 12px;
-  margin: 12px 0;
-  width: 100%;
-}
-
-.label {
-  white-space: nowrap;
-  font-weight: bold;
-  font-size: 14px;
-}
-
-.bar-container {
-  position: relative;
-  background: #e0e0e0;
-  height: 20px;
-  border-radius: 6px;
-  overflow: hidden;
-  width: 100%;
-}
-
-.bar {
-  height: 100%;
-  transition: width 0.6s ease, background-color 0.6s ease;
-  border-radius: 6px 0 0 6px;
-}
-
-.percentile-text {
-  position: absolute;
-  right: 10px;
-  top: 4px;
-  font-weight: bold;
-  color: #222;
-  font-size: 13px;
-}
-</style>
