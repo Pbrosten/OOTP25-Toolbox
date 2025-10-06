@@ -86,140 +86,152 @@ defineExpose({
 
 <template>
   <div class="flex flex-col items-center text-center p-4 w-full">
-    <h1 class="text-3xl font-bold mb-2">
+    <h1 class="text-3xl mb-2">
       <span v-if="playerDetails">{{ playerDetails.first_name }} {{ playerDetails.last_name }}</span>
       <span v-else>{{ playerId }}</span>
     </h1>
+    <h2 class="text-xl mb-2">
+      <div v-if="playerDetails">
+        {{ playerDetails.position }} 
+        <span class="text-teal-800">|</span> 
+        {{ playerDetails.team_city }} {{ playerDetails.team_name }}
+      </div>
+    </h2>
 
     <p class="text-sm text-gray-600 mb-6">
-      <span v-if="playerDetails">
-        {{ playerDetails.position }} |
-        Bats/Throws: {{ playerDetails.bats }}/{{ playerDetails.throws }} |
-        {{ playerDetails.height }}CM {{ playerDetails.weight }}LBS |
+      <div v-if="playerDetails">
+        Bats/Throws: {{ playerDetails.bats }}/{{ playerDetails.throws }} 
+        <span class="text-lg text-teal-800">|</span> 
+        {{ playerDetails.height }}CM {{ playerDetails.weight }}LBS 
+        <span class="text-lg text-teal-800">|</span> 
         Age: {{ playerDetails.age }}
-      </span>
-      <span v-else>Player Position | Bats/Throws: R/R | Height Weight | Age: ##</span>
+      </div>
+      <div v-else>Player Position 
+        <span class="text-lg text-teal-800">|</span>  Bats/Throws: R/R 
+        <span class="text-lg text-teal-800">|</span>  Height Weight 
+        <span class="text-lg text-teal-800">|</span>  Age: ##</div>
     </p>
 
-    <h2 class="text-2xl font-semibold mb-4">
-      Career Batting Stats
-      <span v-if="playerDetails">
-        ({{ playerDetails.league_id === 203 ? 'MLB' : 'MiLB' }})
-      </span>
-    </h2>
-    <table class="w-full max-w-4xl table-auto border-collapse text-sm mb-6">
-      <thead>
-        <tr class="bg-gray-200 text-gray-700">
-          <th class="px-2 py-1">Year</th>
-          <th class="px-2 py-1">Team</th>
-          <th class="hidden lg:table-cell px-2 py-1">PA</th>
-          <th class="hidden lg:table-cell px-2 py-1">AB</th>
-          <th class="hidden sm:table-cell px-2 py-1">R</th>
-          <th class="hidden sm:table-cell px-2 py-1">H</th>
-          <th class="px-2 py-1">HR</th>
-          <th class="px-2 py-1">SB</th>
-          <th class="px-2 py-1">AVG</th>
-          <th class="hidden sm:table-cell px-2 py-1">OBP</th>
-          <th class="hidden sm:table-cell px-2 py-1">SLG</th>
-          <th class="px-2 py-1">OPS</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="stat in recentStats" :key="stat.year + '-' + stat.abbr" class="even:bg-gray-50">
-          <td class="px-2 py-1">{{ stat.year }}</td>
-          <td class="px-2 py-1">{{ stat.abbr }}</td>
-          <td class="hidden lg:table-cell px-2 py-1">{{ stat.pa }}</td>
-          <td class="hidden lg:table-cell px-2 py-1">{{ stat.ab }}</td>
-          <td class="hidden sm:table-cell px-2 py-1">{{ stat.r }}</td>
-          <td class="hidden sm:table-cell px-2 py-1">{{ stat.h }}</td>
-          <td class="px-2 py-1">{{ stat.hr }}</td>
-          <td class="px-2 py-1">{{ stat.sb }}</td>
-          <td class="px-2 py-1">
-            <span v-if="stat.ab > 0">.{{ ((stat.h / stat.ab).toFixed(3)).split('.')[1] }}</span>
-            <span v-else>-</span>
-          </td>
-          <td class="hidden sm:table-cell px-2 py-1">
-            <span v-if="stat.pa > 0">.{{ (((stat.h + stat.bb + stat.hp) / stat.pa).toFixed(3)).split('.')[1] }}</span>
-            <span v-else>-</span>
-          </td>
-          <td class="hidden sm:table-cell px-2 py-1">
-            <span v-if="stat.ab > 0">
-              .{{ (((stat.h + stat.d + (2 * stat.t) + (3 * stat.hr)) / stat.ab).toFixed(3)).split('.')[1] }}
-            </span>
-            <span v-else>-</span>
-          </td>
-          <td class="px-2 py-1">
-            <span v-if="stat.pa > 0">
-              .{{ (((stat.h + stat.bb + stat.hp) / stat.pa) + ((stat.h + stat.d + (2 * stat.t) + (3 * stat.hr)) / stat.ab)).toFixed(3).split('.')[1] }}
-            </span>
-            <span v-else>-</span>
-          </td>
-        </tr>
+    <template v-if="playerDetails && playerDetails.position !== 'P'">
+      <h2 class="text-2xl font-semibold mb-4">
+        Career Batting Stats
+        <span v-if="playerDetails">
+          ({{ playerDetails.league_id === 203 ? 'MLB' : 'MiLB' }})
+        </span>
+      </h2>
+      <table class="w-full max-w-4xl table-auto border-collapse text-sm mb-6">
+        <thead>
+          <tr class="bg-gray-200 text-gray-700">
+            <th class="px-2 py-1">Year</th>
+            <th class="px-2 py-1">Team</th>
+            <th class="hidden lg:table-cell px-2 py-1">PA</th>
+            <th class="hidden lg:table-cell px-2 py-1">AB</th>
+            <th class="hidden lg:table-cell px-2 py-1">R</th>
+            <th class="hidden sm:table-cell px-2 py-1">H</th>
+            <th class="px-2 py-1">HR</th>
+            <th class="px-2 py-1">SB</th>
+            <th class="px-2 py-1">AVG</th>
+            <th class="hidden sm:table-cell px-2 py-1">OBP</th>
+            <th class="hidden sm:table-cell px-2 py-1">SLG</th>
+            <th class="px-2 py-1">OPS</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="stat in recentStats" :key="stat.year + '-' + stat.abbr" class="even:bg-gray-50">
+            <td class="px-2 py-1">{{ stat.year }}</td>
+            <td class="px-2 py-1">{{ stat.abbr }}</td>
+            <td class="hidden lg:table-cell px-2 py-1">{{ stat.pa }}</td>
+            <td class="hidden lg:table-cell px-2 py-1">{{ stat.ab }}</td>
+            <td class="hidden lg:table-cell px-2 py-1">{{ stat.r }}</td>
+            <td class="hidden sm:table-cell px-2 py-1">{{ stat.h }}</td>
+            <td class="px-2 py-1">{{ stat.hr }}</td>
+            <td class="px-2 py-1">{{ stat.sb }}</td>
+            <td class="px-2 py-1">
+              <span v-if="stat.ab > 0">.{{ ((stat.h / stat.ab).toFixed(3)).split('.')[1] }}</span>
+              <span v-else>-</span>
+            </td>
+            <td class="hidden sm:table-cell px-2 py-1">
+              <span v-if="stat.pa > 0">.{{ (((stat.h + stat.bb + stat.hp) / stat.pa).toFixed(3)).split('.')[1] }}</span>
+              <span v-else>-</span>
+            </td>
+            <td class="hidden sm:table-cell px-2 py-1">
+              <span v-if="stat.ab > 0">
+                .{{ (((stat.h + stat.d + (2 * stat.t) + (3 * stat.hr)) / stat.ab).toFixed(3)).split('.')[1] }}
+              </span>
+              <span v-else>-</span>
+            </td>
+            <td class="px-2 py-1">
+              <span v-if="stat.pa > 0">
+                .{{ (((stat.h + stat.bb + stat.hp) / stat.pa) + ((stat.h + stat.d + (2 * stat.t) + (3 * stat.hr)) / stat.ab)).toFixed(3).split('.')[1] }}
+              </span>
+              <span v-else>-</span>
+            </td>
+          </tr>
 
-        <!-- Totals row -->
-         <template v-if="totals">
-          <tr class="bg-gray-100 font-bold sm:hidden">
-            <td class="px-2 py-1" colspan="2">Total</td>
-            <td class="px-2 py-1">{{ totals.totalHR }}</td>
-            <td class="px-2 py-1">{{ totals.totalSB }}</td>
-            <td class="px-2 py-1">
-              <span v-if="totals.avg !== null">.{{ (totals.avg.toFixed(3)).split('.')[1] }}</span>
-              <span v-else>-</span>
-            </td>
-            <td class="px-2 py-1">
-              <span v-if="totals.ops !== null">.{{ (totals.ops.toFixed(3)).split('.')[1] }}</span>
-              <span v-else>-</span>
-            </td>
-          </tr>
-          <tr class="bg-gray-100 font-bold hidden sm:table-row lg:hidden">
-            <td class="px-2 py-1" colspan="2">Total</td>
-            <td class="px-2 py-1">{{ totals.totalR }}</td>
-            <td class="px-2 py-1">{{ totals.totalH }}</td>
-            <td class="px-2 py-1">{{ totals.totalHR }}</td>
-            <td class="px-2 py-1">{{ totals.totalSB }}</td>
-            <td class="px-2 py-1">
-              <span v-if="totals.avg !== null">.{{ (totals.avg.toFixed(3)).split('.')[1] }}</span>
-              <span v-else>-</span>
-            </td>
-            <td class="px-2 py-1">
-              <span v-if="totals.obp !== null">.{{ (totals.obp.toFixed(3)).split('.')[1] }}</span>
-              <span v-else>-</span>
-            </td>
-            <td class="px-2 py-1">
-              <span v-if="totals.slg !== null">.{{ (totals.slg.toFixed(3)).split('.')[1] }}</span>
-              <span v-else>-</span>
-            </td>
-            <td class="px-2 py-1">
-              <span v-if="totals.ops !== null">.{{ (totals.ops.toFixed(3)).split('.')[1] }}</span>
-              <span v-else>-</span>
-            </td>
-          </tr>
-          <tr class="bg-gray-100 font-bold hidden lg:table-row">
-            <td class="px-2 py-1" colspan="4">Total</td>
-            <td class="px-2 py-1">{{ totals.totalR }}</td>
-            <td class="px-2 py-1">{{ totals.totalH }}</td>
-            <td class="px-2 py-1">{{ totals.totalHR }}</td>
-            <td class="px-2 py-1">{{ totals.totalSB }}</td>
-            <td class="px-2 py-1">
-              <span v-if="totals.avg !== null">.{{ (totals.avg.toFixed(3)).split('.')[1] }}</span>
-              <span v-else>-</span>
-            </td>
-            <td class="px-2 py-1">
-              <span v-if="totals.obp !== null">.{{ (totals.obp.toFixed(3)).split('.')[1] }}</span>
-              <span v-else>-</span>
-            </td>
-            <td class="px-2 py-1">
-              <span v-if="totals.slg !== null">.{{ (totals.slg.toFixed(3)).split('.')[1] }}</span>
-              <span v-else>-</span>
-            </td>
-            <td class="px-2 py-1">
-              <span v-if="totals.ops !== null">.{{ (totals.ops.toFixed(3)).split('.')[1] }}</span>
-              <span v-else>-</span>
-            </td>
-          </tr>
-        </template>
-      </tbody>
-    </table>
+          <!-- Totals row -->
+          <template v-if="totals">
+            <tr class="bg-gray-100 font-bold sm:hidden">
+              <td class="px-2 py-1" colspan="2">Total</td>
+              <td class="px-2 py-1">{{ totals.totalHR }}</td>
+              <td class="px-2 py-1">{{ totals.totalSB }}</td>
+              <td class="px-2 py-1">
+                <span v-if="totals.avg !== null">.{{ (totals.avg.toFixed(3)).split('.')[1] }}</span>
+                <span v-else>-</span>
+              </td>
+              <td class="px-2 py-1">
+                <span v-if="totals.ops !== null">.{{ (totals.ops.toFixed(3)).split('.')[1] }}</span>
+                <span v-else>-</span>
+              </td>
+            </tr>
+            <tr class="bg-gray-100 font-bold hidden sm:table-row lg:hidden">
+              <td class="px-2 py-1" colspan="2">Total</td>
+              <td class="px-2 py-1">{{ totals.totalH }}</td>
+              <td class="px-2 py-1">{{ totals.totalHR }}</td>
+              <td class="px-2 py-1">{{ totals.totalSB }}</td>
+              <td class="px-2 py-1">
+                <span v-if="totals.avg !== null">.{{ (totals.avg.toFixed(3)).split('.')[1] }}</span>
+                <span v-else>-</span>
+              </td>
+              <td class="px-2 py-1">
+                <span v-if="totals.obp !== null">.{{ (totals.obp.toFixed(3)).split('.')[1] }}</span>
+                <span v-else>-</span>
+              </td>
+              <td class="px-2 py-1">
+                <span v-if="totals.slg !== null">.{{ (totals.slg.toFixed(3)).split('.')[1] }}</span>
+                <span v-else>-</span>
+              </td>
+              <td class="px-2 py-1">
+                <span v-if="totals.ops !== null">.{{ (totals.ops.toFixed(3)).split('.')[1] }}</span>
+                <span v-else>-</span>
+              </td>
+            </tr>
+            <tr class="bg-gray-100 font-bold hidden lg:table-row">
+              <td class="px-2 py-1" colspan="4">Total</td>
+              <td class="px-2 py-1">{{ totals.totalR }}</td>
+              <td class="px-2 py-1">{{ totals.totalH }}</td>
+              <td class="px-2 py-1">{{ totals.totalHR }}</td>
+              <td class="px-2 py-1">{{ totals.totalSB }}</td>
+              <td class="px-2 py-1">
+                <span v-if="totals.avg !== null">.{{ (totals.avg.toFixed(3)).split('.')[1] }}</span>
+                <span v-else>-</span>
+              </td>
+              <td class="px-2 py-1">
+                <span v-if="totals.obp !== null">.{{ (totals.obp.toFixed(3)).split('.')[1] }}</span>
+                <span v-else>-</span>
+              </td>
+              <td class="px-2 py-1">
+                <span v-if="totals.slg !== null">.{{ (totals.slg.toFixed(3)).split('.')[1] }}</span>
+                <span v-else>-</span>
+              </td>
+              <td class="px-2 py-1">
+                <span v-if="totals.ops !== null">.{{ (totals.ops.toFixed(3)).split('.')[1] }}</span>
+                <span v-else>-</span>
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </template>
 
     <div v-if="loading" class="text-gray-500 text-sm">Loading...</div>
     <div v-if="error" class="text-red-500 text-sm mt-2">{{ error }}</div>
