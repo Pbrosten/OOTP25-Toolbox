@@ -7,7 +7,7 @@ SELECT
     '{{HEAP_DATE}}',
     t.league_id
 FROM stage.players AS p
-JOIN stage.teams AS t ON p.team_id = t.team_id
+LEFT JOIN stage.teams AS t ON p.team_id = t.team_id
 WHERE p.retired = 0;
 
 INSERT OR IGNORE INTO players_batting
