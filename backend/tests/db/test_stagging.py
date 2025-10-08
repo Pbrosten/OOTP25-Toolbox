@@ -1,42 +1,52 @@
 import os
 import pytest
 from unittest.mock import MagicMock, patch
-from app.db import stagging as stagging_module
+from app.db import staging as staging_module
 
 @pytest.fixture
 def app_config(monkeypatch):
     monkeypatch.setattr("flask.current_app", MagicMock())
     yield
 
-def test_check_new_heaps(app, monkeypatch):
+def test_check_new_heaps(monkeypatch, app):
     monkeypatch.setattr('os.listdir', lambda path: [
-        "heap_2023_5", "heap_2022_10", "heap_invalid", "heap_2023_x", "heap_2023_1"
+        "heap_2023_5", "heap_2022_10", "heap_invalid", "heap_2023_x", "heap_2023_1", "heap_2021_yearly"
     ])
 
-    expected_sorted = [
-        os.path.join("/fake/dump/path", "heap_2022_10", "mysql"),
-        os.path.join("/fake/dump/path", "heap_2023_1", "mysql"),
-        os.path.join("/fake/dump/path", "heap_2023_5", "mysql"),
-    ]
+    fake_path = "/fake/dump/path"
 
-    result = stagging_module.check_new_heaps()
-    assert result == expected_sorted
+    with app.app_context():
+        # Set DUMP_PATH inside the Flask app config
+        staging_module.current_app.config["DUMP_PATH"] = fake_path
+
+        short_expected = [
+            os.path.join(fake_path, "heap_2022_10", "mysql"),
+            os.path.join(fake_path, "heap_2023_1", "mysql"),
+            os.path.join(fake_path, "heap_2023_5", "mysql"),
+        ]
+        long_expected = [
+            os.path.join(fake_path, "heap_2021_yearly", "mysql")
+        ]
+
+        short_heaps, long_heaps = staging_module.check_new_heaps()
+
+        assert short_heaps == short_expected
+        assert long_heaps == long_expected
 
 @pytest.mark.parametrize("input_sql, expected_sql", [
-    ("insert ignore into table values(1)", "insert or ignore into table values(1)"),
-    ("INSERT IGNORE something", "insert or ignore something"),
-    ("InSeRt IgNoRe whatever", "insert or ignore whatever"),
+    ("insert ignore into table values(1)", "INSERT OR IGNORE into table values(1)"),
+    ("INSERT IGNORE something", "INSERT IGNORE something"),  # No change expected
+    ("InSeRt IgNoRe whatever", "InSeRt IgNoRe whatever"),    # No change expected
     ("insert into table values(1)", "insert into table values(1)"),
-    ("-- insert ignore", "-- insert ignore"),
+    ("# comment line", ""),
 ])
-def test_fix_insert_ignore(input_sql, expected_sql):
-    result = stagging_module.fix_insert_ignore(input_sql)
-    assert result == expected_sql
+def test_clean_mysql_dump(input_sql, expected_sql):
+    result = staging_module.clean_mysql_dump(input_sql)
+    assert result.strip() == expected_sql.strip()
 
 def test_sql_dump_to_staging(tmp_path):
     sql_lines = [
         "# comment line\n",
-        "\n",
         "insert ignore into table values(1);\n",
         "insert into table values(2);\n",
         "insert ignore into table values(3);\n"
@@ -47,26 +57,25 @@ def test_sql_dump_to_staging(tmp_path):
     class MockDB:
         def __init__(self):
             self.executed = []
-            self.commit_count = 0
+            self.commit_called = False
 
         def executescript(self, sql):
             self.executed.append(sql.strip())
 
         def commit(self):
-            self.commit_count += 1
+            self.commit_called = True
 
     db = MockDB()
 
-    # Run function with commit_every=2 to test multiple commits
-    stagging_module.sql_dump_to_staging(db, str(file_path), commit_every=2)
+    # Run the function
+    staging_module.sql_dump_to_staging(db, str(file_path))
 
-    # Check executed sql (insert ignore fixed)
-    expected_sqls = [
-        "insert or ignore into table values(1);",
+    # Expected cleaned SQL
+    expected_sql = "\n".join([
+        "INSERT OR IGNORE into table values(1);",
         "insert into table values(2);",
-        "insert or ignore into table values(3);"
-    ]
-    assert db.executed == expected_sqls
+        "INSERT OR IGNORE into table values(3);"
+    ])
 
-    # Check commit called correct number of times
-    assert db.commit_count == 2
+    assert db.executed == [expected_sql.strip()]
+    assert db.commit_called is True

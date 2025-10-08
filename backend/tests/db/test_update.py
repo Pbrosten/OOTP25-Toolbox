@@ -22,16 +22,49 @@ def test_load_sql_dumps_into_staging(mock_dump, mock_isfile, mock_listdir):
 
 @patch("app.db.update.inject_db_path", side_effect=lambda sql, path: sql)
 @patch("app.db.update.inject_heap_date", side_effect=lambda sql, heap_date: sql + " -- date injected")
-def test_run_migration_sql(mock_inject_date, mock_inject_path, app):
+def test_run_migration_short(mock_inject_date, mock_inject_path, app):
     sql_content = "SELECT * FROM test;"
     mock_file = MagicMock()
     mock_file.read.return_value = sql_content
 
-    with patch("app.db.update.current_app.open_resource") as mock_open:
+    with patch("app.db.update.current_app.open_resource") as mock_open, \
+         patch.dict('app.db.update.current_app.config', {"STAGGING": "/fake/staging/path"}):
         mock_open.return_value.__enter__.return_value = mock_file
         db = MagicMock()
-        update_module.run_migration_sql(["dump", "2023", "08"], db)
-        db.executescript.assert_called_once()
+
+        heap_date = "2023-08"
+        update_module.run_migration_short(heap_date, db)
+
+        expected_path = os.path.join('db', 'sql_scripts', 'migration', 'migration_short.sql')
+        mock_open.assert_called_once_with(expected_path, 'r')
+        mock_inject_path.assert_called_once_with(sql_content, "/fake/staging/path")
+        mock_inject_date.assert_called_once_with(sql_content, heap_date)
+
+        db.executescript.assert_called_once_with(sql_content + " -- date injected")
+        db.commit.assert_called_once()
+
+
+@patch("app.db.update.inject_db_path", side_effect=lambda sql, path: sql)
+def test_run_migration_long(mock_inject_path, app):
+    sql_content = "SELECT * FROM test;"
+    mock_file = MagicMock()
+    mock_file.read.return_value = sql_content
+
+    with patch("app.db.update.current_app.open_resource") as mock_open, \
+         patch.dict('app.db.update.current_app.config', {"STAGGING": "/fake/staging/path"}):
+        mock_open.return_value.__enter__.return_value = mock_file
+        db = MagicMock()
+
+        heap_date = "2023-08"
+        update_module.run_migration_long(heap_date, db)
+
+        expected_path = os.path.join('db', 'sql_scripts', 'migration', 'migration_long.sql')
+        mock_open.assert_called_once_with(expected_path, 'r')
+
+        mock_inject_path.assert_called_once_with(sql_content, "/fake/staging/path")
+
+        db.executescript.assert_called_once_with(sql_content)
+        db.commit.assert_called_once()
 
 
 @patch("app.db.update.inject_heap_date", side_effect=lambda sql, heap_date: sql)
@@ -83,24 +116,80 @@ def test_insert_projections(mock_update):
     assert mock_update.call_args_list[-1][1]['final'] is True
 
 
-@patch("app.db.update.extract_heap_date_from_path", return_value=["dump", "2023", "08"])
-@patch("app.db.update.connect_staging_db")
-@patch("app.db.update.load_sql_dumps_into_staging")
-@patch("app.db.update.run_migration_sql")
-@patch("app.db.update.fetch_projection_inputs", return_value=[{"id": 1}, {"id": 2}])
-@patch("app.db.update.project_players", return_value=[{"id": 1}, {"id": 2}])
 @patch("app.db.update.insert_projections")
-def test_process_single_heap(mock_insert, mock_project, mock_fetch, mock_migration,
-                              mock_load, mock_connect, mock_extract):
+@patch("app.db.update.project_players", return_value=[{"id": 1}, {"id": 2}])
+@patch("app.db.update.fetch_projection_inputs", return_value=[{"id": 1}, {"id": 2}])
+@patch("app.db.update.run_migration_short")
+@patch("app.db.update.load_sql_dumps_into_staging")
+@patch("app.db.update.connect_staging_db")
+@patch("app.db.update.extract_heap_date_from_path", return_value=["dump", "2023", "08"])
+def test_process_single_heap_short(
+    mock_extract, mock_connect, mock_load, mock_migration_short,
+    mock_fetch, mock_project, mock_insert, app
+):
     mock_logger = MagicMock()
-    mock_db = MagicMock()
-    mock_conn = MagicMock()
-    mock_connect.return_value = mock_conn
+    mock_staging_db = MagicMock()
+    mock_connect.return_value = mock_staging_db
 
-    update_module.process_single_heap("/dummy/heap_path", 1, 10, mock_db, mock_logger)
+    heap_path = "/dummy/heap_path"
+    heap_index = 1
+    total_heaps = 10
+    db = MagicMock()
+
+    with patch.object(update_module, "logger", mock_logger):
+        update_module.process_single_heap(heap_path, heap_index, total_heaps, db, short_heap=True)
 
     mock_connect.assert_called_once()
-    mock_conn.commit.assert_called_once()
-    mock_conn.close.assert_called_once()
-    mock_insert.assert_called_once()
-    mock_logger.info.assert_any_call("Number of players: 2")
+    mock_load.assert_called_once_with(mock_staging_db, heap_path)
+    mock_staging_db.commit.assert_called_once()
+    mock_staging_db.close.assert_called_once()
+
+    mock_migration_short.assert_called_once_with(["dump", "2023", "08"], db)
+
+    mock_fetch.assert_called_once_with(["dump", "2023", "08"], db)
+    mock_project.assert_called_once_with([{"id": 1}, {"id": 2}])
+    mock_insert.assert_called_once_with([{"id": 1}, {"id": 2}], db)
+
+    info_calls = [call.args[0] for call in mock_logger.info.call_args_list]
+    assert any("Processing short heap" in msg for msg in info_calls)
+    assert any("Number of players: 2" in msg for msg in info_calls)
+    assert any("Generated 2 projections" in msg for msg in info_calls)
+
+    mock_logger.debug.assert_called_with(f"First projection: {{'id': 1}}")
+
+@patch("app.db.update.insert_projections")
+@patch("app.db.update.project_players")
+@patch("app.db.update.fetch_projection_inputs")
+@patch("app.db.update.run_migration_long")
+@patch("app.db.update.load_sql_dumps_into_staging")
+@patch("app.db.update.connect_staging_db")
+@patch("app.db.update.extract_heap_date_from_path", return_value=["dump", "2023", "08"])
+def test_process_single_heap_long(
+    mock_extract, mock_connect, mock_load, mock_migration_long,
+    mock_fetch, mock_project, mock_insert, app
+):
+    mock_logger = MagicMock()
+    mock_staging_db = MagicMock()
+    mock_connect.return_value = mock_staging_db
+
+    heap_path = "/dummy/heap_path"
+    heap_index = 1
+    total_heaps = 10
+    db = MagicMock()
+
+    with patch.object(update_module, "logger", mock_logger):
+        update_module.process_single_heap(heap_path, heap_index, total_heaps, db, short_heap=False)
+
+    mock_connect.assert_called_once()
+    mock_load.assert_called_once_with(mock_staging_db, heap_path)
+    mock_staging_db.commit.assert_called_once()
+    mock_staging_db.close.assert_called_once()
+
+    mock_migration_long.assert_called_once_with(["dump", "2023", "08"], db)
+
+    mock_fetch.assert_not_called()
+    mock_project.assert_not_called()
+    mock_insert.assert_not_called()
+
+    info_calls = [call.args[0] for call in mock_logger.info.call_args_list]
+    assert any("Processing long heap" in msg for msg in info_calls)
