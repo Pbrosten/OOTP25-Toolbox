@@ -1,6 +1,14 @@
 <script setup lang='ts'>
 import { ref, onMounted, computed, watch } from 'vue'
-import { Switch } from '@headlessui/vue'
+import {
+  Switch,
+  Listbox,
+  ListboxLabel,
+  ListboxButton,
+  ListboxOptions,
+  ListboxOption,
+} from '@headlessui/vue'
+import { CheckIcon, ChevronUpDownIcon } from '@heroicons/vue/20/solid'
 import PercentileBar from './PercentileBar.vue'
 
 const props = defineProps<{ playerId: number, leagueId: number | null }>()
@@ -80,8 +88,12 @@ const error = ref<string | null>(null)
 const mlbComp = ref<boolean>(leagueId==203)
 const mlbLock = computed(() => leagueId === 203)
 
+const years = ref<any>(null)
+const selectedYear = ref(null)
+
 onMounted(() => {
   fetchPercentiles()
+  getYears()
 })
 
 watch(mlbComp, () => {
@@ -96,6 +108,24 @@ function sortedEntries(obj: any, order: string[]) {
 
 function getStatLabel(key: string): string {
   return statLabelMap[key] || key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+}
+
+function formatYear(dateString: string): string {
+  const date = new Date(dateString)
+  return date.getFullYear().toString()
+}
+
+async function getYears() {
+  if (!years.value) {
+    const yearsRes = await fetch(`/api/players/${props.playerId}/ratings?years=true`)
+    if (yearsRes.ok) {
+      years.value = await yearsRes.json()
+      selectedYear.value = years.value[0]
+      console.log(years.value)
+    } else {
+      throw new Error(`Failed to load player rating years.`)
+    }
+  }
 }
 
 async function fetchPercentiles() {
@@ -175,6 +205,7 @@ const filteredFieldingPercentiles = computed(() => {
     <div v-else>
       <div class="flex items-center space-x-4">
         <h2 class="text-lg font-semibold">Percentiles</h2>
+        <span v-if="leagueId !== 203" class="text-sm font-medium text-gray-700">Current</span>
         <Switch
           v-model="mlbComp"
           :class="[
@@ -183,15 +214,72 @@ const filteredFieldingPercentiles = computed(() => {
             mlbLock ? 'cursor-not-allowed opacity-60' : ''
           ]"
           :disabled="mlbLock"
-        >
+          >
           <span
-            :class="[
-              'inline-block h-4 w-4 transform rounded-full bg-white transition',
-              mlbComp ? 'translate-x-6' : 'translate-x-1'
-            ]"
+          :class="[
+            'inline-block h-4 w-4 transform rounded-full bg-white transition',
+            mlbComp ? 'translate-x-6' : 'translate-x-1'
+          ]"
           />
         </Switch>
-        <span class="text-sm font-medium text-gray-700">Compare to MLB</span>
+        <span class="text-sm font-medium text-gray-700">MLB</span>
+        <Listbox v-model="selectedYear">
+          <div class="relative mt-1">
+            <ListboxButton
+              class="min-w-[5rem] w-auto cursor-default rounded-lg bg-white py-2 pl-3 pr-10 text-left shadow-md focus:outline-none focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-white/75 focus-visible:ring-offset-2 focus-visible:ring-offset-teal-600 sm:text-sm"
+            >
+              <span class="block truncate">{{ formatYear(selectedYear.rating_date) }}</span>
+              <span
+                class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2"
+              >
+                <ChevronUpDownIcon
+                  class="h-5 w-5 text-gray-400"
+                  aria-hidden="true"
+                />
+              </span>
+            </ListboxButton>
+
+            <transition
+              leave-active-class="transition duration-100 ease-in"
+              leave-from-class="opacity-100"
+              leave-to-class="opacity-0"
+            >
+              <ListboxOptions
+                class="absolute z-10 mt-1 w-[6rem] max-h-60 overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5 focus:outline-none sm:text-sm"
+              >
+
+                <ListboxOption
+                  v-slot="{ active, selected }"
+                  v-for="year in years"
+                  :key="year.rating_date"
+                  :value="year"
+                  as="template"
+                >
+                  <li
+                    :class="[
+                      active ? 'bg-teal-100 text-teal-900' : 'text-gray-900',
+                      'relative cursor-default select-none py-2 pl-10 pr-4',
+                    ]"
+                  >
+                    <span
+                      :class="[
+                        selected ? 'font-medium' : 'font-normal',
+                        'block truncate',
+                      ]"
+                      >{{ formatYear(year.rating_date) }}</span
+                    >
+                    <span
+                      v-if="selected"
+                      class="absolute inset-y-0 left-0 flex items-center pl-3 text-amber-600"
+                    >
+                      <CheckIcon class="h-5 w-5" aria-hidden="true" />
+                    </span>
+                  </li>
+                </ListboxOption>
+              </ListboxOptions>
+            </transition>
+          </div>
+        </Listbox>
       </div>
       <div v-if='xStatsBat'>
         <div class="relative w-full h-10">
