@@ -4,7 +4,7 @@ import click
 from flask import current_app
 
 from .connection import get_db, close_db
-from .stagging import check_new_heaps
+from .staging import check_new_heaps
 from .update import process_single_heap
 
 

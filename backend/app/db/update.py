@@ -8,7 +8,7 @@ from flask import current_app
 from multiprocessing import Pool, cpu_count
 from tqdm import tqdm
 
-from .stagging import sql_dump_to_staging, DUMP_INCLUSION_LIST
+from .staging import sql_dump_to_staging, DUMP_INCLUSION_LIST
 from .migration import inject_db_path, inject_heap_date
 from .projection import process_player, update_projection_batches
 
