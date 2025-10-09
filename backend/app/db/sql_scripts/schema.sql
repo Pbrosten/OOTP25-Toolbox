@@ -80,7 +80,8 @@ CREATE TABLE players_career_batting_stats (
   war REAL,
   FOREIGN KEY (player_id) REFERENCES players(player_id),
   FOREIGN KEY (team_id) REFERENCES teams(team_id),
-  FOREIGN KEY (league_id) REFERENCES leagues(league_id)
+  FOREIGN KEY (league_id) REFERENCES leagues(league_id),
+  PRIMARY KEY (player_id, year, team_id)
 );
 
 CREATE TABLE players_rating (

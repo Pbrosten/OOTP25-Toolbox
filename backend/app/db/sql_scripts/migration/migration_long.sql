@@ -32,7 +32,7 @@ SELECT
     text_color_id
 FROM stage.teams;
 
-INSERT INTO players_career_batting_stats
+INSERT OR REPLACE INTO players_career_batting_stats
 SELECT
     player_id,
     year,
@@ -66,6 +66,7 @@ SELECT
     stint,
     ubr,
     war
-FROM stage.players_career_batting_stats;
+FROM stage.players_career_batting_stats 
+WHERE split_id = 1 ;
 
 DETACH DATABASE stage;
