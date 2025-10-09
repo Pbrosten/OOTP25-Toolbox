@@ -129,7 +129,6 @@ def get_player_career_batting(player_id):
     """
     con = get_db()
     try:
-        # Step 1: Check for MLB stats
         check_query = """
             SELECT 1
             FROM players_career_batting_stats
@@ -139,7 +138,6 @@ def get_player_career_batting(player_id):
         cursor = con.execute(check_query, {'player_id': player_id})
         has_mlb_stats = cursor.fetchone() is not None
 
-        # Step 2: Load appropriate SQL file
         sql_file = 'get_player_career_batting_mlb.sql' if has_mlb_stats else 'get_player_career_batting_milb.sql'
 
         sql_path = os.path.join('db', 'sql_scripts', 'api', sql_file)
