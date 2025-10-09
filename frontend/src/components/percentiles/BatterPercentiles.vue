@@ -111,6 +111,13 @@ watch(mlbComp, () => {
   fetchPercentiles()
 })
 
+watch(selectedYear, async (newYear) => {
+  if (newYear) {
+    await fetchPercentiles(newYear.rating_id)
+  }
+})
+
+
 function sortedEntries(obj: any, order: string[]) {
   return order
     .map(key => [key, obj[key]])
@@ -140,38 +147,33 @@ async function getYears() {
   }
 }
 
-async function fetchPercentiles() {
+async function fetchPercentiles(ratingId?: number) {
   loading.value = true
   error.value = null
 
   try {
-    // Fetch latest rating ID if not loaded
-    if (!playerRating.value) {
+    if (!ratingId) {
       const ratingRes = await fetch(`/api/players/${props.playerId}/ratings?latest=true`)
       if (ratingRes.ok) {
-        playerRating.value = await ratingRes.json()
+        const ratingData = await ratingRes.json()
+        ratingId = ratingData.rating_id
       } else {
         throw new Error('Failed to load player rating info.')
       }
     }
 
-    const ratingId = playerRating.value.rating_id
-    // Fetch Run Values
     const valueRes = await fetch(`/api/players/stats/expected/value/${ratingId}/percentiles?mlb=${mlbComp.value}`)
     xStatsValue.value = valueRes.ok ? await valueRes.json() : null
     if (!valueRes.ok) throw new Error('Failed to load expected value stats.')
 
-    // Fetch Batting Stats
     const batRes = await fetch(`/api/players/stats/expected/batting/${ratingId}/percentiles?mlb=${mlbComp.value}`)
     xStatsBat.value = batRes.ok ? await batRes.json() : null
     if (!batRes.ok) throw new Error('Failed to load expected batting stats.')
 
-    // Fetch Basepath Stats
     const runRes = await fetch(`/api/players/stats/expected/basepath/${ratingId}/percentiles?mlb=${mlbComp.value}`)
     xStatsRun.value = runRes.ok ? await runRes.json() : null
     if (!runRes.ok) throw new Error('Failed to load expected basepath stats.')
 
-    // Fetch Fielding Stats
     const fieldRes = await fetch(`/api/players/stats/expected/fielding/${ratingId}/percentiles?mlb=${mlbComp.value}`)
     xStatsField.value = fieldRes.ok ? await fieldRes.json() : null
     if (!fieldRes.ok) throw new Error('Failed to load expected fielding stats.')
