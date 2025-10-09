@@ -49,10 +49,14 @@ export default {
 
 <template>
   <div class="grid grid-cols-[150px_1fr] items-center gap-3 my-3 w-full">
-    <div class="whitespace-nowrap font-bold text-sm">
+    <!-- Right-aligned label -->
+    <div class="whitespace-nowrap font-bold text-sm text-right">
       {{ label }}
     </div>
-    <div class="relative bg-gray-300 h-5 rounded-md overflow-hidden w-full">
+
+    <!-- Bar container -->
+    <div class="relative bg-gray-300 h-5 rounded-md w-full">
+      <!-- Colored filled bar -->
       <div
         class="h-full transition-all duration-500 rounded-l-md"
         :style="{
@@ -60,8 +64,16 @@ export default {
           backgroundColor: computedColor
         }"
       ></div>
-      <div class="absolute right-2 top-1 font-bold text-xs text-gray-900">
-        {{ percentile }}%
+
+      <!-- Head circle -->
+      <div
+        class="absolute top-1/2 -translate-y-1/2 w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center text-white border-2 border-white transition-all duration-500"
+        :style="{
+          left: `calc(${percentile}% - 12px)`,
+          backgroundColor: computedColor
+        }"
+      >
+        {{ percentile }}
       </div>
     </div>
   </div>
