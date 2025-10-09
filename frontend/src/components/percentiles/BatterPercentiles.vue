@@ -50,8 +50,18 @@ const statLabelMap: Record<string, string> = {
   infield_range_percentile: 'Range Value',
   outfield_arm_percentile: 'Arm Value',
   outfield_range_percentile: 'Range Value',
-
+  batting_runs_percentile: "Batting Run Value",
+  basepath_runs_percentile: "Basepath Run Value",
+  fielding_runs_percentile: "Fielding Run Value",
+  total_runs_percentile: "Total Run Value",
 }
+
+const valueOrder = [
+  'batting_runs_percentile',
+  'fielding_runs_percentile',
+  'basepath_runs_percentile',
+  'total_runs_percentile',
+]
 
 const battingOrder = [
   'xwoba_percentile',
@@ -78,6 +88,7 @@ const fieldOrder = [
 ]
 
 const playerRating = ref<any>(null)
+const xStatsValue = ref<any>(null)
 const xStatsBat = ref<any>(null)
 const xStatsRun = ref<any>(null)
 const xStatsField = ref<any>(null)
@@ -85,7 +96,7 @@ const xStatsField = ref<any>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
 
-const mlbComp = ref<boolean>(leagueId==203)
+const mlbComp = ref<boolean>(leagueId == 203)
 const mlbLock = computed(() => leagueId === 203)
 
 const years = ref<any>(null)
@@ -118,10 +129,11 @@ function formatYear(dateString: string): string {
 async function getYears() {
   if (!years.value) {
     const yearsRes = await fetch(`/api/players/${props.playerId}/ratings?years=true`)
+    console.log(yearsRes)
     if (yearsRes.ok) {
       years.value = await yearsRes.json()
-      selectedYear.value = years.value[0]
       console.log(years.value)
+      selectedYear.value = years.value[0]
     } else {
       throw new Error(`Failed to load player rating years.`)
     }
@@ -144,6 +156,10 @@ async function fetchPercentiles() {
     }
 
     const ratingId = playerRating.value.rating_id
+    // Fetch Run Values
+    const valueRes = await fetch(`/api/players/stats/expected/value/${ratingId}/percentiles?mlb=${mlbComp.value}`)
+    xStatsValue.value = valueRes.ok ? await valueRes.json() : null
+    if (!valueRes.ok) throw new Error('Failed to load expected value stats.')
 
     // Fetch Batting Stats
     const batRes = await fetch(`/api/players/stats/expected/batting/${ratingId}/percentiles?mlb=${mlbComp.value}`)
@@ -206,72 +222,43 @@ const filteredFieldingPercentiles = computed(() => {
       <div class="flex items-center space-x-4">
         <h2 class="text-lg font-semibold">Percentiles</h2>
         <span v-if="leagueId !== 203" class="text-sm font-medium text-gray-700">Current</span>
-        <Switch
-          v-model="mlbComp"
-          :class="[
-            'relative inline-flex h-6 w-11 items-center rounded-full',
-            mlbComp ? 'bg-teal-800' : 'bg-gray-200',
-            mlbLock ? 'cursor-not-allowed opacity-60' : ''
-          ]"
-          :disabled="mlbLock"
-          >
-          <span
-          :class="[
+        <Switch v-model="mlbComp" :class="[
+          'relative inline-flex h-6 w-11 items-center rounded-full',
+          mlbComp ? 'bg-teal-800' : 'bg-gray-200',
+          mlbLock ? 'cursor-not-allowed opacity-60' : ''
+        ]" :disabled="mlbLock">
+          <span :class="[
             'inline-block h-4 w-4 transform rounded-full bg-white transition',
             mlbComp ? 'translate-x-6' : 'translate-x-1'
-          ]"
-          />
+          ]" />
         </Switch>
         <span class="text-sm font-medium text-gray-700">MLB</span>
         <Listbox v-model="selectedYear">
           <div class="relative mt-1">
             <ListboxButton
-              class="min-w-[5rem] w-auto cursor-default rounded-lg bg-white py-2 pl-3 pr-10 text-left shadow-md focus:outline-none focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-white/75 focus-visible:ring-offset-2 focus-visible:ring-offset-teal-600 sm:text-sm"
-            >
+              class="min-w-[5rem] w-auto cursor-default rounded-lg bg-white py-2 pl-3 pr-10 text-left shadow-md focus:outline-none focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-white/75 focus-visible:ring-offset-2 focus-visible:ring-offset-teal-600 sm:text-sm">
               <span class="block truncate">{{ formatYear(selectedYear.rating_date) }}</span>
-              <span
-                class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2"
-              >
-                <ChevronUpDownIcon
-                  class="h-5 w-5 text-gray-400"
-                  aria-hidden="true"
-                />
+              <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
+                <ChevronUpDownIcon class="h-5 w-5 text-gray-400" aria-hidden="true" />
               </span>
             </ListboxButton>
 
-            <transition
-              leave-active-class="transition duration-100 ease-in"
-              leave-from-class="opacity-100"
-              leave-to-class="opacity-0"
-            >
+            <transition leave-active-class="transition duration-100 ease-in" leave-from-class="opacity-100"
+              leave-to-class="opacity-0">
               <ListboxOptions
-                class="absolute z-10 mt-1 w-[6rem] max-h-60 overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5 focus:outline-none sm:text-sm"
-              >
+                class="absolute z-10 mt-1 w-[6rem] max-h-60 overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5 focus:outline-none sm:text-sm">
 
-                <ListboxOption
-                  v-slot="{ active, selected }"
-                  v-for="year in years"
-                  :key="year.rating_date"
-                  :value="year"
-                  as="template"
-                >
-                  <li
-                    :class="[
-                      active ? 'bg-teal-100 text-teal-900' : 'text-gray-900',
-                      'relative cursor-default select-none py-2 pl-10 pr-4',
-                    ]"
-                  >
-                    <span
-                      :class="[
-                        selected ? 'font-medium' : 'font-normal',
-                        'block truncate',
-                      ]"
-                      >{{ formatYear(year.rating_date) }}</span
-                    >
-                    <span
-                      v-if="selected"
-                      class="absolute inset-y-0 left-0 flex items-center pl-3 text-amber-600"
-                    >
+                <ListboxOption v-slot="{ active, selected }" v-for="year in years" :key="year.rating_date" :value="year"
+                  as="template">
+                  <li :class="[
+                    active ? 'bg-teal-100 text-teal-900' : 'text-gray-900',
+                    'relative cursor-default select-none py-2 pl-10 pr-4',
+                  ]">
+                    <span :class="[
+                      selected ? 'font-medium' : 'font-normal',
+                      'block truncate',
+                    ]">{{ formatYear(year.rating_date) }}</span>
+                    <span v-if="selected" class="absolute inset-y-0 left-0 flex items-center pl-3 text-amber-600">
                       <CheckIcon class="h-5 w-5" aria-hidden="true" />
                     </span>
                   </li>
@@ -281,6 +268,20 @@ const filteredFieldingPercentiles = computed(() => {
           </div>
         </Listbox>
       </div>
+      <div v-if='xStatsBat'>
+        <div class="relative w-full h-10">
+          <div class="absolute inset-x-0 bottom-1.25 h-0.5 bg-teal-600"></div>
+
+          <div class="relative flex items-center space-x-2 h-full px-4">
+            <img src="@/assets/slider-trophy.png" class="w-10 h-10" />
+            <h3 class="text-base font-semibold">Value</h3>
+          </div>
+        </div>
+        <template v-for="[key, value] in sortedEntries(xStatsValue, valueOrder)" :key="key">
+          <PercentileBar :label="getStatLabel(key)" :percentile="Number(value)" />
+        </template>
+      </div>
+
       <div v-if='xStatsBat'>
         <div class="relative w-full h-10">
           <div class="absolute inset-x-0 bottom-1.25 h-0.5 bg-teal-600"></div>
