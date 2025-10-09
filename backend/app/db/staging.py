@@ -21,19 +21,24 @@ DUMP_INCLUSION_LIST = [
 def check_new_heaps():
     dump_path = current_app.config['DUMP_PATH']
     heaps = os.listdir(dump_path)
+    valid_heaps = []
+    for heap in heaps:
+        parts = heap.split("_")
+        if len(parts) < 3:
+            continue
+        year_part = parts[1]
+        if not year_part.isdigit():
+            continue
 
-    valid_short_heaps = [
-        heap for heap in heaps
-        if "_" in heap and heap.split("_")[1].isdigit() and heap.split("_")[2].isdigit()
-    ]
-    valid_long_heaps = [
-        heap for heap in heaps
-        if "_" in heap and heap.split("_")[1].isdigit() and heap.split("_")[2]=="yearly"
-    ]
+        if parts[2] == "yearly":
+            valid_heaps.append((heap, int(year_part), 13, False))
+        elif parts[2].isdigit():
+            valid_heaps.append((heap, int(year_part), int(parts[2]), True))
 
-    sorted_short_heaps = sorted(valid_short_heaps, key=lambda h: (int(h.split("_")[1]), int(h.split("_")[2])))
-    sorted_long_heaps = sorted(valid_long_heaps, key=lambda h: (int(h.split("_")[1])))
-    return [os.path.join(dump_path, heap, "mysql") for heap in sorted_short_heaps], [os.path.join(dump_path, heap, "mysql") for heap in sorted_long_heaps]
+    sorted_heaps = sorted(valid_heaps, key=lambda x: (x[1], x[2]))
+
+    result = [(os.path.join(dump_path, heap[0], "mysql"), heap[3]) for heap in sorted_heaps]
+    return result
 
 def clean_mysql_dump(sql: str) -> str:
     cleaned_lines = []
