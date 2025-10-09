@@ -159,41 +159,49 @@ def get_player_career_batting(player_id):
 def get_player_ratings(player_id):
     """Retrieve the player rating ids for a single player by their unique id
 
-    Args:
-        player_id (int): The ID of the player to retrieve.
-        latest (bool): query arg for returning latest ratings
+    Query Args:
+        - latest (bool): Return only the most recent rating
+        - years (bool): Return the most recent rating for each year
 
     Returns:
         JSON response:
             - List of rating ids if found.
-            - Singleton list of most recent rating id.
-            - 404 errror if not found.
+            - Singleton rating dict if latest is true.
+            - 404 error if not found.
     """
     logger = logging.getLogger('api-testing')
     con = get_db()
+    
     try:
+        # Query params
         latest = request.args.get('latest', 'false').lower() == 'true'
         years = request.args.get('years', 'false').lower() == 'true'
 
-        with current_app.open_resource(os.path.join('db','sql_scripts', 'api', 'get_player_ratings.sql'), 'r') as f:
-            cursor = con.execute(f.read(), (player_id,))
-            rows = cursor.fetchall()
-            dict_rows = [dict(row) for row in rows]
-            if rows:
-                if latest:
-                    return jsonify(dict_rows[0])
-                elif years:
-                    seen_years = set()
-                    filtered = []
-                    for row in dict_rows:
-                        year = row['rating_date'].year
-                        if year not in seen_years:
-                            seen_years.add(year)
-                            filtered.append(row)
-                    return jsonify(filtered)
-                else:
-                    return jsonify(dict_rows)
+        with current_app.open_resource(os.path.join('db', 'sql_scripts', 'api', 'get_player_ratings.sql'), mode='r') as f:
+            sql = f.read()
+
+        cursor = con.execute(sql, (player_id,))
+        rows = cursor.fetchall()
+        dict_rows = [dict(row) for row in rows]
+
+        if dict_rows:
+            if latest:
+                return jsonify(dict_rows[0])
+            elif years:
+                seen_years = set()
+                filtered = []
+                for row in dict_rows:
+                    year = row['rating_date'].year
+                    if year not in seen_years:
+                        seen_years.add(year)
+                        filtered.append(row)
+                return jsonify(filtered)
             else:
-                return jsonify({"error": "Player ratings not found"}), 404
+                return jsonify(dict_rows)
+        else:
+            logger.warning(f"[404] No ratings found for player_id={player_id}")
+            return jsonify({"error": "Player ratings not found"}), 404
+
     finally:
         close_db()
+
