@@ -200,3 +200,26 @@ def get_expected_fielding_percentiles(rating_id):
 
     finally:
         close_db()
+
+@bp.route('/value/<int:rating_id>/percentiles', methods=['GET'])
+def get_expected_value_percentiles(rating_id):
+    """
+    Retrieve a single player run value projected percentiles by their unique ID..
+
+    Returns:
+        JSON response:
+            - Player projection record if found.
+            - 404 error if not found.
+    """
+    con = get_db()
+    try:
+        is_mlb = request.args.get('mlb', 'false').lower() == 'true'
+        with current_app.open_resource(os.path.join('db', 'sql_scripts', 'api', 'get_player_expected_value_percentiles.sql'), 'r') as f:
+            cursor = con.execute(f.read(), {'rating_id':rating_id, 'is_mlb':is_mlb})
+            columns = [desc[0] for desc in cursor.description]
+            row = cursor.fetchone()
+            result = dict(zip(columns, row))
+            return jsonify(result)
+
+    finally:
+        close_db()
