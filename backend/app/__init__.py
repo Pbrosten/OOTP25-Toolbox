@@ -16,14 +16,14 @@ def create_app():
         app.config.from_object('config.DevConfig')
         app.config.update(
             DATABASE=os.path.join(app.instance_path, 'db_develop.sqlite'),
-            STAGGING=os.path.join(app.instance_path, 'db_stagging.sqlite'),
+            STAGING=os.path.join(app.instance_path, 'db_staging.sqlite'),
         )
         print(app.config)
     else:
         app.config.from_object('config.ProdConfig')
         app.config.update(
             DATABASE=os.path.join(app.instance_path, 'db.sqlite'),
-            STAGGING=os.path.join(app.instance_path, 'db_stagging.sqlite'),
+            STAGING=os.path.join(app.instance_path, 'db_staging.sqlite'),
         )
 
     logging.basicConfig(

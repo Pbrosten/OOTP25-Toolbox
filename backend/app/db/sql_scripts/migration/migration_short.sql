@@ -1,4 +1,4 @@
-ATTACH DATABASE '{{STAGGING_DB_PATH}}' AS stage;
+ATTACH DATABASE '{{STAGING_DB_PATH}}' AS stage;
 
 -- injection scripts
 INSERT OR IGNORE INTO players_rating(player_id, rating_date, league_id)

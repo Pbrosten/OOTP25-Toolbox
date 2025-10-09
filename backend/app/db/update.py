@@ -78,7 +78,7 @@ def extract_heap_date_from_path(heap_path):
 
 def connect_staging_db():
     return sqlite3.connect(
-        current_app.config["STAGGING"],
+        current_app.config["STAGING"],
         detect_types=sqlite3.PARSE_DECLTYPES
     )
 
@@ -91,14 +91,14 @@ def load_sql_dumps_into_staging(staging_db, heap_path):
 
 def run_migration_short(heap_date, db):
     with current_app.open_resource(os.path.join('db','sql_scripts','migration','migration_short.sql'), 'r') as f:
-        sql_script = inject_db_path(f.read(), current_app.config["STAGGING"])
+        sql_script = inject_db_path(f.read(), current_app.config["STAGING"])
         sql_script = inject_heap_date(sql_script, heap_date)
         db.executescript(sql_script)
     db.commit()
     
 def run_migration_long(heap_date, db):
     with current_app.open_resource(os.path.join('db','sql_scripts','migration','migration_long.sql'), 'r') as f:
-        sql_script = inject_db_path(f.read(), current_app.config["STAGGING"])
+        sql_script = inject_db_path(f.read(), current_app.config["STAGING"])
         db.executescript(sql_script)
     db.commit()
 
