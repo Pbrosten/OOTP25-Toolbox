@@ -74,7 +74,7 @@ def search_players():
         """, ('%' + query + '%',))
         rows = cursor.fetchall()
         players = [dict(row) for row in rows]
-        return jsonify(players[:5])
+        return jsonify(players[:10])
     finally:
         close_db()
 
@@ -173,16 +173,26 @@ def get_player_ratings(player_id):
     con = get_db()
     try:
         latest = request.args.get('latest', 'false').lower() == 'true'
+        years = request.args.get('years', 'false').lower() == 'true'
 
         with current_app.open_resource(os.path.join('db','sql_scripts', 'api', 'get_player_ratings.sql'), 'r') as f:
             cursor = con.execute(f.read(), (player_id,))
             rows = cursor.fetchall()
-
+            dict_rows = [dict(row) for row in rows]
             if rows:
                 if latest:
-                    return jsonify(dict(rows[0]))
+                    return jsonify(dict_rows[0])
+                elif years:
+                    seen_years = set()
+                    filtered = []
+                    for row in dict_rows:
+                        year = row['rating_date'].year
+                        if year not in seen_years:
+                            seen_years.add(year)
+                            filtered.append(row)
+                    return jsonify(filtered)
                 else:
-                    return jsonify([dict(row) for row in rows])
+                    return jsonify(dict_rows)
             else:
                 return jsonify({"error": "Player ratings not found"}), 404
     finally:
