@@ -5,6 +5,7 @@ const props = defineProps<{ playerId: number }>()
 
 const playerDetails = ref<any>(null)
 const battingStats = ref<any[]>([])
+const maxRows = 5
 const loading = ref(true)
 const error = ref<string | null>(null)
 
@@ -40,7 +41,7 @@ const recentStats = computed(() => {
   if (!battingStats.value.length) return []
   return [...battingStats.value]
     .sort((a, b) => Number(b.year) - Number(a.year))
-    .slice(0, 3)
+    .slice(0, maxRows)
 })
 
 const totals = computed(() => {
