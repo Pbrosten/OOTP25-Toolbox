@@ -1,0 +1,81 @@
+import os
+import pytest
+from unittest.mock import MagicMock, patch
+from app.db import staging as staging_module
+
+@pytest.fixture
+def app_config(monkeypatch):
+    monkeypatch.setattr("flask.current_app", MagicMock())
+    yield
+
+def test_check_new_heaps(monkeypatch, app):
+    monkeypatch.setattr('os.listdir', lambda path: [
+        "heap_2023_5", "heap_2022_10", "heap_invalid", "heap_2023_x", "heap_2023_1", "heap_2021_yearly"
+    ])
+
+    fake_path = "/fake/dump/path"
+
+    with app.app_context():
+        # Set DUMP_PATH inside the Flask app config
+        staging_module.current_app.config["DUMP_PATH"] = fake_path
+
+        short_expected = [
+            os.path.join(fake_path, "heap_2022_10", "mysql"),
+            os.path.join(fake_path, "heap_2023_1", "mysql"),
+            os.path.join(fake_path, "heap_2023_5", "mysql"),
+        ]
+        long_expected = [
+            os.path.join(fake_path, "heap_2021_yearly", "mysql")
+        ]
+
+        short_heaps, long_heaps = staging_module.check_new_heaps()
+
+        assert short_heaps == short_expected
+        assert long_heaps == long_expected
+
+@pytest.mark.parametrize("input_sql, expected_sql", [
+    ("insert ignore into table values(1)", "INSERT OR IGNORE into table values(1)"),
+    ("INSERT IGNORE something", "INSERT IGNORE something"),  # No change expected
+    ("InSeRt IgNoRe whatever", "InSeRt IgNoRe whatever"),    # No change expected
+    ("insert into table values(1)", "insert into table values(1)"),
+    ("# comment line", ""),
+])
+def test_clean_mysql_dump(input_sql, expected_sql):
+    result = staging_module.clean_mysql_dump(input_sql)
+    assert result.strip() == expected_sql.strip()
+
+def test_sql_dump_to_staging(tmp_path):
+    sql_lines = [
+        "# comment line\n",
+        "insert ignore into table values(1);\n",
+        "insert into table values(2);\n",
+        "insert ignore into table values(3);\n"
+    ]
+    file_path = tmp_path / "dump.sql"
+    file_path.write_text("".join(sql_lines))
+
+    class MockDB:
+        def __init__(self):
+            self.executed = []
+            self.commit_called = False
+
+        def executescript(self, sql):
+            self.executed.append(sql.strip())
+
+        def commit(self):
+            self.commit_called = True
+
+    db = MockDB()
+
+    # Run the function
+    staging_module.sql_dump_to_staging(db, str(file_path))
+
+    # Expected cleaned SQL
+    expected_sql = "\n".join([
+        "INSERT OR IGNORE into table values(1);",
+        "insert into table values(2);",
+        "INSERT OR IGNORE into table values(3);"
+    ])
+
+    assert db.executed == [expected_sql.strip()]
+    assert db.commit_called is True
