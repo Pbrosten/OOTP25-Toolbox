@@ -1,11 +1,13 @@
 import os
 import click
+from pathlib import Path
 
 from flask import current_app
 
 from .connection import get_db, close_db
 from .staging import check_new_heaps
 from .update import process_single_heap
+from app.player_similarity.similarity import compute_similarities
 
 
 @click.command('init-db')
@@ -26,7 +28,6 @@ def update_db():
     if not sorted_heaps:
         logger.info("No new heaps found.")
         return
-    logger.info(sorted_heaps)
 
     total_heaps = len(sorted_heaps)
     count_short = sum(1 for _, is_short in sorted_heaps if is_short)
@@ -36,8 +37,14 @@ def update_db():
     db = get_db()
 
     logger.info("Migrating heaps in order")
+    latest_short_heap = ''
     for heap_number, (heap_path, short_heap_flag) in enumerate(sorted_heaps, 1):
+        if short_heap_flag:
+            latest_short_heap = heap_path
         process_single_heap(heap_path, heap_number, total_heaps, db, short_heap=short_heap_flag)
-
+    latest_short_heap = f"{Path(latest_short_heap).parent.name.replace('dump_', '').replace('_', '-')}-1"
     logger.info("Migration and projection complete!")
     close_db()
+    
+    logger.info(f'Computing similaties as of {latest_short_heap}')
+    compute_similarities(rating_date=latest_short_heap)
