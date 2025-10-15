@@ -20,7 +20,7 @@ def compute_similarities(rating_date: str, batter=True) -> None:
     normalized_similarity = (similarity_matrix + 1) / 2
 
     logger.info(f'Computed similarities for {normalized_similarity.shape[0]} players')
-    save_similarity_to_db(similarity_matrix=similarity_matrix, player_ids=player_ids, player_type=player_type)
+    save_similarity_to_db(similarity_matrix=normalized_similarity, player_ids=player_ids, player_type=player_type)
     return None
 
 def save_similarity_to_db(similarity_matrix, player_ids, player_type) -> None:
