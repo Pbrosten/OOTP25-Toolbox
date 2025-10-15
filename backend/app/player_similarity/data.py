@@ -6,7 +6,7 @@ from typing import List, Dict, Tuple
 
 from flask import current_app, jsonify
 from app.db.connection import get_db, close_db
-from app.player_similarity.config import FEATURE_NAMES_BATTER
+from app.player_similarity.config import FEATURE_NAMES_BATTER, FEATURE_WEIGHTS_BATTER
 
 def fetch_base_embedding(rating_date: str, batter: bool=True) -> List[Dict]:
     con = get_db()
@@ -28,4 +28,6 @@ def process_base_embedding(base_embedding: List[Dict], batter: bool=True) -> Tup
         player_ids = embedding.pop('player_id').to_list()
         scaler = StandardScaler()
         scaled_embedding = scaler.fit_transform(embedding)
-    return scaled_embedding, player_ids
+        weights = pd.Series(FEATURE_WEIGHTS_BATTER, index=embedding.columns)
+        scaled_weighted_embedding = scaled_embedding * weights.values
+    return scaled_weighted_embedding, player_ids
