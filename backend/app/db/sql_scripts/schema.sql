@@ -12,6 +12,7 @@ DROP TABLE IF EXISTS players_fielding_expected;
 DROP TABLE IF EXISTS players_batting_talent;
 DROP TABLE IF EXISTS players_batting_expected;
 DROP TABLE IF EXISTS players_run_value;
+DROP TABLE IF EXISTS players_similarity;
 
 
 CREATE TABLE players (
@@ -217,4 +218,12 @@ CREATE TABLE players_run_value (
   total_runs REAL,
   WAR REAL,
   FOREIGN KEY (rating_id) REFERENCES players_rating(rating_id)
+);
+
+CREATE TABLE players_similarity (
+  player_main INTEGER,
+  player_comp INTEGER,
+  similarity REAL,
+  player_type TEXT CHECK(player_type IN ('batter', 'pitcher')),
+  PRIMARY KEY (player_main, player_comp)
 );
