@@ -11,7 +11,7 @@ logger = logging.getLogger('player_similarity')
 
 @bp.route('/<int:player_id>', methods=['GET'])
 def get_player_similarity_comp_by_id(player_id):
-    threshold = float(request.args.get('threshold', 0.9))
+    threshold = float(request.args.get('threshold', 0.95))
     con = get_db()
     try:
         cursor = con.execute(
