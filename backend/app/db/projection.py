@@ -12,21 +12,29 @@ proj_scripts = {
         VALUES (:rating_id, :C, :_1B, :_2B, :_3B, :SS, :LF, :CF, :RF, :DH)""",
     "value": """INSERT OR IGNORE INTO players_run_value
         (rating_id, batting_runs, basepath_runs, fielding_runs, total_runs, WAR)
-        VALUES (:rating_id, :wRAA, :BR_runs, :Def_runs, :Total_runs, :WAR)"""
+        VALUES (:rating_id, :wRAA, :BR_runs, :Def_runs, :Total_runs, :WAR)""",
 }
+
 
 def process_player(player):
     try:
         projector = BatterProjection(player)
         result = projector.calc_expected_stats()
         if result is None:
-            current_app.logger.warning(f"No result for player: {player.get('rating_id')}")
+            current_app.logger.warning(
+                f"No result for player: {player.get('rating_id')}"
+            )
         return result
     except Exception as e:
-        current_app.logger.warning(f"Error processing player {player.get('rating_id')}: {e}")
+        current_app.logger.warning(
+            f"Error processing player {player.get('rating_id')}: {e}"
+        )
         return None
 
-def update_projection_batches(batches, projections=None, db=None, inject=False, final=False):
+
+def update_projection_batches(
+    batches, projections=None, db=None, inject=False, final=False
+):
     if final:
         for key in batches:
             if batches[key]:
