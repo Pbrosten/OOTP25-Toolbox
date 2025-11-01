@@ -24,8 +24,23 @@ services:
     networks:
       - app-net
 
+  mariadb:
+    image: mariadb:latest
+    container_name: mariadb
+    restart: always
+    environment:
+      MARIADB_ROOT_PASSWORD: rootpw
+      MARIADB_DATABASE: ootp
+      MARIADB_USER: ootp
+      MARIADB_PASSWORD: supersecretpw
+    ports:
+      - "5001:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+
 volumes:
   frontend_node_modules:
+  mariadb_data:
 
 networks:
   app-net:
