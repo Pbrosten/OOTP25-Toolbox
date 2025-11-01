@@ -101,13 +101,27 @@ def run_migration_short(heap_date, db):
     db.commit()
 
 
-def run_migration_long(heap_date, db):
-    with current_app.open_resource(
-        os.path.join("db", "sql_scripts", "migration", "migration_long.sql"), "r"
-    ) as f:
-        sql_script = inject_db_path(f.read(), current_app.config["STAGING"])
-        db.executescript(sql_script)
-    db.commit()
+def run_migration_long(heap_date, conn):
+    sql_path = os.path.join("db", "sql_scripts", "migration", "migration_long.sql")
+
+    with current_app.open_resource(sql_path, "r") as f:
+        sql_script = f.read()
+
+    sql_script = inject_db_path(sql_script, current_app.config["STAGING"])
+
+    with conn.cursor() as cursor:
+        try:
+            for statement in sql_script.strip().split(";"):
+                statement = statement.strip()
+
+                if statement:
+                    cursor.execute(statement)
+        except Exception as e:
+            conn.rollback()
+            current_app.logger.error(f"Migration failed at: {e}")
+            raise
+        else:
+            conn.commit()
 
 
 def fetch_projection_inputs(heap_date, db):
