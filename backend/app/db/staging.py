@@ -1,6 +1,8 @@
 import os
 import re
+import logging
 import sqlite3
+import pymysql
 from flask import current_app
 
 DUMP_INCLUSION_LIST = [
@@ -18,6 +20,37 @@ DUMP_INCLUSION_LIST = [
     "teams.mysql",
     # 'trade_history'
 ]
+
+logger = logging.getLogger("app.db.staging")
+
+
+def connect_staging_db():
+    cfg = current_app.config
+    host = cfg.get("DB_HOST")
+    if not host:
+        logger.error("Missing database host in configuration!")
+        raise RuntimeError("Database host not configured")
+
+    try:
+        conn = pymysql.connect(
+            host=host,
+            user=cfg.get("DB_USER"),
+            password=cfg.get("DB_PASSWORD"),
+            port=int(cfg.get("DB_PORT", 3306)),
+            autocommit=True,
+            charset="utf8mb4",
+        )
+    except pymysql.MySQLError as e:
+        logger.error(f"Failed to connect to MariaDB at {host}: {e}")
+        raise
+
+    with conn.cursor() as cur:
+        cur.execute("DROP DATABASE IF EXISTS staging")
+        cur.execute("CREATE DATABASE staging")
+        cur.execute("USE staging")
+
+    logger.info("Connected to fresh staging database.")
+    return conn
 
 
 def check_new_heaps():

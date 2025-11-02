@@ -1,5 +1,5 @@
 import os
-import sqlite3
+import pymysql
 import logging
 from datetime import date
 
@@ -8,7 +8,7 @@ from flask import current_app
 from multiprocessing import Pool, cpu_count
 from tqdm import tqdm
 
-from .staging import sql_dump_to_staging, DUMP_INCLUSION_LIST
+from .staging import sql_dump_to_staging, connect_staging_db, DUMP_INCLUSION_LIST
 from .migration import inject_db_path, inject_heap_date
 from .projection import process_player, update_projection_batches
 
@@ -75,12 +75,6 @@ def update_player_age(db, heap_date):
 def extract_heap_date_from_path(heap_path):
     # heap path should look like "{DUMP_PATH}/dump_yyyy_mm/mysql"
     return Path(heap_path).parts[-2].split("_")
-
-
-def connect_staging_db():
-    return sqlite3.connect(
-        current_app.config["STAGING"], detect_types=sqlite3.PARSE_DECLTYPES
-    )
 
 
 def load_sql_dumps_into_staging(staging_db, heap_path):
