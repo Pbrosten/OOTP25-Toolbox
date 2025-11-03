@@ -86,7 +86,6 @@ def sql_dump_to_staging(db, filepath: str):
         logger.error(f"Dump file not found: {filepath}")
         return
 
-    logger.info(f"Loading dump: {filepath}")
     try:
         with open(filepath, "r", encoding="utf-8") as f:
             statement_buffer = ""
@@ -112,9 +111,8 @@ def sql_dump_to_staging(db, filepath: str):
                 if statement_buffer.strip():
                     cur.execute(statement_buffer.strip())
         db.commit()
-        logger.info(f"Successfully loaded dump: {filepath}")
     except Exception as e:
-        logger.error(f"Failed to load dump {filepath}: {e}")
+        logger.error(f"Failed to load dump: {e}")
         raise
 
 
