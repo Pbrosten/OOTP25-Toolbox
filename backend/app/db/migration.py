@@ -1,5 +1,5 @@
-def inject_db_path(template: str, db_path: str) -> str:
-    return template.replace("{{STAGING_DB_PATH}}", db_path)
+# def inject_db_path(template: str, db_path: str) -> str:
+#     return template.replace("{{STAGING_DB_PATH}}", db_path)
 
 
 def inject_heap_date(template: str, heap_date: list) -> str:

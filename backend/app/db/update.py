@@ -12,7 +12,7 @@ from .staging import (
     connect_staging_db,
     DUMP_INCLUSION_LIST,
 )
-from .migration import inject_db_path, inject_heap_date
+from .migration import inject_heap_date
 from .projection import process_player, update_projection_batches
 
 logger = logging.getLogger("api/db/update")
@@ -81,12 +81,25 @@ def extract_heap_date_from_path(heap_path):
 
 
 def run_migration_short(heap_date, db):
-    script_path = os.path.join("db", "sql_scripts", "migration", "migration_short.sql")
+    script_path = os.path.join(
+        "db", "sql_scripts", "migration", "migration_short-maria.sql"
+    )
     with current_app.open_resource(script_path, "r") as f:
-        sql_script = inject_db_path(f.read(), current_app.config["STAGING"])
+        sql_script = f.read()
         sql_script = inject_heap_date(sql_script, heap_date)
-        db.executescript(sql_script)
-    db.commit()
+
+    with db.cursor() as cursor:
+        try:
+            for statement in sql_script.strip().split(";"):
+                statement = statement.strip()
+                if statement:
+                    cursor.execute(statement)
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Migration failed: {e}")
+            raise
+        else:
+            db.commit()
 
 
 def run_migration_long(heap_date, db):
@@ -95,7 +108,6 @@ def run_migration_long(heap_date, db):
     )
     with current_app.open_resource(script_path, "r") as f:
         sql_script = f.read()
-    sql_script = inject_db_path(sql_script, current_app.config["STAGING"])
 
     with db.cursor() as cursor:
         try:
@@ -116,8 +128,21 @@ def fetch_projection_inputs(heap_date, db):
         "db", "sql_scripts", "migration", "get_projection_inputs.sql"
     )
     with current_app.open_resource(query_path, "r") as f:
-        query = inject_heap_date(f.read(), heap_date)
-        cursor = db.execute(query)
+        sql_script = f.read()
+        sql_script = inject_heap_date(sql_script, heap_date)
+
+    with db.cursor() as cursor:
+        try:
+            for statement in sql_script.strip().split(";"):
+                statement = statement.strip()
+                if statement:
+                    cursor.execute(statement)
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Migration failed: {e}")
+            raise
+        else:
+            db.commit()
     return [dict(row) for row in cursor.fetchall()]
 
 
