@@ -90,7 +90,9 @@ def run_migration_short(heap_date, db):
 
 
 def run_migration_long(heap_date, db):
-    script_path = os.path.join("db", "sql_scripts", "migration", "migration_long.sql")
+    script_path = os.path.join(
+        "db", "sql_scripts", "migration", "migration_long-maria.sql"
+    )
     with current_app.open_resource(script_path, "r") as f:
         sql_script = f.read()
     sql_script = inject_db_path(sql_script, current_app.config["STAGING"])
