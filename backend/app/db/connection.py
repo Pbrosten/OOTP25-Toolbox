@@ -23,6 +23,7 @@ def get_db() -> pymysql.connections.Connection:
             password=cfg.get("DB_PASSWORD"),
             db=cfg.get("DB_NAME"),
             port=int(cfg.get("DB_PORT", 3306)),
+            cursorclass=DictCursor,
             charset="utf8mb4",
             autocommit=False,
         )
