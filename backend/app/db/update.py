@@ -43,9 +43,9 @@ def process_single_heap(heap_path, heap_index, total_heaps, db, short_heap=True)
             logger.debug(f"First projection: {projections[0]}")
 
         insert_projections(projections, db)
-        update_player_age(db=db, heap_date=heap_date)
     else:
         run_migration_long(heap_date, db)
+        update_player_age(db=db, heap_date=heap_date)
 
 
 def update_player_age(db, heap_date):
@@ -56,41 +56,37 @@ def update_player_age(db, heap_date):
         db: MariaDB connection object
         heap_date: tuple or list like (year, month, day) or (something, year, month)
     """
-    current_date = date.fromisoformat(f"{heap_date[1]}-{heap_date[2]}-01")
+    current_date = date.fromisoformat(f"{heap_date[1]}-01-01")
 
     with db.cursor() as cursor:
         cursor.execute("SELECT player_id, birth_date FROM players")
         rows = cursor.fetchall()
 
         batch = []
-        for player_id, birth_date in rows:
-            if not birth_date:
+        for row in rows:
+            player_id = row.get("player_id")
+            birth_date = row.get("birth_date")
+            if not player_id or not birth_date:
                 continue
-            try:
-                if isinstance(birth_date, str):
-                    birth_date_obj = datetime.strptime(birth_date, "%Y-%m-%d").date()
-                else:
-                    birth_date_obj = birth_date
-                delta = current_date - birth_date_obj
-                age = round(delta.days / 365.25)
-                batch.append((age, player_id))
 
-                if len(batch) >= 500:
-                    cursor.executemany(
-                        "UPDATE players SET age = %s WHERE player_id = %s", batch
-                    )
-                    db.commit()
-                    batch.clear()
-            except ValueError:
-                logger.warning(
-                    f"Skipping invalid birth_date for player_id {player_id}: {birth_date}"
+            logger.debug(current_date, birth_date)
+            delta = current_date - birth_date
+            age = round(delta.days / 365.25)
+            batch.append((age, player_id))
+
+            if len(batch) >= 500:
+                cursor.executemany(
+                    "UPDATE players SET age = %s WHERE player_id = %s", batch
                 )
+                db.commit()
+                batch.clear()
 
         if batch:
             cursor.executemany(
                 "UPDATE players SET age = %s WHERE player_id = %s", batch
             )
             db.commit()
+    logger.info("Player ages updated")
 
 
 def extract_heap_date_from_path(heap_path):
