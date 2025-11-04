@@ -11,16 +11,19 @@ from .update import process_single_heap
 @click.command("init-db")
 def init_db_command():
     conn = get_db()
-    cursor = conn.cursor()
-    with current_app.open_resource(
-        os.path.join("db", "sql_scripts", "schema-maria.sql"), "r", encoding="utf-8"
-    ) as f:
-        sql_script = f.read()
-        for statement in sql_script.strip().split(";"):
-            if statement.strip():
-                cursor.execute(statement)
-    click.echo("Initialized the SQLite database.")
-    cursor.close()
+    try:
+        cursor = conn.cursor()
+        with current_app.open_resource(
+            os.path.join("db", "sql_scripts", "schema-maria.sql"), "r", encoding="utf-8"
+        ) as f:
+            sql_script = f.read()
+            for statement in sql_script.strip().split(";"):
+                if statement.strip():
+                    cursor.execute(statement)
+        click.echo("Initialized the SQLite database.")
+        cursor.close()
+    finally:
+        close_db()
 
 
 @click.command("update-db")
@@ -45,12 +48,13 @@ def update_db():
         f"Found {count_long} new long heap(s) and {count_short} new short heap(s)."
     )
     conn = get_db()
+    try:
+        logger.info("Migrating heaps in order")
+        for heap_number, (heap_path, short_heap_flag) in enumerate(sorted_heaps, 1):
+            process_single_heap(
+                heap_path, heap_number, total_heaps, conn, short_heap=short_heap_flag
+            )
 
-    logger.info("Migrating heaps in order")
-    for heap_number, (heap_path, short_heap_flag) in enumerate(sorted_heaps, 1):
-        process_single_heap(
-            heap_path, heap_number, total_heaps, conn, short_heap=short_heap_flag
-        )
-
-    logger.info("Migration and projection complete!")
-    close_db()
+        logger.info("Migration and projection complete!")
+    finally:
+        close_db()
