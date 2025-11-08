@@ -4,7 +4,7 @@ INSERT IGNORE INTO players_rating (player_id, rating_date, league_id)
 SELECT
     p.player_id,
     '{{HEAP_DATE}}',  
-    t.league_id
+    COALESCE(t.league_id, 203) AS league_id
 FROM staging.players AS p
 LEFT JOIN staging.teams AS t ON p.team_id = t.team_id
 WHERE p.retired = 0;
