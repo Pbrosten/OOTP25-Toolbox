@@ -1,7 +1,7 @@
 WITH target_player AS (
   SELECT r.rating_id, r.rating_date, r.league_id
   FROM players_rating r
-  WHERE r.rating_id = :rating_id
+  WHERE r.rating_id = %(rating_id)s
 ),
 
 -- Ratings Comparison Group
@@ -13,11 +13,9 @@ ratings_filtered AS (
   JOIN target_player AS t 
     ON r.rating_date = t.rating_date
     AND (
-        CASE 
-          WHEN :is_mlb THEN r.league_id = 203
-          ELSE r.league_id = t.league_id
-        END
-   )
+      (%(is_milb)s = 1 AND r.league_id = t.league_id)
+      OR (%(is_milb)s = 0 AND r.league_id = 203)
+    )
   WHERE p.position != 'P'
 )
 
@@ -58,4 +56,4 @@ SELECT
 
 
 FROM players_basepath AS target_rate 
-WHERE target_rate.rating_id = :rating_id;
+WHERE target_rate.rating_id = %(rating_id)s;
