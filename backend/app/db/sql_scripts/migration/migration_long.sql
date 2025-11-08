@@ -6,7 +6,7 @@ INSERT IGNORE INTO teams (
 )
 VALUES (
     999, 'Free Agents', 'FA', 'Free Agents',
-    NULL, NULL, 0, '#FFFFFF', '#000000'
+    NULL, 203, 0, '#FFFFFF', '#000000'
 );
 
 
