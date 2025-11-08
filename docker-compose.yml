@@ -7,6 +7,9 @@ services:
       - "5000:5000"
     volumes:
       - ./backend:/app
+      - C:\Users\peter.brosten\Desktop\Personal\Baseball\dump_testing:/data/dumps
+    depends_on:
+      - mariadb
     networks:
       - app-net
 
@@ -37,6 +40,9 @@ services:
       - "5001:3306"
     volumes:
       - mariadb_data:/var/lib/mysql
+      - ./mariadb:/docker-entrypoint-initdb.d:ro
+    networks:
+      - app-net
 
 volumes:
   frontend_node_modules:
