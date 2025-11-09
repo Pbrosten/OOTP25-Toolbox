@@ -10,13 +10,15 @@ ratings_filtered AS (
   FROM players_basepath AS b
   JOIN players_rating AS r ON b.rating_id = r.rating_id
   JOIN players AS p ON r.player_id = p.player_id
-  JOIN target_player AS t 
-    ON r.rating_date = t.rating_date
+  JOIN target_player AS t ON r.rating_date = t.rating_date
+  WHERE 
+    p.position != 'P'
+    AND p.team_id != 999
+    AND r.league_id = t.league_id
     AND (
-      (%(is_milb)s = 1 AND r.league_id = t.league_id)
-      OR (%(is_milb)s = 0 AND r.league_id = 203)
+      (t.league_id = 203 AND p.age >= 22)
+      OR (t.league_id <> 203)
     )
-  WHERE p.position != 'P'
 )
 
 SELECT

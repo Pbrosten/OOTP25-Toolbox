@@ -75,7 +75,7 @@ cohort AS (
        ELSE 'other'
      END
    ) = tv.position_group
-  WHERE p.age >= 20
+  WHERE p.age >= 22
 ),
 
 catcher_cohort AS (
@@ -109,7 +109,7 @@ infielder_cohort AS (
         (%(is_milb)s = 1 AND pr.league_id = tv.league_id)
         OR (%(is_milb)s = 0 AND pr.league_id = 203)
    )
-  WHERE p.position in ('1B', '2B', '3B', 'SS') AND p.age >= 20
+  WHERE p.position in ('1B', '2B', '3B', 'SS') AND p.age >= 22
 ),
 
 outfielder_cohort AS (
@@ -126,7 +126,7 @@ outfielder_cohort AS (
         (%(is_milb)s = 1 AND pr.league_id = tv.league_id)
         OR (%(is_milb)s = 0 AND pr.league_id = 203)
    )
-  WHERE p.position in ('LF', 'CF', 'RF') AND p.age >= 20
+  WHERE p.position in ('LF', 'CF', 'RF') AND p.age >= 22
 )
 
 SELECT
