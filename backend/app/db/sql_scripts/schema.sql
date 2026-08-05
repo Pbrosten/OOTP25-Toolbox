@@ -1,56 +1,58 @@
+DROP TABLE IF EXISTS players_run_value;
+DROP TABLE IF EXISTS players_fielding_expected;
+DROP TABLE IF EXISTS players_fielding_position_talent;
+DROP TABLE IF EXISTS players_fielding_position;
+DROP TABLE IF EXISTS players_fielding;
+DROP TABLE IF EXISTS players_basepath_expected;
+DROP TABLE IF EXISTS players_basepath;
+DROP TABLE IF EXISTS players_batting_expected;
+DROP TABLE IF EXISTS players_batting_talent;
+DROP TABLE IF EXISTS players_batting;
+DROP TABLE IF EXISTS players_rating;
+DROP TABLE IF EXISTS players_career_batting_stats;
 DROP TABLE IF EXISTS players;
 DROP TABLE IF EXISTS teams;
-DROP TABLE IF EXISTS players_career_batting_stats;
-DROP TABLE IF EXISTS players_rating;
-DROP TABLE IF EXISTS players_batting;
-DROP TABLE IF EXISTS players_basepath;
-DROP TABLE IF EXISTS players_basepath_expected;
-DROP TABLE IF EXISTS players_fielding;
-DROP TABLE IF EXISTS players_fielding_position;
-DROP TABLE IF EXISTS players_fielding_position_talent;
-DROP TABLE IF EXISTS players_fielding_expected;
-DROP TABLE IF EXISTS players_batting_talent;
-DROP TABLE IF EXISTS players_batting_expected;
-DROP TABLE IF EXISTS players_run_value;
 
-
-CREATE TABLE players (
-  player_id INTEGER PRIMARY KEY,
-  first_name VARCHAR(50),
-  last_name VARCHAR(50),
-  age INTEGER,
-  birth_date DATE,
-  position VARCHAR(2),  -- e.g., 'P', 'SS' 'CF', etc.
-  height INTEGER, -- Height in cm
-  weight INTEGER, -- Weight in pounds
-  bats VARCHAR(1), -- e.g., 'R', 'L', 'S'
-  throws VARCHAR(1), -- e.g., 'R', 'L'
-  free_agent BOOLEAN,  -- TRUE if current free_agent
-  team_id INTEGER,
-  prone_overall INTEGER,
-  FOREIGN KEY (team_id) REFERENCES teams(team_id)
-);
-
+-- Teams --
 CREATE TABLE teams (
-  team_id INTEGER PRIMARY KEY,
+  team_id INT AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(50),
   abbr VARCHAR(50),
   nickname VARCHAR(50),
-  division_id INTEGER,
-  league_id INTEGER,
+  division_id INT,
+  league_id INT,
   human_team TINYINT,
   background_color VARCHAR(8),
-  text_color VARCHAR(8),
-  FOREIGN KEY (division_id) REFERENCES divisions(division_id),
-  FOREIGN KEY (league_id) REFERENCES leagues(league_id)
-);
+  text_color VARCHAR(8)
+  -- FOREIGN KEY (division_id) REFERENCES divisions(division_id),
+  -- FOREIGN KEY (league_id) REFERENCES leagues(league_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Players --
+CREATE TABLE players (
+  player_id INT AUTO_INCREMENT PRIMARY KEY,
+  first_name VARCHAR(50),
+  last_name VARCHAR(50),
+  age INT,
+  birth_date DATE,
+  position VARCHAR(2),
+  height INT,
+  weight INT,
+  bats CHAR(1),
+  throws CHAR(1),
+  free_agent BOOLEAN,
+  team_id INT,
+  prone_overall INT,
+  FOREIGN KEY (team_id) REFERENCES teams(team_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Player Career Batting --
 CREATE TABLE players_career_batting_stats (
-  player_id INTEGER,
+  player_id INT,
   year SMALLINT,
-  team_id INTEGER,
-  game_id INTEGER,
-  league_id INTEGER,
+  team_id INT,
+  game_id INT,
+  league_id INT,
   level_id SMALLINT,
   split_id SMALLINT,
   ab SMALLINT,
@@ -74,147 +76,158 @@ CREATE TABLE players_career_batting_stats (
   sf SMALLINT,
   hp SMALLINT,
   ci SMALLINT,
-  wpa REAL,
+  wpa FLOAT,
   stint SMALLINT,
-  ubr REAL,
-  war REAL,
+  ubr FLOAT,
+  war FLOAT,
+  PRIMARY KEY (player_id, year, team_id),
   FOREIGN KEY (player_id) REFERENCES players(player_id),
-  FOREIGN KEY (team_id) REFERENCES teams(team_id),
-  FOREIGN KEY (league_id) REFERENCES leagues(league_id),
-  PRIMARY KEY (player_id, year, team_id)
-);
+  FOREIGN KEY (team_id) REFERENCES teams(team_id)
+  -- FOREIGN KEY (league_id) REFERENCES leagues(league_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Player Rating --
 CREATE TABLE players_rating (
-  rating_id INTEGER PRIMARY KEY AUTOINCREMENT,
-  player_id INTEGER,
+  rating_id INT AUTO_INCREMENT PRIMARY KEY,
+  player_id INT,
   rating_date DATE,
-  league_id INTEGER,
-  FOREIGN KEY (player_id) REFERENCES players(player_id),
-  UNIQUE(player_id, rating_date)
-);
+  league_id INT,
+  UNIQUE (player_id, rating_date),
+  FOREIGN KEY (player_id) REFERENCES players(player_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Player Batting --
 CREATE TABLE players_batting (
-  rating_id INTEGER PRIMARY KEY,
-  contact INTEGER,
-  gap INTEGER,
-  eye INTEGER,
-  strikeouts INTEGER,
-  power INTEGER,
-  babip INTEGER,
-  bunt INTEGER,
-  bunt_for_hit INTEGER,
+  rating_id INT PRIMARY KEY,
+  contact INT,
+  gap INT,
+  eye INT,
+  strikeouts INT,
+  power INT,
+  babip INT,
+  bunt INT,
+  bunt_for_hit INT,
   FOREIGN KEY (rating_id) REFERENCES players_rating(rating_id)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Player Batting Expected --
 CREATE TABLE players_batting_expected (
-  rating_id INTEGER PRIMARY KEY,
-  PA INTEGER,
-  AB INTEGER,
-  H INTEGER,
-  "1B" INTEGER,
-  "2B" INTEGER,
-  "3B" INTEGER,
-  HR INTEGER,
-  BB INTEGER,
-  HBP INTEGER,
-  K INTEGER,
-  AVG REAL,
-  OBP REAL,
-  SLG REAL,
-  wOBA REAL,
+  rating_id INT PRIMARY KEY,
+  PA INT,
+  AB INT,
+  H INT,
+  `1B` INT,
+  `2B` INT,
+  `3B` INT,
+  HR INT,
+  BB INT,
+  HBP INT,
+  K INT,
+  AVG FLOAT,
+  OBP FLOAT,
+  SLG FLOAT,
+  wOBA FLOAT,
   FOREIGN KEY (rating_id) REFERENCES players_batting(rating_id)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Player Batting Talent --
 CREATE TABLE players_batting_talent (
-  rating_id INTEGER PRIMARY KEY,
-  contact INTEGER,
-  gap INTEGER,
-  eye INTEGER,
-  strikeouts INTEGER,
-  power INTEGER,
-  babip INTEGER,
+  rating_id INT PRIMARY KEY,
+  contact INT,
+  gap INT,
+  eye INT,
+  strikeouts INT,
+  power INT,
+  babip INT,
   FOREIGN KEY (rating_id) REFERENCES players_rating(rating_id)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Player Basepath -- 
 CREATE TABLE players_basepath (
-  rating_id INTEGER PRIMARY KEY,
-  speed INTEGER,
-  steal_rate INTEGER,
-  steal INTEGER,
-  baserunning INTEGER,
+  rating_id INT PRIMARY KEY,
+  speed INT,
+  steal_rate INT,
+  steal INT,
+  baserunning INT,
   FOREIGN KEY (rating_id) REFERENCES players_rating(rating_id)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Player Basepath Expected --
 CREATE TABLE players_basepath_expected (
-  rating_id INTEGER PRIMARY KEY,
-  SB INTEGER,
-  CS INTEGER,
+  rating_id INT PRIMARY KEY,
+  SB INT,
+  CS INT,
   FOREIGN KEY (rating_id) REFERENCES players_basepath(rating_id)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Player Fielding --
 CREATE TABLE players_fielding (
-  rating_id INTEGER PRIMARY KEY,
-  catcher_arm INTEGER,
-  catcher_ability INTEGER,
-  catcher_framing INTEGER,
-  infield_range INTEGER,
-  infield_arm INTEGER,
-  infield_doubleplay INTEGER,
-  infield_error INTEGER,
-  outfield_range INTEGER,
-  outfield_arm INTEGER,
-  outfield_error INTEGER,
+  rating_id INT PRIMARY KEY,
+  catcher_arm INT,
+  catcher_ability INT,
+  catcher_framing INT,
+  infield_range INT,
+  infield_arm INT,
+  infield_doubleplay INT,
+  infield_error INT,
+  outfield_range INT,
+  outfield_arm INT,
+  outfield_error INT,
   FOREIGN KEY (rating_id) REFERENCES players_rating(rating_id)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Player Positional Fielding --
 CREATE TABLE players_fielding_position (
-  rating_id INTEGER PRIMARY KEY,
-  pos1 INTEGER,
-  pos2 INTEGER,
-  pos3 INTEGER,
-  pos4 INTEGER,
-  pos5 INTEGER,
-  pos6 INTEGER,
-  pos7 INTEGER,
-  pos8 INTEGER,
-  pos9 INTEGER,
+  rating_id INT PRIMARY KEY,
+  pos1 INT,
+  pos2 INT,
+  pos3 INT,
+  pos4 INT,
+  pos5 INT,
+  pos6 INT,
+  pos7 INT,
+  pos8 INT,
+  pos9 INT,
   FOREIGN KEY (rating_id) REFERENCES players_fielding(rating_id)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Player Positional Talent --
 CREATE TABLE players_fielding_position_talent (
-  rating_id INTEGER PRIMARY KEY,
-  pos1 INTEGER,
-  pos2 INTEGER,
-  pos3 INTEGER,
-  pos4 INTEGER,
-  pos5 INTEGER,
-  pos6 INTEGER,
-  pos7 INTEGER,
-  pos8 INTEGER,
-  pos9 INTEGER,
+  rating_id INT PRIMARY KEY,
+  pos1 INT,
+  pos2 INT,
+  pos3 INT,
+  pos4 INT,
+  pos5 INT,
+  pos6 INT,
+  pos7 INT,
+  pos8 INT,
+  pos9 INT,
   FOREIGN KEY (rating_id) REFERENCES players_fielding(rating_id)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Player Expected Fielding --
 CREATE TABLE players_fielding_expected (
-  rating_id INTEGER PRIMARY KEY,
-  C REAL,
-  "1B" REAL,
-  "2B" REAL,
-  "3B" REAL,
-  SS REAL,
-  LF REAL,
-  CF REAL,
-  RF REAL,
-  DH REAL,
+  rating_id INT PRIMARY KEY,
+  C FLOAT,
+  `1B` FLOAT,
+  `2B` FLOAT,
+  `3B` FLOAT,
+  SS FLOAT,
+  LF FLOAT,
+  CF FLOAT,
+  RF FLOAT,
+  DH FLOAT,
   FOREIGN KEY (rating_id) REFERENCES players_fielding_position(rating_id)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Player Run Value --
 CREATE TABLE players_run_value (
-  rating_id INTEGER PRIMARY KEY,
-  batting_runs REAL,
-  basepath_runs REAL,
-  fielding_runs REAL,
-  total_runs REAL,
-  WAR REAL,
+  rating_id INT PRIMARY KEY,
+  batting_runs FLOAT,
+  basepath_runs FLOAT,
+  fielding_runs FLOAT,
+  total_runs FLOAT,
+  WAR FLOAT,
   FOREIGN KEY (rating_id) REFERENCES players_rating(rating_id)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

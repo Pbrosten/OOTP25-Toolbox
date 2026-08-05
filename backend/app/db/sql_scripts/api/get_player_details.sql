@@ -12,4 +12,4 @@ SELECT
     t.league_id
 FROM players AS p
 LEFT JOIN teams as t ON p.team_id = t.team_id
-WHERE p.player_id = ?;
+WHERE p.player_id = %s;
