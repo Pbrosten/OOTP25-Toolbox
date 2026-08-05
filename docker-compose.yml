@@ -6,7 +6,10 @@ services:
     ports:
       - "5000:5000"
     volumes:
-      - ./backend/instance:/backend/instance
+      - ./backend:/app
+      - C:\Users\peter.brosten\Desktop\Personal\Baseball\dump_testing:/data/dumps
+    depends_on:
+      - mariadb
     networks:
       - app-net
 
@@ -24,8 +27,26 @@ services:
     networks:
       - app-net
 
+  mariadb:
+    image: mariadb:latest
+    container_name: mariadb
+    restart: always
+    environment:
+      MARIADB_ROOT_PASSWORD: rootpw
+      MARIADB_DATABASE: ootp
+      MARIADB_USER: ootp
+      MARIADB_PASSWORD: supersecretpw
+    ports:
+      - "5001:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+      - ./mariadb:/docker-entrypoint-initdb.d:ro
+    networks:
+      - app-net
+
 volumes:
   frontend_node_modules:
+  mariadb_data:
 
 networks:
   app-net:

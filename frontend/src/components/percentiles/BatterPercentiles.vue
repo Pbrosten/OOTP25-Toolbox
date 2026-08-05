@@ -162,19 +162,19 @@ async function fetchPercentiles(ratingId?: number) {
       }
     }
 
-    const valueRes = await fetch(`/api/players/stats/expected/value/${ratingId}/percentiles?mlb=${mlbComp.value}`)
+    const valueRes = await fetch(`/api/players/ratings/${ratingId}/expected/value/percentiles?mlb=${mlbComp.value}`)
     xStatsValue.value = valueRes.ok ? await valueRes.json() : null
     if (!valueRes.ok) throw new Error('Failed to load expected value stats.')
 
-    const batRes = await fetch(`/api/players/stats/expected/batting/${ratingId}/percentiles?mlb=${mlbComp.value}`)
+    const batRes = await fetch(`/api/players/ratings/${ratingId}/expected/batting/percentiles?mlb=${mlbComp.value}`)
     xStatsBat.value = batRes.ok ? await batRes.json() : null
     if (!batRes.ok) throw new Error('Failed to load expected batting stats.')
 
-    const runRes = await fetch(`/api/players/stats/expected/basepath/${ratingId}/percentiles?mlb=${mlbComp.value}`)
+    const runRes = await fetch(`/api/players/ratings/${ratingId}/expected/basepath/percentiles?mlb=${mlbComp.value}`)
     xStatsRun.value = runRes.ok ? await runRes.json() : null
     if (!runRes.ok) throw new Error('Failed to load expected basepath stats.')
 
-    const fieldRes = await fetch(`/api/players/stats/expected/fielding/${ratingId}/percentiles?mlb=${mlbComp.value}`)
+    const fieldRes = await fetch(`/api/players/ratings/${ratingId}/expected/fielding/percentiles?mlb=${mlbComp.value}`)
     xStatsField.value = fieldRes.ok ? await fieldRes.json() : null
     if (!fieldRes.ok) throw new Error('Failed to load expected fielding stats.')
 

@@ -1,7 +1,7 @@
 WITH target_player AS (
   SELECT r.rating_id, r.rating_date, r.league_id
   FROM players_rating r
-  WHERE r.rating_id = :rating_id
+  WHERE r.rating_id = %(rating_id)s
 ),
 
 -- Expected Stats Comparison Group
@@ -10,15 +10,15 @@ expected_filtered AS (
   FROM players_run_value AS rv
   JOIN players_rating AS r ON rv.rating_id = r.rating_id
   JOIN players AS p ON r.player_id = p.player_id
-  JOIN target_player AS t 
-    ON r.rating_date = t.rating_date
+  JOIN target_player AS t ON r.rating_date = t.rating_date
+  WHERE 
+    p.position != 'P'
+    AND p.team_id != 999
+    AND r.league_id = t.league_id
     AND (
-        CASE 
-          WHEN :is_mlb THEN r.league_id = 203
-          ELSE r.league_id = t.league_id
-        END
-   )
-  WHERE p.position != 'P'
+      (t.league_id = 203 AND p.age >= 22)
+      OR (t.league_id <> 203)
+    )
 )
 
 
@@ -70,4 +70,4 @@ SELECT
 
 
 FROM players_run_value AS target_exp
-WHERE target_exp.rating_id = :rating_id;
+WHERE target_exp.rating_id = %(rating_id)s;
