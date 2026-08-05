@@ -230,4 +230,12 @@ CREATE TABLE players_run_value (
   total_runs FLOAT,
   WAR FLOAT,
   FOREIGN KEY (rating_id) REFERENCES players_rating(rating_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+);
+
+CREATE TABLE players_similarity (
+  player_main INTEGER,
+  player_comp INTEGER,
+  similarity REAL,
+  player_type TEXT CHECK(player_type IN ('batter', 'pitcher')),
+  PRIMARY KEY (player_main, player_comp)
+);
