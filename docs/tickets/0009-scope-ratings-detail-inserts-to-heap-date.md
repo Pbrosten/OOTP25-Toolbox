@@ -1,7 +1,7 @@
 # 0009 — Scope ratings-detail inserts to the current heap date
 
 - **Tag:** fix
-- **Status:** Open
+- **Status:** Closed
 - **Depends on:** —
 - **Blocks:** —
 

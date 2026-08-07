@@ -23,7 +23,8 @@ SELECT
     s.batting_ratings_misc_bunt,
     s.batting_ratings_misc_bunt_for_hit
 FROM players_rating AS r
-JOIN staging.players_batting AS s ON r.player_id = s.player_id;
+JOIN staging.players_batting AS s ON r.player_id = s.player_id
+WHERE r.rating_date = '{{HEAP_DATE}}';
 
 INSERT IGNORE INTO players_batting_talent (
     rating_id, contact, gap, eye, strikeouts, power, babip
@@ -37,7 +38,8 @@ SELECT
     s.batting_ratings_talent_power,
     s.batting_ratings_talent_babip
 FROM players_rating AS r
-JOIN staging.players_batting AS s ON r.player_id = s.player_id;
+JOIN staging.players_batting AS s ON r.player_id = s.player_id
+WHERE r.rating_date = '{{HEAP_DATE}}';
 
 INSERT IGNORE INTO players_basepath (
     rating_id, speed, steal_rate, steal, baserunning
@@ -49,7 +51,8 @@ SELECT
     s.running_ratings_stealing,
     s.running_ratings_baserunning
 FROM players_rating AS r
-JOIN staging.players_batting AS s ON r.player_id = s.player_id;
+JOIN staging.players_batting AS s ON r.player_id = s.player_id
+WHERE r.rating_date = '{{HEAP_DATE}}';
 
 INSERT IGNORE INTO players_fielding (
     rating_id,
@@ -70,7 +73,8 @@ SELECT
     s.fielding_ratings_outfield_arm,
     s.fielding_ratings_outfield_error
 FROM players_rating AS r
-JOIN staging.players_fielding AS s ON r.player_id = s.player_id;
+JOIN staging.players_fielding AS s ON r.player_id = s.player_id
+WHERE r.rating_date = '{{HEAP_DATE}}';
 
 INSERT IGNORE INTO players_fielding_position (
     rating_id, pos1, pos2, pos3, pos4, pos5, pos6, pos7, pos8, pos9
@@ -87,7 +91,8 @@ SELECT
     s.fielding_rating_pos8,
     s.fielding_rating_pos9
 FROM players_rating AS r
-JOIN staging.players_fielding AS s ON r.player_id = s.player_id;
+JOIN staging.players_fielding AS s ON r.player_id = s.player_id
+WHERE r.rating_date = '{{HEAP_DATE}}';
 
 INSERT IGNORE INTO players_fielding_position_talent (
     rating_id, pos1, pos2, pos3, pos4, pos5, pos6, pos7, pos8, pos9
@@ -104,7 +109,8 @@ SELECT
     s.fielding_rating_pos8_pot,
     s.fielding_rating_pos9_pot
 FROM players_rating AS r
-JOIN staging.players_fielding AS s ON r.player_id = s.player_id;
+JOIN staging.players_fielding AS s ON r.player_id = s.player_id
+WHERE r.rating_date = '{{HEAP_DATE}}';
 
 UPDATE players
 SET position = CASE position
