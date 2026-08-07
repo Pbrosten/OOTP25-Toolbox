@@ -1,6 +1,6 @@
 import click
 
-from .service import init_database, update_database
+from .service import init_database, update_database, UpdateAlreadyRunningError
 
 
 @click.command("init-db")
@@ -13,5 +13,9 @@ def init_db_command():
 @click.command("update-db")
 def update_db_command():
     """Run the database update process."""
-    result = update_database()
+    try:
+        result = update_database()
+    except UpdateAlreadyRunningError as e:
+        click.echo(f"Error: {e}")
+        raise SystemExit(1)
     click.echo(f"Updated the database. {result}")

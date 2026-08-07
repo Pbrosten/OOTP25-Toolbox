@@ -25,7 +25,14 @@ class JobAlreadyRunningError(Exception):
 def start_update_job() -> str:
     """Start update_database() on a background thread.
 
-    Raises JobAlreadyRunningError if a job is already pending/running.
+    Raises JobAlreadyRunningError if a job started through this registry is
+    already pending/running -- lets the API return a synchronous 409 with
+    the running job's id for the common case. This does not cover an
+    in-flight CLI run (the CLI bypasses this registry entirely): that's
+    guarded by service.update_database()'s own lock, which raises
+    UpdateAlreadyRunningError inside the background thread and is reported
+    as this job's failure, same as any other exception from the run.
+
     Returns the new job's id.
     """
     app = current_app._get_current_object()

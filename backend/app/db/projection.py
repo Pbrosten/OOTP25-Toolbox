@@ -1,5 +1,8 @@
+import logging
+
 from app.player_projection import BatterProjection
-from flask import current_app
+
+logger = logging.getLogger("app.db.projection")
 
 proj_scripts = {
     "offense": """
@@ -29,14 +32,10 @@ def process_player(player):
         projector = BatterProjection(player)
         result = projector.calc_expected_stats()
         if result is None:
-            current_app.logger.warning(
-                f"No result for player: {player.get('rating_id')}"
-            )
+            logger.warning(f"No result for player: {player.get('rating_id')}")
         return result
     except Exception as e:
-        current_app.logger.warning(
-            f"Error processing player {player.get('rating_id')}: {e}"
-        )
+        logger.warning(f"Error processing player {player.get('rating_id')}: {e}")
         return None
 
 
@@ -52,6 +51,12 @@ def update_projection_batches(
         db: MariaDB connection object.
         inject (bool): Whether to immediately inject the batches into the DB.
         final (bool): Whether this is the final commit of all batches.
+
+    Returns:
+        - If neither inject nor final: the updated batches dict.
+        - If inject or final: a (batches_or_None, rows_written) tuple, where
+          rows_written sums cursor.rowcount across every INSERT IGNORE
+          issued in this call (rows actually written, not rows attempted).
     """
     if projections:
         for projection in projections:
@@ -61,15 +66,17 @@ def update_projection_batches(
                     batches[key].append(value)
 
     if inject or final:
+        rows_written = 0
         for key in batches:
             if batches[key]:
                 with db.cursor() as cursor:
                     cursor.executemany(proj_scripts[key], batches[key])
+                    rows_written += cursor.rowcount
         db.commit()
 
         if inject:
-            return {k: [] for k in batches}
+            return {k: [] for k in batches}, rows_written
 
-        return None
+        return None, rows_written
 
     return batches

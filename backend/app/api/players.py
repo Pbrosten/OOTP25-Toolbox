@@ -74,7 +74,7 @@ def search_players():
         with con.cursor() as cursor:
             cursor.execute(
                 """
-                SELECT p.player_id, p.first_name, p.last_name, p.position, t.abbr AS team_abbr
+                SELECT p.player_id, p.first_name, p.last_name, p.position, p.retired, t.abbr AS team_abbr
                 FROM players AS p
                 LEFT JOIN teams AS t ON p.team_id = t.team_id
                 WHERE CONCAT(p.first_name, ' ', p.last_name) LIKE %s

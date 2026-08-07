@@ -9,6 +9,7 @@ SELECT
     SUM(cb.sb) AS sb,
     SUM(cb.bb) AS bb,
     SUM(cb.hp) AS hp,
+    SUM(cb.sf) AS sf,
     SUM(cb.d) AS d,
     SUM(cb.t) AS t
 FROM players_career_batting_stats cb

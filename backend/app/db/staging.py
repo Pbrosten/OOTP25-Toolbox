@@ -1,21 +1,18 @@
 import os
-import re
 import logging
 import pymysql
 from flask import current_app
 from tqdm import tqdm
 
+from .connection import get_db
+
 DUMP_INCLUSION_LIST = [
     "players.mysql",
     "players_batting",
     "players_fielding",
-    "players_pitching",
     "players_career_batting_stats",
     "teams.mysql",
 ]
-
-# Regex to split SQL statements correctly, ignoring semicolons inside quotes
-STATEMENT_RE = re.compile(r";\s*(?=(?:[^'\"`]*(['\"`])[^'\"`]*\1)*[^'\"`]*$)")
 
 logger = logging.getLogger("app.db.staging")
 
@@ -33,19 +30,34 @@ def connect_staging_db():
         charset="utf8mb4",
     )
 
-    # with conn.cursor() as cur:
-    #     logger.info("Dropping all existing tables in staging...")
-    #     cur.execute("SET FOREIGN_KEY_CHECKS=0;")
-    #     cur.execute("SHOW TABLES;")
-    #     for (tbl,) in cur.fetchall():
-    #         cur.execute(f"DROP TABLE IF EXISTS `{tbl}`;")
-    #     cur.execute("SET FOREIGN_KEY_CHECKS=1;")
-    # logger.info("Staging DB reset complete.")
+    with conn.cursor() as cur:
+        logger.info("Dropping all existing tables in staging...")
+        cur.execute("SET FOREIGN_KEY_CHECKS=0;")
+        cur.execute("SHOW TABLES;")
+        for (tbl,) in cur.fetchall():
+            cur.execute(f"DROP TABLE IF EXISTS `{tbl}`;")
+        cur.execute("SET FOREIGN_KEY_CHECKS=1;")
+    logger.info("Staging DB reset complete.")
     return conn
 
 
+def get_processed_heap_keys(db):
+    """Return the set of (year, month) keys already recorded in processed_heaps."""
+    with db.cursor() as cur:
+        cur.execute("SELECT year, month FROM processed_heaps")
+        keys = {(row["year"], row["month"]) for row in cur.fetchall()}
+    # This SELECT is the first statement on `db`, so under autocommit=False it
+    # silently opens a transaction and pins a REPEATABLE READ snapshot right
+    # here. Without closing it out, that snapshot is still in effect when the
+    # migration queries staging.* tables later -- which get DROP/CREATE'd by a
+    # separate (autocommit=True) staging connection in between -- and InnoDB
+    # raises 1412 "Table definition has changed" on the stale snapshot.
+    db.commit()
+    return keys
+
+
 def check_new_heaps():
-    """Return list of valid heap paths for processing."""
+    """Return list of valid, not-yet-processed heap paths for processing."""
     dump_path = current_app.config["DUMP_PATH"]
     heaps = os.listdir(dump_path)
     valid_heaps = []
@@ -55,14 +67,18 @@ def check_new_heaps():
         if len(parts) < 3 or not parts[1].isdigit():
             continue
 
-        year = int(parts[1])
+        year = parts[1]
         if parts[2] == "yearly":
-            valid_heaps.append((heap, year, 13, False))
+            valid_heaps.append((heap, year, "yearly", 13, False))
         elif parts[2].isdigit():
-            valid_heaps.append((heap, year, int(parts[2]), True))
+            valid_heaps.append((heap, year, parts[2], int(parts[2]), True))
 
-    sorted_heaps = sorted(valid_heaps, key=lambda x: (x[1], x[2]))
-    return [(os.path.join(dump_path, h[0], "mysql"), h[3]) for h in sorted_heaps]
+    sorted_heaps = sorted(valid_heaps, key=lambda x: (int(x[1]), x[3]))
+
+    processed = get_processed_heap_keys(get_db())
+    new_heaps = [h for h in sorted_heaps if (h[1], h[2]) not in processed]
+
+    return [(os.path.join(dump_path, h[0], "mysql"), h[4]) for h in new_heaps]
 
 
 def clean_mysql_dump(sql: str) -> str:
@@ -82,6 +98,10 @@ def sql_dump_to_staging(db, filepath: str):
     - Streams large files to avoid memory issues.
     - Executes statements one by one safely.
     """
+    # Statements are split on a line ending in ";" rather than with a
+    # quote-aware regex -- relies on OOTP's mysqldump-style exports being
+    # one-statement-per-line. Revisit only if a real dump is found that
+    # violates this (e.g. multiple ";"-terminated statements on one line).
     if not os.path.exists(filepath):
         logger.error(f"Dump file not found: {filepath}")
         return

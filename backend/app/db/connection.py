@@ -1,6 +1,4 @@
-import sqlite3
 import logging
-from datetime import datetime
 from flask import current_app, g
 import pymysql
 from pymysql.cursors import DictCursor
@@ -35,9 +33,3 @@ def close_db(e=None):
     con = g.pop("db", None)
     if con is not None:
         con.close()
-
-
-def register_converters():
-    sqlite3.register_converter(
-        "timestamp", lambda v: datetime.fromisoformat(v.decode())
-    )

@@ -37,12 +37,15 @@ Three ways to trigger this pipeline, all converging on
 
 | Entry point | Path | Concurrency guard |
 |---|---|---|
-| CLI | `flask update-db` → `app/db/cli.py` → `service.update_database()` directly | **None** |
-| Sync API | `POST /api/admin/init-db` → `service.init_database()` directly | N/A (fast, DDL-only) |
-| Async job | `POST /api/admin/update-db` → `app/db/jobs.py::start_update_job()` → `service.update_database()` on a background thread | In-memory `_lock` + `_jobs` dict — only one job may be `pending`/`running` at a time |
+| CLI | `flask update-db` → `app/db/cli.py` → `service.update_database()` directly | MariaDB named lock (`GET_LOCK`/`RELEASE_LOCK`) inside `update_database()` itself |
+| Sync API | `POST /api/admin/init-db` → `service.init_database()` directly | N/A (fast, DDL-only) — **not** guarded against an overlapping `update-db` run, see [docs/tickets/0010](../tickets/0010-cli-update-db-in-flight-lock.md)'s notes |
+| Async job | `POST /api/admin/update-db` → `app/db/jobs.py::start_update_job()` → `service.update_database()` on a background thread | Both `jobs.py`'s own in-memory registry (fast synchronous `409` for an API-vs-API collision) *and* the same MariaDB lock as the CLI (catches a CLI-vs-API collision, surfaced as a failed job) |
 
-The CLI path bypasses the job lock entirely — see
-[docs/improvements](../improvements/README.md#3-cli-path-has-no-in-flight-job-protection).
+`update_database()` acquires a server-side `GET_LOCK` before doing any work,
+so every entry point shares the same guard regardless of which OS process
+it's running in — a `threading.Lock` wouldn't do this, since the CLI runs as
+its own separate process from the always-on API server. See
+[docs/tickets/0010](../tickets/0010-cli-update-db-in-flight-lock.md).
 
 ## 3. Stage 1 — Discover heaps: `staging.py::check_new_heaps()`
 
@@ -55,16 +58,17 @@ DUMP_PATH/
 ```
 
 `check_new_heaps()` lists `DUMP_PATH`, parses each directory name
-(`dump_<year>_<month|"yearly">`), and returns every valid heap it finds,
-sorted `(year, month)` with yearly pinned to month `13` — so a save's yearly
-dump always sorts after that year's monthlies, giving the correct
-seed-before-snapshot processing order.
+(`dump_<year>_<month|"yearly">`), sorts the valid ones `(year, month)` with
+yearly pinned to month `13` — so a save's yearly dump always sorts after
+that year's monthlies, giving the correct seed-before-snapshot processing
+order — then filters out any `(year, month)` already present in the
+`processed_heaps` table (`get_processed_heap_keys()`), returning only what's
+actually new.
 
-> **Despite the name, this is not incremental.** It returns *every* heap
-> currently on disk, every single call — there's no persisted record of
-> what's already been processed. `update-db` reprocesses the entire dump
-> history on every run. See
-> [docs/improvements #1](../improvements/README.md#1-update-db-reprocesses-every-heap-on-every-run).
+`update.py::process_single_heap()` writes a `processed_heaps` row (via
+`mark_heap_processed()`) only after that heap's migration/projection work
+has fully committed, so a crash mid-heap leaves it eligible to be retried on
+the next `update-db` run rather than being incorrectly marked done.
 
 ## 4. Stage 2 — Load dump files into staging
 
@@ -74,24 +78,22 @@ For each heap, `update.py::process_single_heap()`:
    reused across heaps).
 2. `load_sql_dumps_into_staging()` lists the heap's `mysql/` directory and
    loads any file matching `DUMP_INCLUSION_LIST` (`players.mysql`,
-   `players_batting*`, `players_fielding*`, `players_pitching*`,
+   `players_batting*`, `players_fielding*`,
    `players_career_batting_stats*`, `teams.mysql`) via
-   `sql_dump_to_staging()`.
+   `sql_dump_to_staging()`. (`players_pitching*` was dropped from this list
+   — see [docs/tickets/0014](../tickets/0014-drop-unused-pitching-ingestion.md)
+   — since nothing downstream ever read it: no migration script, no schema
+   table in `ootp`, no projection code.)
 3. `sql_dump_to_staging()` streams the file line by line (not loaded into
    memory whole), strips `#`-comment lines, buffers until a line ends in
    `;`, and executes each statement individually on a fresh cursor. Errors
    are logged (with a 200-char statement preview) and **re-raised** —
    nothing is silently swallowed here.
-4. Table reset is implicit: staging table `DROP`/`CREATE` logic that used to
-   run explicitly is now commented out (`staging.py:36-43`); staging tables
-   are only reset because each dump *file* itself contains its own
-   `DROP TABLE`/`CREATE TABLE` (standard `mysqldump` per-table export
-   behavior).
-
-`players_pitching*` files are loaded into `staging.players_pitching` but
-**nothing downstream ever reads that table** — no migration script, no
-schema table in `ootp`, no projection code. It's ingested and discarded
-every heap. See [docs/improvements #9](../improvements/README.md#9-players_pitching-is-ingested-but-never-used).
+4. `connect_staging_db()` resets staging before loading: `SHOW TABLES` +
+   `DROP TABLE IF EXISTS` for every table currently in `staging`, so a stale
+   table from an earlier heap can't silently persist even if some dump file
+   were to omit its own `DROP TABLE`/`CREATE TABLE`. See
+   [docs/tickets/0013](../tickets/0013-reenable-staging-reset.md).
 
 ## 5. Stage 3a — Short (monthly) heap migration
 
@@ -104,8 +106,7 @@ against the `ootp` connection, with `{{HEAP_DATE}}` substituted to
 What the script does, in order:
 
 1. `INSERT IGNORE INTO players_rating (player_id, rating_date, league_id) SELECT ... FROM staging.players WHERE retired = 0` — one row per non-retired player for this heap's date. `players_rating` has `UNIQUE(player_id, rating_date)`, which is what makes step 1 idempotent on re-run.
-2. Six further `INSERT IGNORE ... FROM players_rating AS r JOIN staging.players_batting/players_fielding AS s ON r.player_id = s.player_id` statements populate `players_batting`, `players_batting_talent`, `players_basepath`, `players_fielding`, `players_fielding_position`, `players_fielding_position_talent` — keyed off the `rating_id` just created in step 1.
-   > **None of these six joins filter by `rating_date`.** Each one joins against a player's *entire* rating history, not just this heap's new row — `INSERT IGNORE` on the `rating_id` PK keeps the result correct, but the amount of work scales with total heaps ever processed, not just this one. See [docs/improvements #2](../improvements/README.md#2-ratings-detail-inserts-arent-scoped-to-the-current-heap-date).
+2. Six further `INSERT IGNORE ... FROM players_rating AS r JOIN staging.players_batting/players_fielding AS s ON r.player_id = s.player_id WHERE r.rating_date = '{{HEAP_DATE}}'` statements populate `players_batting`, `players_batting_talent`, `players_basepath`, `players_fielding`, `players_fielding_position`, `players_fielding_position_talent` — keyed off the `rating_id` just created in step 1, scoped to this heap's new rating row rather than a player's entire rating history. See [docs/tickets/0009](../tickets/0009-scope-ratings-detail-inserts-to-heap-date.md).
 3. Three `UPDATE players SET position/bats/throws = CASE ... END` statements decode OOTP's numeric position/handedness codes into strings (`1`→`P`, `2`→`C`, ...; `1`→`R`, `2`→`L`, ...). These run unconditionally over the **entire** `players` table every heap, not just rows touched by this heap.
 
 Then `fetch_projection_inputs()` runs
@@ -125,16 +126,16 @@ Same rollback/commit pattern as short heaps.
 1. Seeds a synthetic `team_id=999` "Free Agents" team (`INSERT IGNORE`).
 2. `teams`: real upsert (`INSERT ... ON DUPLICATE KEY UPDATE`) from
    `staging.teams`.
-3. `players`: upsert from `staging.players WHERE retired = 0`, remapping
-   OOTP's `team_id = 0` ("no team") sentinel to `999`. Only `team_id` and
-   `prone_overall` are updated on conflict — everything else (name,
-   birth_date, height/weight/bats/throws) is insert-only, never refreshed
-   for an existing player.
-   > **Retired players are simply never updated again.** There's no
-   > `retired` column on the `ootp.players` table at all — a retired
-   > player's row just freezes at its last-known state with no signal
-   > anywhere that it's stale. See
-   > [docs/improvements #4](../improvements/README.md#4-retired-players-have-no-flag-and-silently-freeze).
+3. `players`: upsert from `staging.players` (no longer filtered by
+   `retired`, so a player who's retired since the last long heap still gets
+   upserted), remapping OOTP's `team_id = 0` ("no team") sentinel to `999`.
+   `team_id`, `prone_overall`, and `retired` are updated on conflict —
+   everything else (name, birth_date, height/weight/bats/throws) is
+   insert-only, never refreshed for an existing player. The `retired`
+   column (added in [docs/tickets/0011](../tickets/0011-retired-player-flag.md))
+   is the only signal that a player's ratings/team/age have stopped
+   updating — the ratings/age-update paths still correctly skip retired
+   players, this upsert just makes sure the flag itself gets set.
 4. `players_career_batting_stats`: real upsert, filtered to
    `split_id = 1` (regular-season totals), PK `(player_id, year, team_id)`.
 
@@ -167,15 +168,12 @@ Only short heaps produce projections. `project_players()` spins up
   `9.92` runs/win for `WAR`.
 
 Any exception during projection (including missing/`None` ratings) is caught
-broadly, logged via `current_app.logger.warning(...)`, and the player is
-silently dropped from the result set — no count of how many players failed
-is ever surfaced.
-
-> `process_player` calls `current_app` from inside a multiprocessing worker.
-> This only works because Linux's default `fork()` start method clones the
-> parent's active Flask app context into each child; nothing in the code
-> explicitly re-establishes it. See
-> [docs/improvements #6](../improvements/README.md#6-projection-workers-depend-on-fork-semantics-for-flask-context).
+broadly, logged via a plain module-level `logging.getLogger(...)` (not
+`current_app.logger` — workers run in separate `multiprocessing` processes
+with no Flask app context, see
+[docs/tickets/0012](../tickets/0012-projection-worker-app-context.md)), and
+the player is silently dropped from the result set — no count of how many
+players failed is ever surfaced.
 
 `insert_projections()` batches results (1000 at a time) into
 `players_batting_expected`, `players_basepath_expected`,
@@ -188,17 +186,17 @@ refreshed if the projection model itself changes).
 
 | Scenario | What actually happens |
 |---|---|
-| Re-run `update-db` with no new dump files | Every heap ever placed under `DUMP_PATH` is reprocessed from scratch (staging reload + migration SQL + full projection pass). Net data is unchanged (`INSERT IGNORE`/upsert keys absorb the repeats), but the cost is paid every time. **Not free**, contrary to the impression given by "safe to re-run." |
-| Re-run after a mid-heap crash | Per-heap migration SQL is transactional (`rollback()` on exception) for the migration steps, but `update_player_age()` commits per 500-row batch — a crash there leaves partial age updates for that heap. Re-running just redoes the whole heap; ages get overwritten again, so this self-heals on the next successful run. |
-| Two `update-db` runs overlapping | Only guarded if **both** go through the Admin API job route. A CLI run has no lock and can overlap with anything. |
-| A player retires in-game | Their `ootp.players` row stops receiving updates entirely (filtered out of every future heap's `staging.players` read via `WHERE retired = 0`) and is never marked retired in the main schema. |
+| Re-run `update-db` with no new dump files | `check_new_heaps()` returns nothing already recorded in `processed_heaps`, so no heap is reprocessed — a no-op run costs one query, not a full staging reload/migration/projection pass. |
+| Re-run after a mid-heap crash | Per-heap migration SQL is transactional (`rollback()` on exception) for the migration steps, but `update_player_age()` commits per 500-row batch — a crash there leaves partial age updates for that heap. Since `mark_heap_processed()` only runs after the whole heap succeeds, a crashed heap is never recorded as processed and gets fully redone (ages overwritten again) on the next run. |
+| Two `update-db` runs overlapping | Guarded regardless of entry point (CLI vs. CLI, CLI vs. API, API vs. API) by a MariaDB `GET_LOCK` inside `update_database()` itself. The second caller fails fast with `UpdateAlreadyRunningError` rather than loading into the same staging schema concurrently. `init-db` is **not** included in this guard — running it while an `update-db` job is in flight will still race. |
+| A player retires in-game | `ootp.players.retired` gets flipped on the next long heap (full upsert, no longer filtered by `retired`), but their ratings/team/age still correctly stop updating — `retired` is the signal that data is now frozen, not a fix for the freeze itself. |
 
 ## 9. Data model quick reference
 
 | Table | Populated by | Idempotency key |
 |---|---|---|
 | `teams` | long heap (upsert) | `team_id` PK, `ON DUPLICATE KEY UPDATE` |
-| `players` | long heap (upsert, partial refresh) | `player_id` PK, `ON DUPLICATE KEY UPDATE` (only `team_id`/`prone_overall`) |
+| `players` | long heap (upsert, partial refresh) | `player_id` PK, `ON DUPLICATE KEY UPDATE` (`team_id`/`prone_overall`/`retired`) |
 | `players_career_batting_stats` | long heap (upsert) | `(player_id, year, team_id)`, full `ON DUPLICATE KEY UPDATE` |
 | `players_rating` | short heap | `UNIQUE(player_id, rating_date)`, `INSERT IGNORE` |
 | `players_batting`, `players_batting_talent`, `players_basepath`, `players_fielding`, `players_fielding_position`, `players_fielding_position_talent` | short heap | `rating_id` (FK to `players_rating`), `INSERT IGNORE` |
@@ -206,30 +204,24 @@ refreshed if the projection model itself changes).
 
 ## 10. Test coverage status
 
-`tests/db/` currently reports **16 failed, 24 passed**. All 16 failures are
-against a **removed** pre-MariaDB implementation of this pipeline (SQLite
-staging DB, `executescript()`/`inject_db_path()`/`STAGGING_DB_PATH`
-templating, tuple-of-lists `check_new_heaps()` return shape) — the source
-was migrated to the pymysql/two-database design documented above, but the
-corresponding tests in `test_stagging.py`, `test_update.py`,
-`test_migration.py`, `test_projection.py`, and `test_connection.py` were
-not. **None of the 16 failures are catching a real defect** — they assert
-against APIs that no longer exist. `app/player_projection/` (batter
-projection math) and the newer `service.py`/`jobs.py`/`cli.py` layers
-(covered by tickets 0001–0004) have accurate, passing test coverage.
-Rewriting or removing the 16 stale tests is tracked in
-[docs/improvements #15](../improvements/README.md#15-rewrite-or-remove-16-stale-pipeline-tests).
+`tests/db/` passes in full, rewritten against the current pymysql/two-database
+design documented above (see [docs/tickets/0017](../tickets/0017-rewrite-stale-pipeline-tests.md)).
+`app/player_projection/` (batter projection math) and the `service.py`/
+`jobs.py`/`cli.py` layers (covered by tickets 0001–0004) also have accurate,
+passing test coverage. The only known-failing tests in the backend suite are
+in `tests/api/test_players.py`, a pre-existing issue unrelated to this
+pipeline.
 
 ## Known limitations at a glance
 
-- `update-db` is O(all heaps ever), not O(new heaps) — [#1](../improvements/README.md#1-update-db-reprocesses-every-heap-on-every-run)
-- Ratings-detail inserts scan full rating history per player per heap — [#2](../improvements/README.md#2-ratings-detail-inserts-arent-scoped-to-the-current-heap-date)
-- No concurrency guard on the CLI path — [#3](../improvements/README.md#3-cli-path-has-no-in-flight-job-protection)
-- Retired players silently freeze, no flag — [#4](../improvements/README.md#4-retired-players-have-no-flag-and-silently-freeze)
-- Staging table reset relies on dump files self-resetting — [#5](../improvements/README.md#5-staging-reset-logic-is-disabled)
-- Projection workers depend on `fork()` semantics for Flask context — [#6](../improvements/README.md#6-projection-workers-depend-on-fork-semantics-for-flask-context)
-- `players_pitching` ingested but never used — [#9](../improvements/README.md#9-players_pitching-is-ingested-but-never-used)
-- No row-count/effect visibility in job results — [#10](../improvements/README.md#10-no-row-count-visibility-into-what-a-run-actually-changed)
-- Config always runs as `DevConfig`; secrets printed on startup — [#8](../improvements/README.md#8-hardcoded-dev-config-and-secrets-printed-on-startup)
+The limitations previously tracked here (unscoped ratings-detail inserts,
+missing CLI concurrency guard, no retired-player flag, disabled staging
+reset, `fork()`-dependent projection logging, unused `players_pitching`
+ingestion, no row-count visibility, and dev-only config with secrets logged
+on startup) have all been resolved — see
+[docs/tickets](../tickets/index.md) 0008–0014 and 0016 for what changed and
+why.
 
-Full list with severities and suggested fixes: [docs/improvements/README.md](../improvements/README.md).
+Still open: `init-db` isn't guarded against running concurrently with an
+in-flight `update-db` job (see the idempotency table in [§8](#8-idempotency--re-run-behavior--current-status)).
+Current and future work is tracked in [docs/tickets](../tickets/index.md).

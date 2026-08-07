@@ -31,8 +31,10 @@ def process_single_heap(heap_path, heap_index, total_heaps, db, short_heap=True)
     finally:
         staging_db.close()
 
+    counts = {"ratings_inserted": 0, "players_updated": 0, "projections_inserted": 0}
+
     if short_heap:
-        run_migration_short(heap_date, db)
+        counts["ratings_inserted"] = run_migration_short(heap_date, db)
         players = fetch_projection_inputs(heap_date, db)
         logger.info(f"Number of players: {len(players)}")
 
@@ -42,10 +44,27 @@ def process_single_heap(heap_path, heap_index, total_heaps, db, short_heap=True)
         if projections:
             logger.debug(f"First projection: {projections[0]}")
 
-        insert_projections(projections, db)
+        counts["projections_inserted"] = insert_projections(projections, db)
     else:
-        run_migration_long(heap_date, db)
-        update_player_age(db=db, heap_date=heap_date)
+        counts["players_updated"] = run_migration_long(heap_date, db)
+        counts["players_updated"] += update_player_age(db=db, heap_date=heap_date)
+
+    mark_heap_processed(db, heap_date, short_heap)
+    return counts
+
+
+def mark_heap_processed(db, heap_date, short_heap):
+    """Record that this heap's migration/projection work has fully committed,
+    so check_new_heaps() won't return it again."""
+    with db.cursor() as cursor:
+        cursor.execute(
+            "INSERT INTO processed_heaps (year, month, is_short, processed_at) "
+            "VALUES (%s, %s, %s, %s) "
+            "ON DUPLICATE KEY UPDATE is_short = VALUES(is_short), "
+            "processed_at = VALUES(processed_at)",
+            (heap_date[1], heap_date[2], short_heap, datetime.now()),
+        )
+    db.commit()
 
 
 def update_player_age(db, heap_date):
@@ -57,6 +76,7 @@ def update_player_age(db, heap_date):
         heap_date: tuple or list like (year, month, day) or (something, year, month)
     """
     current_date = date.fromisoformat(f"{heap_date[1]}-01-01")
+    rows_updated = 0
 
     with db.cursor() as cursor:
         cursor.execute("SELECT player_id, birth_date FROM players")
@@ -69,7 +89,7 @@ def update_player_age(db, heap_date):
             if not player_id or not birth_date:
                 continue
 
-            logger.debug(current_date, birth_date)
+            logger.debug("current_date=%s birth_date=%s", current_date, birth_date)
             delta = current_date - birth_date
             age = round(delta.days / 365.25)
             batch.append((age, player_id))
@@ -78,6 +98,7 @@ def update_player_age(db, heap_date):
                 cursor.executemany(
                     "UPDATE players SET age = %s WHERE player_id = %s", batch
                 )
+                rows_updated += cursor.rowcount
                 db.commit()
                 batch.clear()
 
@@ -85,8 +106,10 @@ def update_player_age(db, heap_date):
             cursor.executemany(
                 "UPDATE players SET age = %s WHERE player_id = %s", batch
             )
+            rows_updated += cursor.rowcount
             db.commit()
     logger.info("Player ages updated")
+    return rows_updated
 
 
 def extract_heap_date_from_path(heap_path):
@@ -94,66 +117,65 @@ def extract_heap_date_from_path(heap_path):
     return Path(heap_path).parts[-2].split("_")
 
 
-def run_migration_short(heap_date, db):
-    script_path = os.path.join("db", "sql_scripts", "migration", "migration_short.sql")
+def _run_sql_script(script_path, db, heap_date=None, fetch=False):
+    """Run every ';'-split statement in a .sql resource against db, inside
+    one cursor/transaction. Rolls back and re-raises on any exception;
+    commits on success.
+
+    Args:
+        script_path: path passed to current_app.open_resource(), relative
+            to the app package (e.g. "db/sql_scripts/migration/x.sql").
+        db: MariaDB connection object.
+        heap_date: if given, injected via inject_heap_date() before running.
+        fetch: if True, return the last statement's result rows as a list
+            of dicts (for a script whose final statement is a SELECT)
+            instead of a row count.
+
+    Returns:
+        [dict, ...] if fetch=True, else the total rows affected (summed
+        cursor.rowcount) across every executed statement.
+    """
     with current_app.open_resource(script_path, "r") as f:
         sql_script = f.read()
+    if heap_date is not None:
         sql_script = inject_heap_date(sql_script, heap_date)
 
+    rows_affected = 0
     with db.cursor() as cursor:
         try:
             for statement in sql_script.strip().split(";"):
                 statement = statement.strip()
                 if statement:
                     cursor.execute(statement)
+                    if cursor.rowcount > 0:
+                        rows_affected += cursor.rowcount
         except Exception as e:
             db.rollback()
             logger.error(f"Migration failed: {e}")
             raise
         else:
             db.commit()
+
+        if fetch:
+            return [dict(row) for row in cursor.fetchall()]
+    return rows_affected
+
+
+def run_migration_short(heap_date, db):
+    script_path = os.path.join("db", "sql_scripts", "migration", "migration_short.sql")
+    return _run_sql_script(script_path, db, heap_date=heap_date)
 
 
 def run_migration_long(heap_date, db):
     script_path = os.path.join("db", "sql_scripts", "migration", "migration_long.sql")
-    with current_app.open_resource(script_path, "r") as f:
-        sql_script = f.read()
-
-    with db.cursor() as cursor:
-        try:
-            for statement in sql_script.strip().split(";"):
-                statement = statement.strip()
-                if statement:
-                    cursor.execute(statement)
-        except Exception as e:
-            db.rollback()
-            logger.error(f"Migration failed: {e}")
-            raise
-        else:
-            db.commit()
+    return _run_sql_script(script_path, db)
 
 
 def fetch_projection_inputs(heap_date, db):
     query_path = os.path.join(
         "db", "sql_scripts", "migration", "get_projection_inputs.sql"
     )
-    with current_app.open_resource(query_path, "r") as f:
-        sql_script = f.read()
-        sql_script = inject_heap_date(sql_script, heap_date)
-
-    with db.cursor() as cursor:
-        try:
-            for statement in sql_script.strip().split(";"):
-                statement = statement.strip()
-                if statement:
-                    cursor.execute(statement)
-        except Exception as e:
-            db.rollback()
-            logger.error(f"Migration failed: {e}")
-            raise
-        else:
-            db.commit()
-    return [dict(row) for row in cursor.fetchall()]
+    return _run_sql_script(query_path, db, heap_date=heap_date, fetch=True)
 
 
 def project_players(players):
@@ -170,9 +192,13 @@ def project_players(players):
 
 def insert_projections(projections, db, batch_size=1000):
     batches = {key: [] for key in ("offense", "basepath", "defense", "value")}
+    rows_inserted = 0
     for i in range(0, len(projections), batch_size):
         chunk = projections[i : i + batch_size]
-        batches = update_projection_batches(
+        batches, chunk_rows = update_projection_batches(
             batches, projections=chunk, inject=True, db=db
         )
-    update_projection_batches(batches, db=db, final=True)
+        rows_inserted += chunk_rows
+    _, final_rows = update_projection_batches(batches, db=db, final=True)
+    rows_inserted += final_rows
+    return rows_inserted

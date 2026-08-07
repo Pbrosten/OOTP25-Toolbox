@@ -25,13 +25,12 @@ flask --app app update-db   # scans DUMP_PATH, ingests any new heaps, migrates, 
 ```
 
 `init-db` only needs to be run once (or after a schema change). `update-db`
-is safe to re-run in the sense that it won't corrupt data (inserts are
-deduped by database keys) — but as of this writing it re-processes **every**
-heap under `DUMP_PATH` on every run, not just new ones, so run time grows
-with total dump history rather than with what's actually new. See
+is safe to re-run — a `processed_heaps` table records which heaps have
+already completed their migration/projection work, so `check_new_heaps()`
+only returns heaps not yet recorded there. Run time scales with what's new
+on disk, not with total dump history. See
 [Ingestion Pipeline → §3](Ingestion-Pipeline.md#3-stage-1--discover-heaps-stagingpycheck_new_heaps)
-and [docs/improvements #1](../improvements/README.md#1-update-db-reprocesses-every-heap-on-every-run)
-for details and the proposed fix.
+for details.
 
 To run from the host instead of inside the container, see the env-var
 override example in [Configuration](Configuration.md).
@@ -57,8 +56,9 @@ curl http://localhost:5000/api/admin/jobs/<job_id> \
 
 ## What happens during `update-db`
 
-1. Every heap folder under `DUMP_PATH` (see note above — not just new ones)
-   is loaded into a raw staging database (unmodified OOTP schema).
+1. Every heap folder under `DUMP_PATH` not already recorded in
+   `processed_heaps` is loaded into a raw staging database (unmodified OOTP
+   schema).
 2. A SQL migration runs from staging into the main app database:
    - Yearly heaps seed `players`/`teams` and update ages.
    - Monthly heaps add a dated rating snapshot per player.
