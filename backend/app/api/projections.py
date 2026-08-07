@@ -1,12 +1,16 @@
 import os
+import logging
 
 from flask import Blueprint, jsonify, current_app, request
 from app.db.connection import get_db, close_db
 
-bp = Blueprint('projections', __name__, url_prefix='/api/players/stats/expected')
+bp = Blueprint("projections", __name__, url_prefix="/api/players/ratings")
+
+logger = logging.getLogger("api.projections")
+
 
 ################################ PROJECTIONS ################################
-@bp.route('/batting', methods=['GET'])
+@bp.route("/expected/batting", methods=["GET"])
 def get_expected_batting_stats():
     """
     Retrieve all player expected batting stat entries.
@@ -17,14 +21,15 @@ def get_expected_batting_stats():
     """
     con = get_db()
     try:
-        cursor = con.execute("SELECT * FROM players_batting_expected")
-        rows = cursor.fetchall()
-        ratings = [dict(row) for row in rows]
-        return jsonify(ratings)
+        with con.cursor() as cursor:
+            cursor.execute("SELECT * FROM players_batting_expected")
+            rows = cursor.fetchall()
+            return jsonify(rows)
     finally:
         close_db()
 
-@bp.route('/batting/<int:rating_id>', methods=['GET'])
+
+@bp.route("/<int:rating_id>/expected/batting", methods=["GET"])
 def get_expected_batting_stats_by_id(rating_id):
     """
     Retrieve a single player batting projected stats by their unique ID.
@@ -39,16 +44,21 @@ def get_expected_batting_stats_by_id(rating_id):
     """
     con = get_db()
     try:
-        cursor = con.execute("SELECT * FROM players_batting_expected WHERE rating_id = ?", (rating_id,))
-        row = cursor.fetchone()
-        if row:
-            return jsonify(dict(row))
-        else:
-            return jsonify({"error": "Player projection not found"}), 404
+        with con.cursor() as cursor:
+            cursor.execute(
+                "SELECT * FROM players_batting_expected WHERE rating_id = %s",
+                (rating_id,),
+            )
+            row = cursor.fetchone()
+            if row:
+                return jsonify(row)
+            else:
+                return jsonify({"error": "Player projection not found"}), 404
     finally:
         close_db()
 
-@bp.route('/batting/<int:rating_id>/percentiles', methods=['GET'])
+
+@bp.route("/<int:rating_id>/expected/batting/percentiles", methods=["GET"])
 def get_expected_batting_percentiles(rating_id):
     """
     Retrieve a single player batting projected percentiles by their unique ID..
@@ -60,18 +70,31 @@ def get_expected_batting_percentiles(rating_id):
     """
     con = get_db()
     try:
-        is_mlb = request.args.get('mlb', 'false').lower() == 'true'
-        with current_app.open_resource(os.path.join('db', 'sql_scripts', 'api', 'get_player_expected_batting_percentiles.sql'), 'r') as f:
-            cursor = con.execute(f.read(), {'rating_id':rating_id, 'is_mlb':is_mlb})
-            columns = [desc[0] for desc in cursor.description]
+        is_milb = 1 if request.args.get("milb", "false").lower() == "true" else 0
+        with current_app.open_resource(
+            os.path.join(
+                "db",
+                "sql_scripts",
+                "api",
+                "get_player_expected_batting_percentiles.sql",
+            ),
+            "r",
+        ) as f:
+            sql = f.read()
+
+        with con.cursor() as cursor:
+            cursor.execute(sql, {"rating_id": rating_id, "is_milb": is_milb})
             row = cursor.fetchone()
-            result = dict(zip(columns, row))
-            return jsonify(result)
+        if row:
+            return jsonify(row)
+        else:
+            return jsonify({"error": "Player projection not found"}), 404
 
     finally:
         close_db()
-    
-@bp.route('/basepath', methods=['GET'])
+
+
+@bp.route("/expected/basepath", methods=["GET"])
 def get_expected_basepath_stats():
     """
     Retrieve all player expected basepath stat entries.
@@ -82,14 +105,15 @@ def get_expected_basepath_stats():
     """
     con = get_db()
     try:
-        cursor = con.execute("SELECT * FROM players_basepath_expected")
-        rows = cursor.fetchall()
-        ratings = [dict(row) for row in rows]
-        return jsonify(ratings)
+        with con.cursor() as cursor:
+            cursor.execute("SELECT * FROM players_basepath_expected")
+            rows = cursor.fetchall()
+            return jsonify(rows)
     finally:
         close_db()
 
-@bp.route('/basepath/<int:rating_id>', methods=['GET'])
+
+@bp.route("/<int:rating_id>/expected/basepath", methods=["GET"])
 def get_expected_basepath_stats_by_id(rating_id):
     """
     Retrieve a single player basepath projected stats by their unique ID.
@@ -104,16 +128,21 @@ def get_expected_basepath_stats_by_id(rating_id):
     """
     con = get_db()
     try:
-        cursor = con.execute("SELECT * FROM players_basepath_expected WHERE rating_id = ?", (rating_id,))
-        row = cursor.fetchone()
-        if row:
-            return jsonify(dict(row))
-        else:
-            return jsonify({"error": "Player projection not found"}), 404
+        with con.cursor() as cursor:
+            cursor.execute(
+                "SELECT * FROM players_basepath_expected WHERE rating_id = %s",
+                (rating_id,),
+            )
+            row = cursor.fetchone()
+            if row:
+                return jsonify(row)
+            else:
+                return jsonify({"error": "Player projection not found"}), 404
     finally:
         close_db()
 
-@bp.route('/basepath/<int:rating_id>/percentiles', methods=['GET'])
+
+@bp.route("/<int:rating_id>/expected/basepath/percentiles", methods=["GET"])
 def get_expected_basepath_percentiles(rating_id):
     """
     Retrieve a single player basepath projected percentiles by their unique ID..
@@ -125,18 +154,27 @@ def get_expected_basepath_percentiles(rating_id):
     """
     con = get_db()
     try:
-        is_mlb = request.args.get('mlb', 'false').lower() == 'true'
-        with current_app.open_resource(os.path.join('db', 'sql_scripts', 'api', 'get_player_expected_basepath_percentiles.sql'), 'r') as f:
-            cursor = con.execute(f.read(), {'rating_id':rating_id, 'is_mlb':is_mlb})
-            columns = [desc[0] for desc in cursor.description]
+        is_milb = 1 if request.args.get("milb", "false").lower() == "true" else 0
+        with current_app.open_resource(
+            os.path.join(
+                "db",
+                "sql_scripts",
+                "api",
+                "get_player_expected_basepath_percentiles.sql",
+            ),
+            "r",
+        ) as f:
+            sql = f.read()
+        with con.cursor() as cursor:
+            cursor.execute(sql, {"rating_id": rating_id, "is_milb": is_milb})
             row = cursor.fetchone()
-            result = dict(zip(columns, row))
-            return jsonify(result)
+            return jsonify(row)
 
     finally:
         close_db()
 
-@bp.route('/fielding', methods=['GET'])
+
+@bp.route("/expected/fielding", methods=["GET"])
 def get_expected_fielding_stats():
     """
     Retrieve all player expected fielding stat entries.
@@ -147,14 +185,15 @@ def get_expected_fielding_stats():
     """
     con = get_db()
     try:
-        cursor = con.execute("SELECT * FROM players_fielding_expected")
-        rows = cursor.fetchall()
-        ratings = [dict(row) for row in rows]
-        return jsonify(ratings)
+        with con.cursor() as cursor:
+            cursor.execute("SELECT * FROM players_fielding_expected")
+            rows = cursor.fetchall()
+            return jsonify(rows)
     finally:
         close_db()
 
-@bp.route('/fielding/<int:rating_id>', methods=['GET'])
+
+@bp.route("/<int:rating_id>/expected/fielding", methods=["GET"])
 def get_expected_fielding_stats_by_id(rating_id):
     """
     Retrieve a single player fielding projected stats by their unique ID.
@@ -169,16 +208,21 @@ def get_expected_fielding_stats_by_id(rating_id):
     """
     con = get_db()
     try:
-        cursor = con.execute("SELECT * FROM players_fielding_expected WHERE rating_id = ?", (rating_id,))
-        row = cursor.fetchone()
-        if row:
-            return jsonify(dict(row))
-        else:
-            return jsonify({"error": "Player projection not found"}), 404
+        with con.cursor() as cursor:
+            cursor.execute(
+                "SELECT * FROM players_fielding_expected WHERE rating_id = %s",
+                (rating_id,),
+            )
+            row = cursor.fetchone()
+            if row:
+                return jsonify(row)
+            else:
+                return jsonify({"error": "Player projection not found"}), 404
     finally:
         close_db()
 
-@bp.route('/fielding/<int:rating_id>/percentiles', methods=['GET'])
+
+@bp.route("/<int:rating_id>/expected/fielding/percentiles", methods=["GET"])
 def get_expected_fielding_percentiles(rating_id):
     """
     Retrieve a single player fielding projected percentiles by their unique ID..
@@ -190,18 +234,27 @@ def get_expected_fielding_percentiles(rating_id):
     """
     con = get_db()
     try:
-        is_mlb = request.args.get('mlb', 'false').lower() == 'true'
-        with current_app.open_resource(os.path.join('db', 'sql_scripts', 'api', 'get_player_expected_fielding_percentiles.sql'), 'r') as f:
-            cursor = con.execute(f.read(), {'rating_id':rating_id, 'is_mlb':is_mlb})
-            columns = [desc[0] for desc in cursor.description]
+        is_milb = 1 if request.args.get("milb", "false").lower() == "true" else 0
+        with current_app.open_resource(
+            os.path.join(
+                "db",
+                "sql_scripts",
+                "api",
+                "get_player_expected_fielding_percentiles.sql",
+            ),
+            "r",
+        ) as f:
+            sql = f.read()
+        with con.cursor() as cursor:
+            cursor.execute(sql, {"rating_id": rating_id, "is_milb": is_milb})
             row = cursor.fetchone()
-            result = dict(zip(columns, row))
-            return jsonify(result)
+            return jsonify(row)
 
     finally:
         close_db()
 
-@bp.route('/value/<int:rating_id>/percentiles', methods=['GET'])
+
+@bp.route("/<int:rating_id>/expected/value/percentiles", methods=["GET"])
 def get_expected_value_percentiles(rating_id):
     """
     Retrieve a single player run value projected percentiles by their unique ID..
@@ -213,13 +266,18 @@ def get_expected_value_percentiles(rating_id):
     """
     con = get_db()
     try:
-        is_mlb = request.args.get('mlb', 'false').lower() == 'true'
-        with current_app.open_resource(os.path.join('db', 'sql_scripts', 'api', 'get_player_expected_value_percentiles.sql'), 'r') as f:
-            cursor = con.execute(f.read(), {'rating_id':rating_id, 'is_mlb':is_mlb})
-            columns = [desc[0] for desc in cursor.description]
+        is_milb = 1 if request.args.get("milb", "false").lower() == "true" else 0
+        with current_app.open_resource(
+            os.path.join(
+                "db", "sql_scripts", "api", "get_player_expected_value_percentiles.sql"
+            ),
+            "r",
+        ) as f:
+            sql = f.read()
+        with con.cursor() as cursor:
+            cursor.execute(sql, {"rating_id": rating_id, "is_milb": is_milb})
             row = cursor.fetchone()
-            result = dict(zip(columns, row))
-            return jsonify(result)
+            return jsonify(row)
 
     finally:
         close_db()

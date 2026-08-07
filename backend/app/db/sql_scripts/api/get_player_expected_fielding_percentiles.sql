@@ -14,22 +14,22 @@ WITH target_player AS (
     END AS position_group
   FROM players_rating pr
   JOIN players p ON pr.player_id = p.player_id
-  WHERE pr.rating_id = :rating_id
+  WHERE pr.rating_id = %(rating_id)s
 ),
 
 target_value AS (
   SELECT
     tp.*,
     CASE tp.position
-      WHEN 'C' THEN pfe."C"
-      WHEN '1B' THEN pfe."1B"
-      WHEN '2B' THEN pfe."2B"
-      WHEN '3B' THEN pfe."3B"
-      WHEN 'SS' THEN pfe."SS"
-      WHEN 'LF' THEN pfe."LF"
-      WHEN 'CF' THEN pfe."CF"
-      WHEN 'RF' THEN pfe."RF"
-      WHEN 'DH' THEN pfe."DH"
+      WHEN 'C' THEN pfe.`C`
+      WHEN '1B' THEN pfe.`1B`
+      WHEN '2B' THEN pfe.`2B`
+      WHEN '3B' THEN pfe.`3B`
+      WHEN 'SS' THEN pfe.`SS`
+      WHEN 'LF' THEN pfe.`LF`
+      WHEN 'CF' THEN pfe.`CF`
+      WHEN 'RF' THEN pfe.`RF`
+      WHEN 'DH' THEN pfe.`DH`
     END AS fielding_value
   FROM target_player tp
   JOIN players_fielding_expected pfe ON tp.rating_id = pfe.rating_id
@@ -50,15 +50,15 @@ cohort AS (
       ELSE 'other'
     END AS position_group,
     CASE p.position
-      WHEN 'C' THEN pfe."C"
-      WHEN '1B' THEN pfe."1B"
-      WHEN '2B' THEN pfe."2B"
-      WHEN '3B' THEN pfe."3B"
-      WHEN 'SS' THEN pfe."SS"
-      WHEN 'LF' THEN pfe."LF"
-      WHEN 'CF' THEN pfe."CF"
-      WHEN 'RF' THEN pfe."RF"
-      WHEN 'DH' THEN pfe."DH"
+      WHEN 'C' THEN pfe.`C`
+      WHEN '1B' THEN pfe.`1B`
+      WHEN '2B' THEN pfe.`2B`
+      WHEN '3B' THEN pfe.`3B`
+      WHEN 'SS' THEN pfe.`SS`
+      WHEN 'LF' THEN pfe.`LF`
+      WHEN 'CF' THEN pfe.`CF`
+      WHEN 'RF' THEN pfe.`RF`
+      WHEN 'DH' THEN pfe.`DH`
     END AS fielding_value
   FROM players_rating pr
   JOIN players p ON pr.player_id = p.player_id
@@ -75,7 +75,7 @@ cohort AS (
        ELSE 'other'
      END
    ) = tv.position_group
-  WHERE p.age >= 20
+  WHERE p.age >= 22
 ),
 
 catcher_cohort AS (
@@ -89,10 +89,8 @@ catcher_cohort AS (
   JOIN target_value tv
     ON pr.rating_date = tv.rating_date
    AND (
-        CASE 
-          WHEN :is_mlb THEN pr.league_id = 203
-          ELSE pr.league_id = tv.league_id
-        END
+        (%(is_milb)s = 1 AND pr.league_id = tv.league_id)
+        OR (%(is_milb)s = 0 AND pr.league_id = 203)
    )
   WHERE p.position = 'C' AND p.age >= 20
 ),
@@ -108,12 +106,10 @@ infielder_cohort AS (
   JOIN target_value tv
     ON pr.rating_date = tv.rating_date
    AND (
-        CASE 
-          WHEN :is_mlb THEN pr.league_id = 203
-          ELSE pr.league_id = tv.league_id
-        END
+        (%(is_milb)s = 1 AND pr.league_id = tv.league_id)
+        OR (%(is_milb)s = 0 AND pr.league_id = 203)
    )
-  WHERE p.position in ('1B', '2B', '3B', 'SS') AND p.age >= 20
+  WHERE p.position in ('1B', '2B', '3B', 'SS') AND p.age >= 22
 ),
 
 outfielder_cohort AS (
@@ -127,12 +123,10 @@ outfielder_cohort AS (
   JOIN target_value tv
     ON pr.rating_date = tv.rating_date
    AND (
-        CASE 
-          WHEN :is_mlb THEN pr.league_id = 203
-          ELSE pr.league_id = tv.league_id
-        END
+        (%(is_milb)s = 1 AND pr.league_id = tv.league_id)
+        OR (%(is_milb)s = 0 AND pr.league_id = 203)
    )
-  WHERE p.position in ('LF', 'CF', 'RF') AND p.age >= 20
+  WHERE p.position in ('LF', 'CF', 'RF') AND p.age >= 22
 )
 
 SELECT
