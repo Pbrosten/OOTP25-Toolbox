@@ -1,7 +1,7 @@
 # 0007 — Track processed heaps so update-db only ingests what's new
 
 - **Tag:** feat
-- **Status:** In-Progress
+- **Status:** Closed
 - **Depends on:** —
 - **Blocks:** —
 

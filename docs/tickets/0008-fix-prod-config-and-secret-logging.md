@@ -1,7 +1,7 @@
 # 0008 — Derive is_production from env; stop printing config with secrets
 
 - **Tag:** fix
-- **Status:** Open
+- **Status:** Closed
 - **Depends on:** —
 - **Blocks:** —
 
