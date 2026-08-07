@@ -44,34 +44,48 @@ def test_process_player_exception(mock_batter_proj):
     assert "Error processing player 789" in mock_logger.warning.call_args[0][0]
 
 
-def test_update_projection_batches_final_commits_and_returns_none():
+def test_update_projection_batches_final_commits_and_returns_rows_written():
+    # update_projection_batches returns (batches_or_None, rows_written) when
+    # inject/final -- see docs/tickets/0016.
     mock_db = MagicMock()
+    mock_cursor = MagicMock()
+    mock_cursor.rowcount = 3
+    mock_db.cursor.return_value.__enter__.return_value = mock_cursor
     mock_batches = {
         "offense": [{"rating_id": 1}],
         "value": [],
     }
 
-    result = projection_module.update_projection_batches(mock_batches, db=mock_db, final=True)
+    batches, rows_written = projection_module.update_projection_batches(
+        mock_batches, db=mock_db, final=True
+    )
 
-    mock_db.executemany.assert_called_once_with(projection_module.proj_scripts["offense"], [{"rating_id": 1}])
+    mock_cursor.executemany.assert_called_once_with(
+        projection_module.proj_scripts["offense"], [{"rating_id": 1}]
+    )
     mock_db.commit.assert_called_once()
-    assert result is None
+    assert batches is None
+    assert rows_written == 3
 
 
-def test_update_projection_batches_inject_returns_empty_batches():
+def test_update_projection_batches_inject_returns_empty_batches_and_rows_written():
     mock_db = MagicMock()
+    mock_cursor = MagicMock()
+    mock_cursor.rowcount = 1
+    mock_db.cursor.return_value.__enter__.return_value = mock_cursor
     batches = {
         "offense": [{"rating_id": 1}],
         "value": [{"rating_id": 2}],
     }
 
-    result = projection_module.update_projection_batches(
+    result, rows_written = projection_module.update_projection_batches(
         batches.copy(), db=mock_db, inject=True
     )
 
     assert result == {"offense": [], "value": []}
-    assert mock_db.executemany.call_count == 2
+    assert mock_cursor.executemany.call_count == 2
     mock_db.commit.assert_called_once()
+    assert rows_written == 2  # 1 rowcount from each of the 2 executemany calls
 
 
 def test_update_projection_batches_with_projections_appends_to_batches():

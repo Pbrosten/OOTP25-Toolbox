@@ -1,7 +1,7 @@
 # 0017 — Rewrite or remove 16 stale pipeline tests
 
 - **Tag:** chore
-- **Status:** Open
+- **Status:** Closed
 - **Depends on:** —
 - **Blocks:** —
 
