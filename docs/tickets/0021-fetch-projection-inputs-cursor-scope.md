@@ -1,7 +1,7 @@
 # 0021 — Fetch projection inputs inside the cursor's with block
 
 - **Tag:** refactor
-- **Status:** Open
+- **Status:** Closed
 - **Depends on:** —
 - **Blocks:** —
 

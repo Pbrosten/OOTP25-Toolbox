@@ -184,7 +184,7 @@ def fetch_projection_inputs(heap_date, db):
             raise
         else:
             db.commit()
-    return [dict(row) for row in cursor.fetchall()]
+        return [dict(row) for row in cursor.fetchall()]
 
 
 def project_players(players):
