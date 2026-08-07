@@ -3,6 +3,7 @@ __pycache__
 *.pyc
 tests
 docs
+templates
 .coverage
 *pytest*
 .vscode
