@@ -64,7 +64,15 @@ def update_database() -> dict:
             sorted_heaps = check_new_heaps()
             if not sorted_heaps:
                 logger.info("No new heaps found.")
-                return {"status": "ok", "heaps_processed": 0, "long_heaps": 0, "short_heaps": 0}
+                return {
+                    "status": "ok",
+                    "heaps_processed": 0,
+                    "long_heaps": 0,
+                    "short_heaps": 0,
+                    "ratings_inserted": 0,
+                    "players_updated": 0,
+                    "projections_inserted": 0,
+                }
 
             logger.info(sorted_heaps)
             total_heaps = len(sorted_heaps)
@@ -76,10 +84,13 @@ def update_database() -> dict:
             )
 
             logger.info("Migrating heaps in order")
+            totals = {"ratings_inserted": 0, "players_updated": 0, "projections_inserted": 0}
             for heap_number, (heap_path, short_heap_flag) in enumerate(sorted_heaps, 1):
-                process_single_heap(
+                heap_counts = process_single_heap(
                     heap_path, heap_number, total_heaps, conn, short_heap=short_heap_flag
                 )
+                for key in totals:
+                    totals[key] += heap_counts[key]
 
             conn.commit()
             logger.info("Migration and projection complete!")
@@ -89,6 +100,7 @@ def update_database() -> dict:
                 "heaps_processed": total_heaps,
                 "long_heaps": count_long,
                 "short_heaps": count_short,
+                **totals,
             }
         finally:
             if acquired:

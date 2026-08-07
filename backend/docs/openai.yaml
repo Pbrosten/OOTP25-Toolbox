@@ -523,6 +523,15 @@ paths:
                         type: integer
                       short_heaps:
                         type: integer
+                      ratings_inserted:
+                        type: integer
+                        description: Rows actually written (cursor.rowcount, not rows attempted) across all short-heap ratings-detail INSERT IGNORE statements.
+                      players_updated:
+                        type: integer
+                        description: Rows actually written across long-heap players/teams/career-stats upserts plus the player-age UPDATE pass.
+                      projections_inserted:
+                        type: integer
+                        description: Rows actually written into the *_expected and players_run_value tables by the projection pass.
                   error:
                     type: string
                     nullable: true

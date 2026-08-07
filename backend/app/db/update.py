@@ -31,8 +31,10 @@ def process_single_heap(heap_path, heap_index, total_heaps, db, short_heap=True)
     finally:
         staging_db.close()
 
+    counts = {"ratings_inserted": 0, "players_updated": 0, "projections_inserted": 0}
+
     if short_heap:
-        run_migration_short(heap_date, db)
+        counts["ratings_inserted"] = run_migration_short(heap_date, db)
         players = fetch_projection_inputs(heap_date, db)
         logger.info(f"Number of players: {len(players)}")
 
@@ -42,12 +44,13 @@ def process_single_heap(heap_path, heap_index, total_heaps, db, short_heap=True)
         if projections:
             logger.debug(f"First projection: {projections[0]}")
 
-        insert_projections(projections, db)
+        counts["projections_inserted"] = insert_projections(projections, db)
     else:
-        run_migration_long(heap_date, db)
-        update_player_age(db=db, heap_date=heap_date)
+        counts["players_updated"] = run_migration_long(heap_date, db)
+        counts["players_updated"] += update_player_age(db=db, heap_date=heap_date)
 
     mark_heap_processed(db, heap_date, short_heap)
+    return counts
 
 
 def mark_heap_processed(db, heap_date, short_heap):
@@ -73,6 +76,7 @@ def update_player_age(db, heap_date):
         heap_date: tuple or list like (year, month, day) or (something, year, month)
     """
     current_date = date.fromisoformat(f"{heap_date[1]}-01-01")
+    rows_updated = 0
 
     with db.cursor() as cursor:
         cursor.execute("SELECT player_id, birth_date FROM players")
@@ -94,6 +98,7 @@ def update_player_age(db, heap_date):
                 cursor.executemany(
                     "UPDATE players SET age = %s WHERE player_id = %s", batch
                 )
+                rows_updated += cursor.rowcount
                 db.commit()
                 batch.clear()
 
@@ -101,8 +106,10 @@ def update_player_age(db, heap_date):
             cursor.executemany(
                 "UPDATE players SET age = %s WHERE player_id = %s", batch
             )
+            rows_updated += cursor.rowcount
             db.commit()
     logger.info("Player ages updated")
+    return rows_updated
 
 
 def extract_heap_date_from_path(heap_path):
@@ -116,18 +123,22 @@ def run_migration_short(heap_date, db):
         sql_script = f.read()
         sql_script = inject_heap_date(sql_script, heap_date)
 
+    rows_affected = 0
     with db.cursor() as cursor:
         try:
             for statement in sql_script.strip().split(";"):
                 statement = statement.strip()
                 if statement:
                     cursor.execute(statement)
+                    if cursor.rowcount > 0:
+                        rows_affected += cursor.rowcount
         except Exception as e:
             db.rollback()
             logger.error(f"Migration failed: {e}")
             raise
         else:
             db.commit()
+    return rows_affected
 
 
 def run_migration_long(heap_date, db):
@@ -135,18 +146,22 @@ def run_migration_long(heap_date, db):
     with current_app.open_resource(script_path, "r") as f:
         sql_script = f.read()
 
+    rows_affected = 0
     with db.cursor() as cursor:
         try:
             for statement in sql_script.strip().split(";"):
                 statement = statement.strip()
                 if statement:
                     cursor.execute(statement)
+                    if cursor.rowcount > 0:
+                        rows_affected += cursor.rowcount
         except Exception as e:
             db.rollback()
             logger.error(f"Migration failed: {e}")
             raise
         else:
             db.commit()
+    return rows_affected
 
 
 def fetch_projection_inputs(heap_date, db):
@@ -186,9 +201,13 @@ def project_players(players):
 
 def insert_projections(projections, db, batch_size=1000):
     batches = {key: [] for key in ("offense", "basepath", "defense", "value")}
+    rows_inserted = 0
     for i in range(0, len(projections), batch_size):
         chunk = projections[i : i + batch_size]
-        batches = update_projection_batches(
+        batches, chunk_rows = update_projection_batches(
             batches, projections=chunk, inject=True, db=db
         )
-    update_projection_batches(batches, db=db, final=True)
+        rows_inserted += chunk_rows
+    _, final_rows = update_projection_batches(batches, db=db, final=True)
+    rows_inserted += final_rows
+    return rows_inserted

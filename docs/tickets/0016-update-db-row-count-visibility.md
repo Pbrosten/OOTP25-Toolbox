@@ -1,7 +1,7 @@
 # 0016 — Report row counts actually written by update-db, not just heaps attempted
 
 - **Tag:** feat
-- **Status:** Open
+- **Status:** Closed
 - **Depends on:** —
 - **Blocks:** —
 

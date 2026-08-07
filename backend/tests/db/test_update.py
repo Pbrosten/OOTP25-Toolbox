@@ -103,17 +103,23 @@ def test_project_players(mock_pool_cls, mock_cpu, mock_proc):
 
 @patch("app.db.update.update_projection_batches")
 def test_insert_projections(mock_update):
-    mock_update.return_value = {"offense": [], "basepath": [], "defense": [], "value": []}
+    # update_projection_batches returns (batches_or_None, rows_written) when
+    # inject/final -- see docs/tickets/0016.
+    mock_update.return_value = (
+        {"offense": [], "basepath": [], "defense": [], "value": []},
+        10,
+    )
     db = MagicMock()
     projections = [{"id": i} for i in range(2500)]
-    update_module.insert_projections(projections, db, batch_size=1000)
-    
+    rows_inserted = update_module.insert_projections(projections, db, batch_size=1000)
+
     # 3 calls: 2 for chunks, 1 final
     assert mock_update.call_count == 4
     # First call with projections
     assert mock_update.call_args_list[0][1]['inject'] is True
     # Last call with final=True
     assert mock_update.call_args_list[-1][1]['final'] is True
+    assert rows_inserted == 40
 
 
 @patch("app.db.update.insert_projections")
