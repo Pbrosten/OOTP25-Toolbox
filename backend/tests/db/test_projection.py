@@ -17,26 +17,27 @@ def test_process_player_success(mock_batter_proj, app):
 
 
 @patch("app.db.projection.BatterProjection")
-def test_process_player_returns_none_logs_warning(mock_batter_proj, app):
+def test_process_player_returns_none_logs_warning(mock_batter_proj):
     fake_player = {"rating_id": 456}
     mock_instance = mock_batter_proj.return_value
     mock_instance.calc_expected_stats.return_value = None
 
-    with app.app_context():
-        with patch("flask.current_app.logger") as mock_logger:
-            result = projection_module.process_player(fake_player)
+    # process_player runs in a multiprocessing worker with no Flask app
+    # context, so it must log via a plain module-level logger, not
+    # current_app.logger -- see docs/tickets/0012.
+    with patch("app.db.projection.logger") as mock_logger:
+        result = projection_module.process_player(fake_player)
 
     assert result is None
     mock_logger.warning.assert_called_once_with("No result for player: 456")
 
 
 @patch("app.db.projection.BatterProjection", side_effect=Exception("fail"))
-def test_process_player_exception(mock_batter_proj, app):
+def test_process_player_exception(mock_batter_proj):
     fake_player = {"rating_id": 789}
 
-    with app.app_context():
-        with patch("flask.current_app.logger") as mock_logger:
-            result = projection_module.process_player(fake_player)
+    with patch("app.db.projection.logger") as mock_logger:
+        result = projection_module.process_player(fake_player)
 
     assert result is None
     mock_logger.warning.assert_called_once()

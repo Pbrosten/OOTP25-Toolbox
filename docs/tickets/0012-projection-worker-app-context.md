@@ -1,7 +1,7 @@
 # 0012 — Stop relying on fork() semantics for Flask context in projection workers
 
 - **Tag:** refactor
-- **Status:** Open
+- **Status:** Closed
 - **Depends on:** —
 - **Blocks:** —
 

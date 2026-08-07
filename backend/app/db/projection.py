@@ -1,5 +1,8 @@
+import logging
+
 from app.player_projection import BatterProjection
-from flask import current_app
+
+logger = logging.getLogger("app.db.projection")
 
 proj_scripts = {
     "offense": """
@@ -29,14 +32,10 @@ def process_player(player):
         projector = BatterProjection(player)
         result = projector.calc_expected_stats()
         if result is None:
-            current_app.logger.warning(
-                f"No result for player: {player.get('rating_id')}"
-            )
+            logger.warning(f"No result for player: {player.get('rating_id')}")
         return result
     except Exception as e:
-        current_app.logger.warning(
-            f"Error processing player {player.get('rating_id')}: {e}"
-        )
+        logger.warning(f"Error processing player {player.get('rating_id')}: {e}")
         return None
 
 
