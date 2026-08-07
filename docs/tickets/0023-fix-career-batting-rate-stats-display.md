@@ -1,7 +1,7 @@
 # 0023 — Fix OBP/SLG/OPS in the career batting stats table
 
 - **Tag:** fix
-- **Status:** Open
+- **Status:** Closed
 - **Depends on:** —
 - **Blocks:** —
 

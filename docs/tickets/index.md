@@ -85,4 +85,4 @@ alternatives, not a sequence; 0021 folds into 0022).
 
 | # | Title | Tag | Status | Depends on |
 |---|-------|-----|--------|------------|
-| [0023](0023-fix-career-batting-rate-stats-display.md) | Fix OBP/SLG/OPS in the career batting stats table | fix | Open | — |
+| [0023](0023-fix-career-batting-rate-stats-display.md) | Fix OBP/SLG/OPS in the career batting stats table | fix | Closed | — |

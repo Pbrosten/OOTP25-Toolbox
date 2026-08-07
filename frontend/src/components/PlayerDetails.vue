@@ -25,7 +25,20 @@ onMounted(async () => {
     }
 
     if (statsRes.ok) {
-      battingStats.value = await statsRes.json()
+      const rawStats = await statsRes.json()
+      // The API returns SQL SUM() results as JSON strings (e.g. "ab": "558"),
+      // not numbers. Left uncoerced, "+" on these fields concatenates
+      // instead of adding wherever a formula chains more than one of them
+      // (e.g. calcSlg's h+d+... produced six-digit "stats" instead of a
+      // real quotient). Normalize once here so every consumer below --
+      // per-row calc functions and the totals sum() alike -- works with
+      // real numbers.
+      const numericKeys = ['pa', 'ab', 'r', 'h', 'hr', 'sb', 'bb', 'hp', 'sf', 'd', 't']
+      battingStats.value = rawStats.map((row: any) => {
+        const normalized = { ...row }
+        for (const key of numericKeys) normalized[key] = Number(row[key])
+        return normalized
+      })
     } else {
       error.value = 'Failed to load batting stats.'
     }
@@ -44,39 +57,72 @@ const recentStats = computed(() => {
     .slice(0, maxRows)
 })
 
+// Shared rate-stat formulas -- used for both per-row cells and the totals
+// row, so the OBP/SLG/OPS math only lives in one place. Each returns null
+// (rather than NaN) when its denominator is 0, so a stint that's e.g. all
+// walks (ab === 0) renders "-" for SLG/OPS instead of a NaN cell.
+function calcAvg(stat: any): number | null {
+  return stat.ab > 0 ? stat.h / stat.ab : null
+}
+
+function calcObp(stat: any): number | null {
+  // Standard OBP denominator excludes sacrifice hits (SH), even though SH
+  // does count toward OOTP's own PA total -- confirmed against real dump
+  // data (pa ~= ab+bb+hp+sf+sh). Using `pa` here would understate OBP.
+  const denom = stat.ab + stat.bb + stat.hp + stat.sf
+  return denom > 0 ? (stat.h + stat.bb + stat.hp) / denom : null
+}
+
+function calcSlg(stat: any): number | null {
+  return stat.ab > 0 ? (stat.h + stat.d + (2 * stat.t) + (3 * stat.hr)) / stat.ab : null
+}
+
+function calcOps(stat: any): number | null {
+  const obp = calcObp(stat)
+  const slg = calcSlg(stat)
+  return (obp !== null && slg !== null) ? obp + slg : null
+}
+
+// OOTP convention: values < 1 drop the leading "0" (".298"); OPS routinely
+// hits >= 1.000 and should render normally ("1.023"), not lose its leading
+// digit -- replace() only strips a leading "0.", unlike the old
+// toFixed(3).split('.')[1] approach, which mangled any value >= 1.
+function formatRate(value: number | null): string {
+  if (value === null) return '-'
+  return value.toFixed(3).replace(/^0\./, '.')
+}
+
 const totals = computed(() => {
   if (!battingStats.value.length) return null
 
   const sum = (key: string) =>
     battingStats.value.reduce((acc, s) => acc + (Number(s[key]) || 0), 0)
 
-  const totalPA = sum('pa')
-  const totalAB = sum('ab')
-  const totalR = sum('r')
-  const totalH = sum('h')
-  const totalHR = sum('hr')
-  const totalSB = sum('sb')
-  const totalBB = sum('bb')
-  const totalHP = sum('hp')
-  const totalD = sum('d')
-  const totalT = sum('t')
-
-  const avg = totalAB > 0 ? totalH / totalAB : null
-  const obp = totalPA > 0 ? (totalH + totalBB + totalHP) / totalPA : null
-  const slg = totalAB > 0 ? (totalH + totalD + (2 * totalT) + (3 * totalHR)) / totalAB : null
-  const ops = (obp !== null && slg !== null) ? obp + slg : null
+  const totalsStat = {
+    pa: sum('pa'),
+    ab: sum('ab'),
+    r: sum('r'),
+    h: sum('h'),
+    hr: sum('hr'),
+    sb: sum('sb'),
+    bb: sum('bb'),
+    hp: sum('hp'),
+    sf: sum('sf'),
+    d: sum('d'),
+    t: sum('t'),
+  }
 
   return {
-    totalPA,
-    totalAB,
-    totalR,
-    totalH,
-    totalHR,
-    totalSB,
-    avg,
-    obp,
-    slg,
-    ops,
+    totalPA: totalsStat.pa,
+    totalAB: totalsStat.ab,
+    totalR: totalsStat.r,
+    totalH: totalsStat.h,
+    totalHR: totalsStat.hr,
+    totalSB: totalsStat.sb,
+    avg: calcAvg(totalsStat),
+    obp: calcObp(totalsStat),
+    slg: calcSlg(totalsStat),
+    ops: calcOps(totalsStat),
   }
 })
 
@@ -93,23 +139,23 @@ defineExpose({
     </h1>
     <h2 class="text-xl mb-2">
       <div v-if="playerDetails">
-        {{ playerDetails.position }} 
-        <span class="text-teal-800">|</span> 
+        {{ playerDetails.position }}
+        <span class="text-teal-800">|</span>
         {{ playerDetails.team_city }} {{ playerDetails.team_name }}
       </div>
     </h2>
 
     <p class="text-sm text-gray-600 mb-6">
       <div v-if="playerDetails">
-        Bats/Throws: {{ playerDetails.bats }}/{{ playerDetails.throws }} 
-        <span class="text-lg text-teal-800">|</span> 
-        {{ playerDetails.height }}CM {{ playerDetails.weight }}LBS 
-        <span class="text-lg text-teal-800">|</span> 
+        Bats/Throws: {{ playerDetails.bats }}/{{ playerDetails.throws }}
+        <span class="text-lg text-teal-800">|</span>
+        {{ playerDetails.height }}CM {{ playerDetails.weight }}LBS
+        <span class="text-lg text-teal-800">|</span>
         Age: {{ playerDetails.age }}
       </div>
-      <div v-else>Player Position 
-        <span class="text-lg text-teal-800">|</span>  Bats/Throws: R/R 
-        <span class="text-lg text-teal-800">|</span>  Height Weight 
+      <div v-else>Player Position
+        <span class="text-lg text-teal-800">|</span>  Bats/Throws: R/R
+        <span class="text-lg text-teal-800">|</span>  Height Weight
         <span class="text-lg text-teal-800">|</span>  Age: ##</div>
     </p>
 
@@ -147,26 +193,10 @@ defineExpose({
             <td class="hidden sm:table-cell px-2 py-1">{{ stat.h }}</td>
             <td class="px-2 py-1">{{ stat.hr }}</td>
             <td class="px-2 py-1">{{ stat.sb }}</td>
-            <td class="px-2 py-1">
-              <span v-if="stat.ab > 0">.{{ ((stat.h / stat.ab).toFixed(3)).split('.')[1] }}</span>
-              <span v-else>-</span>
-            </td>
-            <td class="hidden sm:table-cell px-2 py-1">
-              <span v-if="stat.pa > 0">.{{ (((stat.h + stat.bb + stat.hp) / stat.pa).toFixed(3)).split('.')[1] }}</span>
-              <span v-else>-</span>
-            </td>
-            <td class="hidden sm:table-cell px-2 py-1">
-              <span v-if="stat.ab > 0">
-                .{{ (((stat.h + stat.d + (2 * stat.t) + (3 * stat.hr)) / stat.ab).toFixed(3)).split('.')[1] }}
-              </span>
-              <span v-else>-</span>
-            </td>
-            <td class="px-2 py-1">
-              <span v-if="stat.pa > 0">
-                .{{ (((stat.h + stat.bb + stat.hp) / stat.pa) + ((stat.h + stat.d + (2 * stat.t) + (3 * stat.hr)) / stat.ab)).toFixed(3).split('.')[1] }}
-              </span>
-              <span v-else>-</span>
-            </td>
+            <td class="px-2 py-1">{{ formatRate(calcAvg(stat)) }}</td>
+            <td class="hidden sm:table-cell px-2 py-1">{{ formatRate(calcObp(stat)) }}</td>
+            <td class="hidden sm:table-cell px-2 py-1">{{ formatRate(calcSlg(stat)) }}</td>
+            <td class="px-2 py-1">{{ formatRate(calcOps(stat)) }}</td>
           </tr>
 
           <!-- Totals row -->
@@ -175,36 +205,18 @@ defineExpose({
               <td class="px-2 py-1" colspan="2">Total</td>
               <td class="px-2 py-1">{{ totals.totalHR }}</td>
               <td class="px-2 py-1">{{ totals.totalSB }}</td>
-              <td class="px-2 py-1">
-                <span v-if="totals.avg !== null">.{{ (totals.avg.toFixed(3)).split('.')[1] }}</span>
-                <span v-else>-</span>
-              </td>
-              <td class="px-2 py-1">
-                <span v-if="totals.ops !== null">.{{ (totals.ops.toFixed(3)).split('.')[1] }}</span>
-                <span v-else>-</span>
-              </td>
+              <td class="px-2 py-1">{{ formatRate(totals.avg) }}</td>
+              <td class="px-2 py-1">{{ formatRate(totals.ops) }}</td>
             </tr>
             <tr class="bg-gray-100 font-bold hidden sm:table-row lg:hidden">
               <td class="px-2 py-1" colspan="2">Total</td>
               <td class="px-2 py-1">{{ totals.totalH }}</td>
               <td class="px-2 py-1">{{ totals.totalHR }}</td>
               <td class="px-2 py-1">{{ totals.totalSB }}</td>
-              <td class="px-2 py-1">
-                <span v-if="totals.avg !== null">.{{ (totals.avg.toFixed(3)).split('.')[1] }}</span>
-                <span v-else>-</span>
-              </td>
-              <td class="px-2 py-1">
-                <span v-if="totals.obp !== null">.{{ (totals.obp.toFixed(3)).split('.')[1] }}</span>
-                <span v-else>-</span>
-              </td>
-              <td class="px-2 py-1">
-                <span v-if="totals.slg !== null">.{{ (totals.slg.toFixed(3)).split('.')[1] }}</span>
-                <span v-else>-</span>
-              </td>
-              <td class="px-2 py-1">
-                <span v-if="totals.ops !== null">.{{ (totals.ops.toFixed(3)).split('.')[1] }}</span>
-                <span v-else>-</span>
-              </td>
+              <td class="px-2 py-1">{{ formatRate(totals.avg) }}</td>
+              <td class="px-2 py-1">{{ formatRate(totals.obp) }}</td>
+              <td class="px-2 py-1">{{ formatRate(totals.slg) }}</td>
+              <td class="px-2 py-1">{{ formatRate(totals.ops) }}</td>
             </tr>
             <tr class="bg-gray-100 font-bold hidden lg:table-row">
               <td class="px-2 py-1" colspan="4">Total</td>
@@ -212,22 +224,10 @@ defineExpose({
               <td class="px-2 py-1">{{ totals.totalH }}</td>
               <td class="px-2 py-1">{{ totals.totalHR }}</td>
               <td class="px-2 py-1">{{ totals.totalSB }}</td>
-              <td class="px-2 py-1">
-                <span v-if="totals.avg !== null">.{{ (totals.avg.toFixed(3)).split('.')[1] }}</span>
-                <span v-else>-</span>
-              </td>
-              <td class="px-2 py-1">
-                <span v-if="totals.obp !== null">.{{ (totals.obp.toFixed(3)).split('.')[1] }}</span>
-                <span v-else>-</span>
-              </td>
-              <td class="px-2 py-1">
-                <span v-if="totals.slg !== null">.{{ (totals.slg.toFixed(3)).split('.')[1] }}</span>
-                <span v-else>-</span>
-              </td>
-              <td class="px-2 py-1">
-                <span v-if="totals.ops !== null">.{{ (totals.ops.toFixed(3)).split('.')[1] }}</span>
-                <span v-else>-</span>
-              </td>
+              <td class="px-2 py-1">{{ formatRate(totals.avg) }}</td>
+              <td class="px-2 py-1">{{ formatRate(totals.obp) }}</td>
+              <td class="px-2 py-1">{{ formatRate(totals.slg) }}</td>
+              <td class="px-2 py-1">{{ formatRate(totals.ops) }}</td>
             </tr>
           </template>
         </tbody>
