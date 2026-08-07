@@ -1,5 +1,4 @@
 import os
-import re
 import logging
 import pymysql
 from flask import current_app
@@ -14,9 +13,6 @@ DUMP_INCLUSION_LIST = [
     "players_career_batting_stats",
     "teams.mysql",
 ]
-
-# Regex to split SQL statements correctly, ignoring semicolons inside quotes
-STATEMENT_RE = re.compile(r";\s*(?=(?:[^'\"`]*(['\"`])[^'\"`]*\1)*[^'\"`]*$)")
 
 logger = logging.getLogger("app.db.staging")
 
@@ -102,6 +98,10 @@ def sql_dump_to_staging(db, filepath: str):
     - Streams large files to avoid memory issues.
     - Executes statements one by one safely.
     """
+    # Statements are split on a line ending in ";" rather than with a
+    # quote-aware regex -- relies on OOTP's mysqldump-style exports being
+    # one-statement-per-line. Revisit only if a real dump is found that
+    # violates this (e.g. multiple ";"-terminated statements on one line).
     if not os.path.exists(filepath):
         logger.error(f"Dump file not found: {filepath}")
         return

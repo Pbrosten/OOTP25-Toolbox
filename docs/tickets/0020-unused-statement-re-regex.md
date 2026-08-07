@@ -1,7 +1,7 @@
 # 0020 — Resolve unused STATEMENT_RE / naive statement splitting
 
 - **Tag:** chore
-- **Status:** Open
+- **Status:** Closed
 - **Depends on:** —
 - **Blocks:** —
 
