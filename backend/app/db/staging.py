@@ -35,14 +35,14 @@ def connect_staging_db():
         charset="utf8mb4",
     )
 
-    # with conn.cursor() as cur:
-    #     logger.info("Dropping all existing tables in staging...")
-    #     cur.execute("SET FOREIGN_KEY_CHECKS=0;")
-    #     cur.execute("SHOW TABLES;")
-    #     for (tbl,) in cur.fetchall():
-    #         cur.execute(f"DROP TABLE IF EXISTS `{tbl}`;")
-    #     cur.execute("SET FOREIGN_KEY_CHECKS=1;")
-    # logger.info("Staging DB reset complete.")
+    with conn.cursor() as cur:
+        logger.info("Dropping all existing tables in staging...")
+        cur.execute("SET FOREIGN_KEY_CHECKS=0;")
+        cur.execute("SHOW TABLES;")
+        for (tbl,) in cur.fetchall():
+            cur.execute(f"DROP TABLE IF EXISTS `{tbl}`;")
+        cur.execute("SET FOREIGN_KEY_CHECKS=1;")
+    logger.info("Staging DB reset complete.")
     return conn
 
 

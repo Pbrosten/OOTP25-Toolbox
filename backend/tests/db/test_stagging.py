@@ -8,6 +8,32 @@ def app_config(monkeypatch):
     monkeypatch.setattr("flask.current_app", MagicMock())
     yield
 
+
+@patch("app.db.staging.pymysql.connect")
+def test_connect_staging_db_resets_tables(mock_connect, app):
+    """connect_staging_db() must reset staging before each load -- see
+    docs/tickets/0013. Without this, a dump file that doesn't self-reset its
+    own table silently accumulates cross-heap data."""
+    mock_conn = MagicMock()
+    mock_cursor = MagicMock()
+    mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+    mock_cursor.fetchall.return_value = [("players",), ("teams",)]
+    mock_connect.return_value = mock_conn
+
+    with app.app_context():
+        staging_module.current_app.config.update(
+            {"DB_HOST": "host", "DB_USER": "user", "DB_PASSWORD": "pw", "DB_PORT": "3306"}
+        )
+        result = staging_module.connect_staging_db()
+
+    assert result is mock_conn
+    executed = [c.args[0] for c in mock_cursor.execute.call_args_list]
+    assert executed[0] == "SET FOREIGN_KEY_CHECKS=0;"
+    assert executed[1] == "SHOW TABLES;"
+    assert "DROP TABLE IF EXISTS `players`;" in executed
+    assert "DROP TABLE IF EXISTS `teams`;" in executed
+    assert executed[-1] == "SET FOREIGN_KEY_CHECKS=1;"
+
 def test_check_new_heaps(monkeypatch, app):
     monkeypatch.setattr('os.listdir', lambda path: [
         "heap_2023_5", "heap_2022_10", "heap_invalid", "heap_2023_x", "heap_2023_1", "heap_2021_yearly"

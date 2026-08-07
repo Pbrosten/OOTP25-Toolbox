@@ -1,7 +1,7 @@
 # 0013 — Re-enable the staging DB reset before each load
 
 - **Tag:** chore
-- **Status:** Open
+- **Status:** Closed
 - **Depends on:** —
 - **Blocks:** —
 
