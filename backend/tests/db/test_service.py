@@ -7,6 +7,9 @@ from app.db import service
 @patch("app.db.service.get_db")
 @patch("app.db.service.check_new_heaps", return_value=[])
 def test_update_database_no_heaps(mock_check, mock_get_db, mock_close, app):
+    mock_db = MagicMock()
+    mock_get_db.return_value = mock_db
+
     result = service.update_database()
 
     assert result == {
@@ -15,8 +18,11 @@ def test_update_database_no_heaps(mock_check, mock_get_db, mock_close, app):
         "long_heaps": 0,
         "short_heaps": 0,
     }
-    mock_get_db.assert_not_called()
-    mock_close.assert_not_called()
+    # get_db/close_db are now always called (not just when there are heaps
+    # to process), since acquiring/releasing the cross-process update lock
+    # (GET_LOCK/RELEASE_LOCK) needs a connection regardless. See ticket 0010.
+    mock_get_db.assert_called_once()
+    mock_close.assert_called_once()
 
 
 @patch("app.db.service.process_single_heap")

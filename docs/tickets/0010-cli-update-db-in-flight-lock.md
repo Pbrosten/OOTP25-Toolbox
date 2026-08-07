@@ -1,7 +1,7 @@
 # 0010 — Guard the CLI update-db path with the same in-flight-job lock as the API
 
 - **Tag:** fix
-- **Status:** Open
+- **Status:** Closed
 - **Depends on:** —
 - **Blocks:** —
 
