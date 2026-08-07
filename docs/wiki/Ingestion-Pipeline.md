@@ -55,16 +55,17 @@ DUMP_PATH/
 ```
 
 `check_new_heaps()` lists `DUMP_PATH`, parses each directory name
-(`dump_<year>_<month|"yearly">`), and returns every valid heap it finds,
-sorted `(year, month)` with yearly pinned to month `13` — so a save's yearly
-dump always sorts after that year's monthlies, giving the correct
-seed-before-snapshot processing order.
+(`dump_<year>_<month|"yearly">`), sorts the valid ones `(year, month)` with
+yearly pinned to month `13` — so a save's yearly dump always sorts after
+that year's monthlies, giving the correct seed-before-snapshot processing
+order — then filters out any `(year, month)` already present in the
+`processed_heaps` table (`get_processed_heap_keys()`), returning only what's
+actually new.
 
-> **Despite the name, this is not incremental.** It returns *every* heap
-> currently on disk, every single call — there's no persisted record of
-> what's already been processed. `update-db` reprocesses the entire dump
-> history on every run. See
-> [docs/improvements #1](../improvements/README.md#1-update-db-reprocesses-every-heap-on-every-run).
+`update.py::process_single_heap()` writes a `processed_heaps` row (via
+`mark_heap_processed()`) only after that heap's migration/projection work
+has fully committed, so a crash mid-heap leaves it eligible to be retried on
+the next `update-db` run rather than being incorrectly marked done.
 
 ## 4. Stage 2 — Load dump files into staging
 
@@ -188,8 +189,8 @@ refreshed if the projection model itself changes).
 
 | Scenario | What actually happens |
 |---|---|
-| Re-run `update-db` with no new dump files | Every heap ever placed under `DUMP_PATH` is reprocessed from scratch (staging reload + migration SQL + full projection pass). Net data is unchanged (`INSERT IGNORE`/upsert keys absorb the repeats), but the cost is paid every time. **Not free**, contrary to the impression given by "safe to re-run." |
-| Re-run after a mid-heap crash | Per-heap migration SQL is transactional (`rollback()` on exception) for the migration steps, but `update_player_age()` commits per 500-row batch — a crash there leaves partial age updates for that heap. Re-running just redoes the whole heap; ages get overwritten again, so this self-heals on the next successful run. |
+| Re-run `update-db` with no new dump files | `check_new_heaps()` returns nothing already recorded in `processed_heaps`, so no heap is reprocessed — a no-op run costs one query, not a full staging reload/migration/projection pass. |
+| Re-run after a mid-heap crash | Per-heap migration SQL is transactional (`rollback()` on exception) for the migration steps, but `update_player_age()` commits per 500-row batch — a crash there leaves partial age updates for that heap. Since `mark_heap_processed()` only runs after the whole heap succeeds, a crashed heap is never recorded as processed and gets fully redone (ages overwritten again) on the next run. |
 | Two `update-db` runs overlapping | Only guarded if **both** go through the Admin API job route. A CLI run has no lock and can overlap with anything. |
 | A player retires in-game | Their `ootp.players` row stops receiving updates entirely (filtered out of every future heap's `staging.players` read via `WHERE retired = 0`) and is never marked retired in the main schema. |
 
@@ -222,7 +223,6 @@ Rewriting or removing the 16 stale tests is tracked in
 
 ## Known limitations at a glance
 
-- `update-db` is O(all heaps ever), not O(new heaps) — [#1](../improvements/README.md#1-update-db-reprocesses-every-heap-on-every-run)
 - Ratings-detail inserts scan full rating history per player per heap — [#2](../improvements/README.md#2-ratings-detail-inserts-arent-scoped-to-the-current-heap-date)
 - No concurrency guard on the CLI path — [#3](../improvements/README.md#3-cli-path-has-no-in-flight-job-protection)
 - Retired players silently freeze, no flag — [#4](../improvements/README.md#4-retired-players-have-no-flag-and-silently-freeze)
