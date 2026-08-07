@@ -13,6 +13,7 @@ class Config:
     DB_USER = environ.get("DB_USER")
     DB_PASSWORD = environ.get("DB_PASSWORD")
     DB_NAME = environ.get("DB_NAME")
+    ADMIN_API_TOKEN = environ.get("ADMIN_API_TOKEN")
 
 
 class ProdConfig(Config):

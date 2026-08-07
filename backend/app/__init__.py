@@ -33,10 +33,11 @@ def create_app():
     db.init_app(app)
 
     # Register API Blueprints
-    from app.api import players, projections, ratings
+    from app.api import admin, players, projections, ratings
 
     app.register_blueprint(players.bp)
     app.register_blueprint(projections.bp)
     app.register_blueprint(ratings.bp)
+    app.register_blueprint(admin.bp)
 
     return app
