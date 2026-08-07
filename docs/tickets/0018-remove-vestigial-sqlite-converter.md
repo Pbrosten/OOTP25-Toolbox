@@ -1,7 +1,7 @@
 # 0018 — Remove vestigial SQLite converter registration
 
 - **Tag:** chore
-- **Status:** Open
+- **Status:** Closed
 - **Depends on:** —
 - **Blocks:** —
 

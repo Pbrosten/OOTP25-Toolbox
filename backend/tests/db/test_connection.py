@@ -1,5 +1,3 @@
-import sqlite3
-from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -66,28 +64,3 @@ def test_close_db_is_a_noop_without_a_connection(app):
     with app.app_context():
         conn_module.close_db()  # should not raise even if get_db() was never called
         assert "db" not in g
-
-
-def test_register_converters_registers_timestamp():
-    conn_module.register_converters()
-
-    # Create an in-memory SQLite connection with detect_types to parse timestamp
-    con = sqlite3.connect(":memory:", detect_types=sqlite3.PARSE_DECLTYPES)
-    con.row_factory = sqlite3.Row
-
-    # Create a table with a "timestamp" column (SQLite treats types flexibly)
-    con.execute("CREATE TABLE test (event_time timestamp)")
-
-    # Insert ISO 8601 string that should be converted to datetime by your converter
-    dt_str = "2025-09-01T12:00:00"
-    con.execute("INSERT INTO test (event_time) VALUES (?)", (dt_str,))
-
-    # Select and verify that the value is returned as a datetime object (not string)
-    row = con.execute("SELECT event_time FROM test").fetchone()
-    event_time = row["event_time"]
-
-    expected_dt = datetime.fromisoformat(dt_str)
-    assert event_time == expected_dt
-    assert isinstance(event_time, datetime)
-
-    con.close()
