@@ -398,7 +398,162 @@ paths:
                   error:
                     type: string
 
+  /api/admin/init-db:
+    post:
+      summary: Initialize the database schema
+      description: |
+        (Re)creates the database schema from schema.sql. Destructive —
+        drops and recreates tables.
+      tags: [Admin]
+      security:
+        - AdminToken: []
+      responses:
+        '200':
+          description: Schema initialized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+        '401':
+          description: Missing or invalid X-Admin-Token header
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '500':
+          description: Initialization failed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+
+  /api/admin/update-db:
+    post:
+      summary: Start the database update process
+      description: |
+        Ingests any new dump heaps found under DUMP_PATH and runs the
+        migration/projection pipeline as a background job — this can take
+        anywhere from seconds to minutes, so the request returns immediately
+        with a job id instead of blocking. No request parameters — mirrors
+        `flask update-db` exactly. Poll `GET /api/admin/jobs/{job_id}` for
+        the result. Only one update-db job may run at a time.
+      tags: [Admin]
+      security:
+        - AdminToken: []
+      responses:
+        '202':
+          description: Job started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  job_id:
+                    type: string
+        '401':
+          description: Missing or invalid X-Admin-Token header
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '409':
+          description: A job is already pending/running
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  job_id:
+                    type: string
+                    description: The id of the job already in progress.
+
+  /api/admin/jobs/{job_id}:
+    get:
+      summary: Retrieve the status of an update-db job
+      description: |
+        Returns the current status of a job started via
+        `POST /api/admin/update-db`. `result` is populated once `status` is
+        `succeeded`; `error` is populated once `status` is `failed`.
+      tags: [Admin]
+      security:
+        - AdminToken: []
+      parameters:
+        - in: path
+          name: job_id
+          required: true
+          schema:
+            type: string
+          description: The job id returned by POST /api/admin/update-db
+      responses:
+        '200':
+          description: Job status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  job_id:
+                    type: string
+                  status:
+                    type: string
+                    enum: [pending, running, succeeded, failed]
+                  result:
+                    type: object
+                    nullable: true
+                    properties:
+                      status:
+                        type: string
+                      heaps_processed:
+                        type: integer
+                      long_heaps:
+                        type: integer
+                      short_heaps:
+                        type: integer
+                  error:
+                    type: string
+                    nullable: true
+                  started_at:
+                    type: string
+                    format: date-time
+        '401':
+          description: Missing or invalid X-Admin-Token header
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '404':
+          description: No job exists with that id
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+
 components:
+  securitySchemes:
+    AdminToken:
+      type: apiKey
+      in: header
+      name: X-Admin-Token
   schemas:
     Player:
       type: object

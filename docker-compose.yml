@@ -6,8 +6,8 @@ services:
     ports:
       - "5000:5000"
     volumes:
-      - ./backend:/app
-      - C:\Users\peter.brosten\Desktop\Personal\Baseball\dump_testing:/data/dumps
+      - ./backend:/app:Z
+      - "/run/media/system/sambashare/SteamLibrary/steamapps/compatdata/2384620/pfx/drive_c/users/steamuser/Documents/Out of the Park Developments/OOTP Baseball 25/saved_games/TEST.lg/dump:/data/dumps:Z"
     depends_on:
       - mariadb
     networks:
@@ -20,7 +20,7 @@ services:
     ports:
       - "5173:5173"
     volumes:
-      - ./frontend:/app
+      - ./frontend:/app:Z
       - frontend_node_modules:/app/node_modules
     environment:
       - NODE_ENV=development
@@ -40,7 +40,7 @@ services:
       - "5001:3306"
     volumes:
       - mariadb_data:/var/lib/mysql
-      - ./mariadb:/docker-entrypoint-initdb.d:ro
+      - ./mariadb:/docker-entrypoint-initdb.d:ro,Z
     networks:
       - app-net
 
