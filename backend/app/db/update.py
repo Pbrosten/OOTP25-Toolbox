@@ -89,7 +89,7 @@ def update_player_age(db, heap_date):
             if not player_id or not birth_date:
                 continue
 
-            logger.debug(current_date, birth_date)
+            logger.debug("current_date=%s birth_date=%s", current_date, birth_date)
             delta = current_date - birth_date
             age = round(delta.days / 365.25)
             batch.append((age, player_id))
