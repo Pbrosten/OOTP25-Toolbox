@@ -102,6 +102,7 @@ def test_fetch_projection_inputs_returns_rows_as_dicts(app):
     mock_file.read.return_value = sql_content
 
     mock_cursor = MagicMock()
+    mock_cursor.rowcount = 2
     mock_cursor.fetchall.return_value = [{"id": 1}, {"id": 2}]
     db = MagicMock()
     db.cursor.return_value.__enter__.return_value = mock_cursor

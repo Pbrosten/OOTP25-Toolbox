@@ -1,7 +1,7 @@
 # 0022 — Consolidate repeated run-script/rollback/commit boilerplate
 
 - **Tag:** refactor
-- **Status:** Open
+- **Status:** Closed
 - **Depends on:** —
 - **Blocks:** —
 

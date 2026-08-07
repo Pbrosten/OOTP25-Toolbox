@@ -117,10 +117,27 @@ def extract_heap_date_from_path(heap_path):
     return Path(heap_path).parts[-2].split("_")
 
 
-def run_migration_short(heap_date, db):
-    script_path = os.path.join("db", "sql_scripts", "migration", "migration_short.sql")
+def _run_sql_script(script_path, db, heap_date=None, fetch=False):
+    """Run every ';'-split statement in a .sql resource against db, inside
+    one cursor/transaction. Rolls back and re-raises on any exception;
+    commits on success.
+
+    Args:
+        script_path: path passed to current_app.open_resource(), relative
+            to the app package (e.g. "db/sql_scripts/migration/x.sql").
+        db: MariaDB connection object.
+        heap_date: if given, injected via inject_heap_date() before running.
+        fetch: if True, return the last statement's result rows as a list
+            of dicts (for a script whose final statement is a SELECT)
+            instead of a row count.
+
+    Returns:
+        [dict, ...] if fetch=True, else the total rows affected (summed
+        cursor.rowcount) across every executed statement.
+    """
     with current_app.open_resource(script_path, "r") as f:
         sql_script = f.read()
+    if heap_date is not None:
         sql_script = inject_heap_date(sql_script, heap_date)
 
     rows_affected = 0
@@ -138,53 +155,27 @@ def run_migration_short(heap_date, db):
             raise
         else:
             db.commit()
+
+        if fetch:
+            return [dict(row) for row in cursor.fetchall()]
     return rows_affected
+
+
+def run_migration_short(heap_date, db):
+    script_path = os.path.join("db", "sql_scripts", "migration", "migration_short.sql")
+    return _run_sql_script(script_path, db, heap_date=heap_date)
 
 
 def run_migration_long(heap_date, db):
     script_path = os.path.join("db", "sql_scripts", "migration", "migration_long.sql")
-    with current_app.open_resource(script_path, "r") as f:
-        sql_script = f.read()
-
-    rows_affected = 0
-    with db.cursor() as cursor:
-        try:
-            for statement in sql_script.strip().split(";"):
-                statement = statement.strip()
-                if statement:
-                    cursor.execute(statement)
-                    if cursor.rowcount > 0:
-                        rows_affected += cursor.rowcount
-        except Exception as e:
-            db.rollback()
-            logger.error(f"Migration failed: {e}")
-            raise
-        else:
-            db.commit()
-    return rows_affected
+    return _run_sql_script(script_path, db)
 
 
 def fetch_projection_inputs(heap_date, db):
     query_path = os.path.join(
         "db", "sql_scripts", "migration", "get_projection_inputs.sql"
     )
-    with current_app.open_resource(query_path, "r") as f:
-        sql_script = f.read()
-        sql_script = inject_heap_date(sql_script, heap_date)
-
-    with db.cursor() as cursor:
-        try:
-            for statement in sql_script.strip().split(";"):
-                statement = statement.strip()
-                if statement:
-                    cursor.execute(statement)
-        except Exception as e:
-            db.rollback()
-            logger.error(f"Migration failed: {e}")
-            raise
-        else:
-            db.commit()
-        return [dict(row) for row in cursor.fetchall()]
+    return _run_sql_script(query_path, db, heap_date=heap_date, fetch=True)
 
 
 def project_players(players):
