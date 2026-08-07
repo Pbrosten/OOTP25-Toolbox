@@ -1,7 +1,7 @@
 # 0014 — Stop ingesting players_pitching until something reads it
 
 - **Tag:** chore
-- **Status:** Open
+- **Status:** Closed
 - **Depends on:** —
 - **Blocks:** —
 
