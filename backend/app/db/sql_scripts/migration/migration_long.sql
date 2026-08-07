@@ -31,19 +31,19 @@ ON DUPLICATE KEY UPDATE
 INSERT INTO players (
     player_id, first_name, last_name, birth_date,
     position, height, weight, bats, throws,
-    free_agent, team_id, prone_overall
+    free_agent, team_id, prone_overall, retired
 )
-SELECT 
+SELECT
     player_id, first_name, last_name, date_of_birth,
     position, height, weight, bats, throws,
     free_agent,
     CASE WHEN team_id = 0 THEN 999 ELSE team_id END,
-    prone_overall
+    prone_overall, retired
 FROM staging.players
-WHERE retired = 0
 ON DUPLICATE KEY UPDATE
     team_id = VALUES(team_id),
-    prone_overall = VALUES(prone_overall);
+    prone_overall = VALUES(prone_overall),
+    retired = VALUES(retired);
 
 INSERT INTO players_career_batting_stats (
     player_id, year, team_id, game_id, league_id,

@@ -1,7 +1,7 @@
 # 0011 — Add a `retired` flag so frozen player data is visible, not silent
 
 - **Tag:** feat
-- **Status:** Open
+- **Status:** Closed
 - **Depends on:** —
 - **Blocks:** —
 

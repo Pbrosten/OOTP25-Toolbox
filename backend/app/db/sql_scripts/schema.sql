@@ -58,6 +58,7 @@ CREATE TABLE players (
   free_agent BOOLEAN,
   team_id INT,
   prone_overall INT,
+  retired BOOLEAN DEFAULT FALSE,
   FOREIGN KEY (team_id) REFERENCES teams(team_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

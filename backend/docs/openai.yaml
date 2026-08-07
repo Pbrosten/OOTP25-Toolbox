@@ -581,6 +581,9 @@ components:
           type: boolean
         team_id:
           type: integer
+        retired:
+          type: boolean
+          description: True once the player has retired in-game. Retired players' ratings/team/age stop receiving updates; this flag is the only signal that their data is frozen.
 
     PlayerRating:
       type: object

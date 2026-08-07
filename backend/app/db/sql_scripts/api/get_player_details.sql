@@ -7,6 +7,7 @@ SELECT
     p.height,
     p.weight,
     p.age,
+    p.retired,
     COALESCE(t.name, 'Free Agent') AS team_city,
     COALESCE(t.nickname, '') AS team_name,
     t.league_id
