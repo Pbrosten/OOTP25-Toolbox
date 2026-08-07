@@ -1,3 +1,5 @@
+DROP TABLE IF EXISTS processed_heaps;
+DROP TABLE IF EXISTS players_similarity;
 DROP TABLE IF EXISTS players_run_value;
 DROP TABLE IF EXISTS players_fielding_expected;
 DROP TABLE IF EXISTS players_fielding_position_talent;
@@ -12,6 +14,19 @@ DROP TABLE IF EXISTS players_rating;
 DROP TABLE IF EXISTS players_career_batting_stats;
 DROP TABLE IF EXISTS players;
 DROP TABLE IF EXISTS teams;
+
+-- Processed heaps: tracks which dump directories update-db has already
+-- ingested, so check_new_heaps() only returns what's actually new.
+-- `month` mirrors the raw directory-name segment used by
+-- extract_heap_date_from_path() ("05", "yearly", ...) so both sides of the
+-- identity check use the exact same string, with no int/13 translation.
+CREATE TABLE processed_heaps (
+  year VARCHAR(4) NOT NULL,
+  month VARCHAR(10) NOT NULL,
+  is_short BOOLEAN NOT NULL,
+  processed_at DATETIME NOT NULL,
+  PRIMARY KEY (year, month)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Teams --
 CREATE TABLE teams (

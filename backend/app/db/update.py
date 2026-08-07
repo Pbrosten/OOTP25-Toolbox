@@ -47,6 +47,22 @@ def process_single_heap(heap_path, heap_index, total_heaps, db, short_heap=True)
         run_migration_long(heap_date, db)
         update_player_age(db=db, heap_date=heap_date)
 
+    mark_heap_processed(db, heap_date, short_heap)
+
+
+def mark_heap_processed(db, heap_date, short_heap):
+    """Record that this heap's migration/projection work has fully committed,
+    so check_new_heaps() won't return it again."""
+    with db.cursor() as cursor:
+        cursor.execute(
+            "INSERT INTO processed_heaps (year, month, is_short, processed_at) "
+            "VALUES (%s, %s, %s, %s) "
+            "ON DUPLICATE KEY UPDATE is_short = VALUES(is_short), "
+            "processed_at = VALUES(processed_at)",
+            (heap_date[1], heap_date[2], short_heap, datetime.now()),
+        )
+    db.commit()
+
 
 def update_player_age(db, heap_date):
     """
