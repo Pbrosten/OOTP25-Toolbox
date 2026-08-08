@@ -1,7 +1,7 @@
 # 0024 — Pitcher ratings schema: `players_pitching` / `players_pitching_talent`
 
 - **Tag:** feat
-- **Status:** Open
+- **Status:** Closed
 - **Depends on:** —
 - **Blocks:** [0025](0025-pitcher-migration-ingestion.md)
 

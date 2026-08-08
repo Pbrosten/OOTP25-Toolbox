@@ -10,6 +10,8 @@ DROP TABLE IF EXISTS players_basepath;
 DROP TABLE IF EXISTS players_batting_expected;
 DROP TABLE IF EXISTS players_batting_talent;
 DROP TABLE IF EXISTS players_batting;
+DROP TABLE IF EXISTS players_pitching_talent;
+DROP TABLE IF EXISTS players_pitching;
 DROP TABLE IF EXISTS players_rating;
 DROP TABLE IF EXISTS players_career_batting_stats;
 DROP TABLE IF EXISTS players;
@@ -158,7 +160,40 @@ CREATE TABLE players_batting_talent (
   FOREIGN KEY (rating_id) REFERENCES players_rating(rating_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Player Basepath -- 
+-- Player Pitching --
+CREATE TABLE players_pitching (
+  rating_id INT PRIMARY KEY,
+  stuff INT,
+  movement INT,
+  hra INT,
+  pbabip INT,
+  control INT,
+  balk INT,
+  hp INT,
+  wild_pitch INT,
+  velocity INT,
+  arm_slot INT,
+  stamina INT,
+  ground_fly INT,
+  hold INT,
+  FOREIGN KEY (rating_id) REFERENCES players_rating(rating_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Player Pitching Talent --
+CREATE TABLE players_pitching_talent (
+  rating_id INT PRIMARY KEY,
+  stuff INT,
+  movement INT,
+  hra INT,
+  pbabip INT,
+  control INT,
+  balk INT,
+  hp INT,
+  wild_pitch INT,
+  FOREIGN KEY (rating_id) REFERENCES players_rating(rating_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Player Basepath --
 CREATE TABLE players_basepath (
   rating_id INT PRIMARY KEY,
   speed INT,

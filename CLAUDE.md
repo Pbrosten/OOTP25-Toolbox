@@ -135,3 +135,17 @@ Planned/in-progress work is tracked as tickets in `docs/tickets/`, indexed in
 (problem / design choices / chosen approach / files involved, tagged
 `feat|fix|chore|refactor`, status `Open|In-Progress|Closed`) and linked from
 the index.
+
+**Status transitions:**
+
+- Starting work on a ticket: set its status to `In-Progress` immediately (in
+  both the ticket file and `docs/tickets/index.md`'s table), not just when
+  finished.
+- Closing a ticket: never set status to `Closed` unilaterally, even after
+  implementing and verifying the work. Always get explicit confirmation from
+  the user first — report the work as done/verified and ask.
+- When a ticket is closed, always propose a commit message for the work,
+  built from the ticket: `[tag] single sentence description`, where `tag` is
+  the ticket's own tag field. Offer this proactively rather than waiting to
+  be asked — but proposing the message isn't the same as running `git
+  commit`; still only commit when the user asks.

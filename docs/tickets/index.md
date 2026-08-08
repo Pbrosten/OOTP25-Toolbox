@@ -86,21 +86,31 @@ alternatives, not a sequence; 0021 folds into 0022).
 [0015](0015-pitcher-projection-epic.md) was filed as a large epic outline
 rather than a scoped plan (see its Design choices section). Broken down here
 into per-subsystem tickets the way the admin-API epic was split into
-0001–0006. Sequential — each stage's column shapes depend on the previous
-stage existing, and 0026 (methodology) is the one genuinely open design
-question blocking implementation.
+0001–0006. Mostly sequential — each stage's column shapes depend on the
+previous stage existing, and 0026 (methodology) and 0028 (value/WAR) are
+genuinely open design questions blocking implementation — except that the
+line forks after 0025: pitch-repertoire storage (0029) shares the same
+staging source but is independent of the projection-methodology/value/API
+line, since neither of its consumers (an analytics report, long-term
+projection refinement) depends on that line's output.
 
 ```
 [~] 0015 Epic tracker
       |
       v
-[ ] 0024 Schema (players_pitching / players_pitching_talent)
+[x] 0024 Schema (players_pitching / players_pitching_talent)
       |
       v
 [ ] 0025 Migration ingestion (staging -> ootp)
       |
+      +-----------------------------------------+
+      v                                         v
+[ ] 0026 Projection methodology            [ ] 0029 Pitch repertoire
+    + PitcherProjection                        (number of pitches / per-pitch
+    <-- design decision needed                 quality) -- epic outline,
+      |                                         needs breakdown
       v
-[ ] 0026 Projection methodology + PitcherProjection  <-- design decision needed
+[ ] 0028 Run-value / WAR  <-- design decision needed
       |
       v
 [ ] 0027 API route + PitcherPercentiles frontend
@@ -111,10 +121,12 @@ question blocking implementation.
 | # | Title | Tag | Status | Depends on |
 |---|-------|-----|--------|------------|
 | [0015](0015-pitcher-projection-epic.md) | Pitcher projections: schema, migration, and projection pipeline (epic tracker) | feat | In-Progress | — |
-| [0024](0024-pitcher-schema-ratings-tables.md) | Pitcher ratings schema: `players_pitching` / `players_pitching_talent` | feat | Open | — |
+| [0024](0024-pitcher-schema-ratings-tables.md) | Pitcher ratings schema: `players_pitching` / `players_pitching_talent` | feat | Closed | — |
 | [0025](0025-pitcher-migration-ingestion.md) | Ingest pitcher ratings: re-enable staging load + `migration_short.sql` | feat | Open | 0024 |
 | [0026](0026-pitcher-projection-methodology.md) | Pitcher projection methodology + `PitcherProjection` class | feat | Open | 0025 |
-| [0027](0027-pitcher-api-frontend-wiring.md) | Pitcher projections API route + `PitcherPercentiles` component | feat | Open | 0026 |
+| [0028](0028-pitcher-run-value-war.md) | Pitcher run-value/WAR: methodology, schema, and projection wiring | feat | Open | 0026 |
+| [0027](0027-pitcher-api-frontend-wiring.md) | Pitcher projections API route + `PitcherPercentiles` component | feat | Open | 0026, 0028 |
+| [0029](0029-pitcher-pitch-repertoire.md) | Pitcher pitch repertoire: number of pitches + per-pitch quality (epic outline) | feat | Open | 0025 |
 
 ## Frontend / stats display fixes
 

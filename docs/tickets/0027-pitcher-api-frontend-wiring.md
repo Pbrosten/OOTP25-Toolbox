@@ -2,7 +2,7 @@
 
 - **Tag:** feat
 - **Status:** Open
-- **Depends on:** [0026](0026-pitcher-projection-methodology.md)
+- **Depends on:** [0026](0026-pitcher-projection-methodology.md), [0028](0028-pitcher-run-value-war.md)
 - **Blocks:** —
 
 ## 1. Problem
@@ -32,14 +32,17 @@ has `/expected/batting`, `/expected/basepath`, `/expected/fielding`, and
   pitching route should compare against `players_pitching_expected` the same
   way — no new design question here, just needs 0026's table to exist first.
 - **Outstanding:** exact response shape depends entirely on what 0026's
-  `players_pitching_expected` columns turn out to be.
+  `players_pitching_expected` columns and
+  [0028](0028-pitcher-run-value-war.md)'s `players_pitching_run_value`
+  columns turn out to be.
 
 ## 3. Approach
 
 - `backend/app/api/projections.py`: add routes mirroring
   `get_expected_batting_stats` / `get_expected_batting_stats_by_id` /
   `get_expected_batting_percentiles` (lines 13-95), reading from
-  `players_pitching_expected` (and the pitching run-value table from 0026)
+  `players_pitching_expected` (and
+  [0028](0028-pitcher-run-value-war.md)'s `players_pitching_run_value`)
   instead of the batting tables.
 - `backend/docs/openai.yaml`: document the new routes, per this repo's
   standing convention of keeping the OpenAPI spec in sync.

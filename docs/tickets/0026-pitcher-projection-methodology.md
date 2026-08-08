@@ -3,7 +3,7 @@
 - **Tag:** feat
 - **Status:** Open
 - **Depends on:** [0025](0025-pitcher-migration-ingestion.md)
-- **Blocks:** [0027](0027-pitcher-api-frontend-wiring.md)
+- **Blocks:** [0027](0027-pitcher-api-frontend-wiring.md), [0028](0028-pitcher-run-value-war.md)
 
 ## 1. Problem
 
@@ -79,7 +79,8 @@ design question here.
   question above — production doesn't need to wait for it.
 - Add `players_pitching_expected` to `schema.sql` with the column set from
   §2 above. A pitching run-value table is still blocked on the Value/WAR
-  design question — add it in a follow-up once that's resolved, rather than
+  design question — that follow-up is [0028](0028-pitcher-run-value-war.md),
+  filed once this ticket's production scope was resolved, rather than
   guessing its shape now.
 - Wire into `app/db/update.py::process_single_heap()` /
   `app/db/projection.py::project_players()` alongside the existing batter
