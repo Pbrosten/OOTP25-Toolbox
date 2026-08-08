@@ -1,0 +1,243 @@
+# Projections (Developer Reference)
+
+[← Back to Home](Home.md)
+
+This page documents the *methodology* behind expected-stat projections — how
+a 20-80 scouting rating turns into a projected AVG/wOBA/ERA/etc. For batters
+this methodology is already implemented
+(`backend/app/player_projection/batter.py`); for pitchers it exists only as a
+worked spreadsheet today and is not yet implemented in code (see
+[docs/tickets/0015](../tickets/0015-pitcher-projection-epic.md) and its
+breakdown, 0024–0027). This page exists to pin down the pitcher methodology
+before that implementation work starts, and to document the batter
+methodology's shape for comparison.
+
+Both methodologies originate from the same source workbook:
+[`docs/resources/OOTP calculator blank.xlsx`](../resources/OOTP%20calculator%20blank.xlsx)
+("Position Players" / "Starting Pitchers" / "Relief Pitchers" tabs, plus
+"Weighting Constants" / "Projection Constants" / "Development Constants" for
+the lookup tables). Cell references below (`R3`, `'Projection Constants'!$Y$7:$Y$23`,
+etc.) are to that workbook, so the formulas can be re-verified directly
+against it rather than taken on faith from this doc.
+
+## 1. Shared shape
+
+Both methodologies follow the same three-stage shape:
+
+1. **Baseline** — plug 20-80 ratings into a rating→rate lookup table (a
+   piecewise curve keyed on the 20-80 scale, e.g. "a 55 Stuff rating implies
+   a 0.221 strikeout rate") to get counting stats at a **fixed, arbitrary
+   workload** (e.g. 550 AB for a batter, 900 AB-equivalent for a starting
+   pitcher). This fixed workload exists purely so the rate lookups have a
+   concrete number to multiply against — it is *not* the player's projected
+   playing time.
+2. **Scaling** — compute the player's *actual* expected playing time (PA for
+   batters; PA/IP for pitchers) from position/role/durability/stamina
+   factors, then rescale every baseline counting stat by
+   `actual_workload / baseline_workload`, preserving the baseline's rates
+   while matching real workload.
+3. **Rates** — derive AVG/OBP/wOBA (and for pitchers, RA/9/ERA) from the
+   scaled counting stats.
+
+Batters implement this as one combined `pa_factor`
+(`backend/app/player_projection/batter.py:185-196`,
+`calc_offensive_stats_base()` + `calc_offensive_stats()`). The pitcher
+spreadsheet keeps the two workload numbers as separate named quantities
+(baseline `AB`/`PA` vs. target `PA`) and reconciles them with an explicit
+ratio per stat — functionally the same idea, more spelled out.
+
+Ratings feed all of this through **rating→rate lookup tables** ("Projection
+Constants" sheet), not a closed-form equation — e.g. there's no formula for
+"strikeout rate as a function of Stuff," just a table of `(rating value,
+rate)` pairs for each 5-point rating step from 20 to 80, looked up via
+`XLOOKUP`. Any code implementation needs the equivalent of a lookup table
+(`batter.py` already does this via `offensive_constants.pkl` /
+`defensive_constants.pkl` / `injury_constants.pkl`, loaded once at import
+time — see `backend/app/player_projection/batter.py:9-15`).
+
+## 2. Batter projection (implemented, for comparison)
+
+`BatterProjection` (`backend/app/player_projection/batter.py`):
+
+- Fixed baseline: `AB = 550` (`offensive_stats` default, line 91).
+- Rating→rate lookups (`lookup_bat`): `gap`→XBH rate, `speed`→3B share,
+  `power`→HR rate, `strikeouts`→K rate, `eye`→BB rate, `babip`→1B rate —
+  `calc_offensive_stats_base()`, lines 160-178.
+- Actual workload: `def_pos_adj[position]['PA']` (a fixed PA figure per
+  position, lines 30-39) divided by an injury/durability multiplier
+  (`lookup_inj`, keyed off the `Prone` rating bucketed into
+  Durable/Normal/Fragile/Wrecked) — `pa_factor`, lines 187-188.
+- Every counting stat is rescaled by `pa_factor` (and a small DH `hit_factor`
+  penalty), lines 190-195.
+- Rates (`calc_offensive_rates`, lines 198-211) and run value/WAR
+  (`calc_player_values`, lines 224-241) follow.
+
+No manual "how much will this player play" input exists for batters — it's
+entirely derived from `position` + the `Prone` durability rating. This
+matters for §4 below, where the pitcher spreadsheet's equivalent turns out
+to need one.
+
+## 3. Pitcher projection methodology (spreadsheet only — not yet implemented)
+
+Both the "Starting Pitchers" and "Relief Pitchers" tabs compute three
+parallel projection tracks per player — **Current**, **Projected**, and
+**Peak** — that differ only in *which* rating feeds them (current actual,
+age-developed, or full potential). This doc covers the **Projected**
+track (`'Starting Pitchers'!CG:DA` / `'Relief Pitchers'!CH:DB`), since
+that's the one analogous to what `players_batting_expected` stores today.
+
+### 3.1 Rating inputs
+
+From `staging.players_pitching` (see
+[0024](../tickets/0024-pitcher-schema-ratings-tables.md)'s column inventory),
+only the **overall** ratings are used for production math: `stuff`,
+`control` (maps to the sheet's "Control", staging column
+`pitching_ratings_overall_control`), `pbabip`, `hra` (sheet's "HRR" — HR
+rate), plus `velocity`/`stamina` from the misc block. The `vsl`/`vsr` splits
+and the 12 per-pitch-type grade columns are **not used anywhere** in this
+methodology — confirms 0024's decision to leave them out of the schema.
+
+### 3.2 Age/development adjustment (feeds the "Projected" track specifically)
+
+Unlike Current (which uses `MAX(actual_current_rating, developed_rating)`)
+or Peak (which uses raw Potential), the **Projected** track uses a
+"developed-or-actual" rating: `IFS(age > 24, current_actual_rating, age <
+25, smoothed_developed_rating)` (`'Starting Pitchers'!AW3:AZ3`, mirrored on
+the RP tab at `AX3:BA3`). For a player 25 or older this is just their
+current rating — the interesting part only applies to players under 25:
+
+1. **Development Constants** sheet: a lookup table keyed on
+   `(Age, Potential rating)` → developed current-year rating, one column
+   each for Stuff/Control/pBABIP/HRR (columns H-K), covering ages 16-40ish
+   × potential 20-80 in 5-point steps.
+2. A makeup adjustment is added on top: `(Adaptability + WorkEthic +
+   Intelligence) * (25 - age) / 9`, where each of the three categorical
+   traits (`H`/`N`/`L` in the raw export) maps to `+1`/`0`/`-1`
+   (`'Starting Pitchers'!AK3:AN3`). Only these three traits feed development
+   — Loyalty and Financial-ambition don't. This term is zero once the player
+   turns 25.
+3. The result is rounded to the nearest 5 (`ROUND(x/5,0)*5`,
+   `'Starting Pitchers'!AS3:AV3`) to stay on the same 20-80 grid the rate
+   lookup tables use.
+
+### 3.3 Baseline production
+
+Fixed workload constants (`'Weighting Constants'!B24`/`B26`):
+
+| | AB baseline | PA target | GS/G baseline | Replacement runs/IP |
+|---|---|---|---|---|
+| Starting Pitchers | 900 (`B24`) | 750 (`B25`) | 27 GS (`B38`) | 0.12 (`B41`) |
+| Relief Pitchers | 300 (`B26`) | 300 (`B27`) | 50 G (`B39`) | 0.03 (`B42`) |
+
+At the fixed AB baseline, each rating maps to a rate via
+`'Projection Constants'!A7:A23` (the 20-80 grid) against a dedicated column
+— **SP and RP use separate rate curves**, not the same table:
+
+| Outcome | SP rating → column | RP rating → column |
+|---|---|---|
+| K rate | Stuff → `W` | Stuff → `AC` |
+| HR rate | HRR → `X` | HRR → `AD` |
+| Non-HR hit rate (of AB-HR-K) | pBABIP → `Y` | pBABIP → `AE` |
+| BB rate | Control → `Z` | Control → `AF` |
+
+(`'Starting Pitchers'!BG3:BK3` / `'Relief Pitchers'!BH3:BL3` for the formulas;
+`HBP = AB * 0.009` — `'Weighting Constants'!B31` — is the one rate that
+doesn't vary by rating.) Relievers get meaningfully better rate-per-rating
+curves across the board (e.g. a 55 Stuff → 0.221 K/AB for a starter vs. 0.266
+for a reliever) — this is the model's way of encoding that a short-relief
+pitcher's stuff plays up.
+
+### 3.4 Playing-time scaling
+
+The actual target PA (`'Starting Pitchers'!CN3`, `'Relief Pitchers'!CO3`):
+
+```
+PA_target * XLOOKUP(stamina_rating, 'Projection Constants'!A7:A23, <TBF/G or TBF/GS column>)
+          * Playing_Time_input
+          * XLOOKUP(prone_category, 'Weighting Constants'!A2:A7, <SP or RP durability column>)
+```
+
+`Playing_Time_input` (`AJ` column) is a **manual, per-player 0-1ish share**
+— e.g. "this pitcher gets a full rotation slot" vs. a swingman getting a
+fraction. **This is filled in by hand in the spreadsheet and has no
+equivalent anywhere in the OOTP ratings export.** Batters have no analogous
+manual input (§2) — their workload is fully derived from position + Prone.
+This is a real gap for an automated pipeline and needs a decision before
+[0026](../tickets/0026-pitcher-projection-methodology.md) can be
+implemented: candidates are defaulting everyone to 1.0 (loses the
+rotation-share signal entirely), deriving a share from `role`/roster-slot
+order in `staging.players_pitching`/`staging.players_roster_status`, or
+punting it as a future manual override field. **Flagged as newly-discovered,
+not resolved here.**
+
+GS (starters) / G (relievers) uses the same three factors against a
+different baseline constant (27 GS or 50 G) — same formula shape, see
+`'Starting Pitchers'!CY3` / `'Relief Pitchers'!CZ3`.
+
+Every baseline counting stat (§3.3) is then rescaled by
+`actual_PA / baseline_PA` — e.g. `CP3 = CI3 * CN3 / CG3` for AB — same "ratio
+scaling" idea as batters' `pa_factor`, just computed as an explicit ratio
+per stat rather than one factor applied uniformly (numerically equivalent).
+
+### 3.5 Rate stats
+
+From the scaled counting stats (`PA, AB, H, HR, BB, HBP, K`):
+
+- `BA = H / AB`
+- `OBP = (H + BB + HBP) / PA`
+- `wOBA_against = (0.7*(BB+HBP) + 1.0*(H-HR) + 2.0*HR) / PA` — the BB/HBP and
+  HR weights (`'Weighting Constants'!B10` and `B14`, 0.7 and 2.0) are
+  **identical to** `FACTOR_BB`/`FACTOR_HR` in `batter.py:20-24`. There's no
+  batter-side equivalent of the third weight (`B15`, "non-HR hits" = 1.0):
+  batters split hits into 1B/2B/3B with three different weights
+  (0.9/1.25/1.6), but a pitcher's ratings don't carry batted-ball-type
+  granularity, so every non-HR hit allowed gets the same flat weight.
+- `IP = (PA - H - BB - HBP) / 2.91` — `'Weighting Constants'!B36`, a fixed
+  outs-per-inning-equivalent divisor.
+- `runs_prevented = (0.327 - wOBA_against) / 1.2 * PA` — a wRAA-style
+  calculation (`'Weighting Constants'!B37` league pwOBA, `B34` wOBA scale)
+  that is nominally part of the spreadsheet's *Value* section, not
+  Production, but is unavoidable here:
+  `RA/9 = 4.65 - runs_prevented / IP * 9` and `ERA = 0.92 * RA/9`
+  (`'Weighting Constants'!B40` league-average RA/9, `B43` ERA/RA9 ratio) —
+  RA/9/ERA can't be computed without it. **This one intermediate is included
+  here because Production depends on it; the rest of the Value/WAR breakdown
+  (BR runs, replacement runs, defensive runs, runs/win, WAR) is
+  intentionally out of scope for this doc** — that's still an open question
+  in [0026](../tickets/0026-pitcher-projection-methodology.md#2-design-choices).
+
+### 3.6 What's confirmed vs. still open
+
+**Confirmed by this spreadsheet analysis** (resolves part of 0026's
+"Outstanding" methodology question):
+
+- Output stat set for `players_pitching_expected`: `PA, AB, H, HR, BB, HBP,
+  K, BA, OBP, wOBA, IP, GS (SP only) / G (RP only), RA/9, ERA`.
+- The rating→rate lookup table shape and exact constants (§3.3), split by
+  role (SP vs. RP get different curves).
+- The age-development pipeline for players under 25 (§3.2).
+
+**Still open**, deferred to 0026 implementation:
+
+- The "Playing Time" manual-input gap (§3.4) — needs a decision, not just a
+  code port.
+- SP vs. RP role classification: `staging.players_pitching.role` /
+  `position` presumably distinguishes these, but hasn't been checked against
+  real data for how reliably it maps to "use the SP curve" vs. "use the RP
+  curve."
+- Value/WAR (wRAA-against aside, needed for RA/9 per §3.5) — deliberately
+  not covered here per this doc's scope.
+- Whether the "Current"/"Peak" tracks (not just "Projected") are ever
+  needed — the app today only surfaces one expected-stat snapshot per rating
+  date (`players_batting_expected` has no Current/Peak equivalent for
+  batters either), so this doc assumes "Projected" is the only track that
+  matters, but that wasn't an explicit product decision.
+
+## 4. Where this is surfaced today
+
+Nowhere yet, for pitchers — see
+[Features.md](Features.md#player-profile--playersid)'s note that
+`PitcherPercentiles` is a stubbed placeholder. Once
+[0024](../tickets/0024-pitcher-schema-ratings-tables.md)-[0027](../tickets/0027-pitcher-api-frontend-wiring.md)
+ship, it'll follow the same path batters already use — see
+[Features.md → Underlying data](Features.md#underlying-data-projections--run-value).

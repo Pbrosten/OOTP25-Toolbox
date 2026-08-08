@@ -1,9 +1,14 @@
 # 0015 — Pitcher projections: schema, migration, and projection pipeline
 
 - **Tag:** feat
-- **Status:** Open
+- **Status:** In-Progress
 - **Depends on:** —
 - **Blocks:** —
+- **Broken down into:** [0024](0024-pitcher-schema-ratings-tables.md) (schema)
+  → [0025](0025-pitcher-migration-ingestion.md) (migration) →
+  [0026](0026-pitcher-projection-methodology.md) (projection methodology) →
+  [0027](0027-pitcher-api-frontend-wiring.md) (API/frontend). This ticket
+  stays open as the epic tracker; implementation happens in the sub-tickets.
 
 ## 1. Problem
 

@@ -72,7 +72,7 @@ alternatives, not a sequence; 0021 folds into 0022).
 | [0012](0012-projection-worker-app-context.md) | Stop relying on fork() semantics for Flask context in projection workers | refactor | Closed | — |
 | [0013](0013-reenable-staging-reset.md) | Re-enable the staging DB reset before each load | chore | Closed | — |
 | [0014](0014-drop-unused-pitching-ingestion.md) | Stop ingesting players_pitching until something reads it | chore | Closed | — |
-| [0015](0015-pitcher-projection-epic.md) | Pitcher projections: schema, migration, and projection pipeline | feat | Open | — |
+| [0015](0015-pitcher-projection-epic.md) | Pitcher projections: schema, migration, and projection pipeline | feat | In-Progress | — |
 | [0016](0016-update-db-row-count-visibility.md) | Report row counts actually written by update-db | feat | Closed | — |
 | [0017](0017-rewrite-stale-pipeline-tests.md) | Rewrite or remove 16 stale pipeline tests | chore | Closed | — |
 | [0018](0018-remove-vestigial-sqlite-converter.md) | Remove vestigial SQLite converter registration | chore | Closed | — |
@@ -80,6 +80,41 @@ alternatives, not a sequence; 0021 folds into 0022).
 | [0020](0020-unused-statement-re-regex.md) | Resolve unused STATEMENT_RE / naive statement splitting | chore | Closed | — |
 | [0021](0021-fetch-projection-inputs-cursor-scope.md) | Fetch projection inputs inside the cursor's with block | refactor | Closed | — |
 | [0022](0022-consolidate-run-script-boilerplate.md) | Consolidate repeated run-script/rollback/commit boilerplate | refactor | Closed | — |
+
+## Epic: Pitcher projections
+
+[0015](0015-pitcher-projection-epic.md) was filed as a large epic outline
+rather than a scoped plan (see its Design choices section). Broken down here
+into per-subsystem tickets the way the admin-API epic was split into
+0001–0006. Sequential — each stage's column shapes depend on the previous
+stage existing, and 0026 (methodology) is the one genuinely open design
+question blocking implementation.
+
+```
+[~] 0015 Epic tracker
+      |
+      v
+[ ] 0024 Schema (players_pitching / players_pitching_talent)
+      |
+      v
+[ ] 0025 Migration ingestion (staging -> ootp)
+      |
+      v
+[ ] 0026 Projection methodology + PitcherProjection  <-- design decision needed
+      |
+      v
+[ ] 0027 API route + PitcherPercentiles frontend
+
+[x] = Closed   [ ] = Open   [~] = In-Progress
+```
+
+| # | Title | Tag | Status | Depends on |
+|---|-------|-----|--------|------------|
+| [0015](0015-pitcher-projection-epic.md) | Pitcher projections: schema, migration, and projection pipeline (epic tracker) | feat | In-Progress | — |
+| [0024](0024-pitcher-schema-ratings-tables.md) | Pitcher ratings schema: `players_pitching` / `players_pitching_talent` | feat | Open | — |
+| [0025](0025-pitcher-migration-ingestion.md) | Ingest pitcher ratings: re-enable staging load + `migration_short.sql` | feat | Open | 0024 |
+| [0026](0026-pitcher-projection-methodology.md) | Pitcher projection methodology + `PitcherProjection` class | feat | Open | 0025 |
+| [0027](0027-pitcher-api-frontend-wiring.md) | Pitcher projections API route + `PitcherPercentiles` component | feat | Open | 0026 |
 
 ## Frontend / stats display fixes
 

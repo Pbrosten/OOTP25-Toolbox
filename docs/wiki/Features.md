@@ -55,7 +55,8 @@ through the batter projection system to produce expected stats
 (`*_expected` tables) and an estimated run value (`players_run_value`). The
 UI doesn't compute these live — it reads the results of the last database
 update, so a profile only reflects data as current as your last
-`update-db` run.
+`update-db` run. For how the ratings-to-stats math actually works, see
+[Projections](Projections.md).
 
 ## API reference
 
