@@ -40,9 +40,9 @@ design discussion (log-tail progress needs backend work 0004 didn't do).
 [x] 0005 Frontend trigger
       |
       v
-[ ] 0006 Job log capture
+[x] 0006 Job log capture
 
-[x] = Closed   [ ] = Open
+[x] = Closed   [ ] = Open   [~] = In-Progress
 ```
 
 | # | Title | Tag | Status | Depends on |
@@ -52,7 +52,7 @@ design discussion (log-tail progress needs backend work 0004 didn't do).
 | [0003](0003-admin-api-auth-guard.md) | Guard admin endpoints with access control | feat | Closed | 0002 |
 | [0004](0004-async-update-db-job.md) | Run update-db as an async background job with status polling | feat | Closed | 0002, 0003 |
 | [0005](0005-frontend-admin-trigger.md) | Frontend trigger for admin DB operations | feat | Closed | 0004 |
-| [0006](0006-job-log-capture.md) | Capture per-line logs for update-db jobs | feat | Open | 0004, 0005 |
+| [0006](0006-job-log-capture.md) | Capture per-line logs for update-db jobs | feat | Closed | 0004, 0005 |
 
 ## Backend pipeline improvements
 

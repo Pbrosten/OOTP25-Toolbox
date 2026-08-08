@@ -1,7 +1,7 @@
 # 0006 — Capture per-line logs for update-db jobs
 
 - **Tag:** feat
-- **Status:** Open
+- **Status:** Closed
 - **Depends on:** [0004](0004-async-update-db-job.md), [0005](0005-frontend-admin-trigger.md)
 - **Blocks:** —
 

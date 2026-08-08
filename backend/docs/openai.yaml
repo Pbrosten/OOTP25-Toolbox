@@ -538,6 +538,16 @@ paths:
                   started_at:
                     type: string
                     format: date-time
+                  logs:
+                    type: array
+                    items:
+                      type: string
+                    description: |
+                      Log lines emitted by this job's pipeline run, in order,
+                      formatted the same way as the server console (e.g.
+                      "[2026-03-01 12:00:00,000] INFO in update: [27/76]
+                      Processing short heap: 2026_03"). Grows as the job
+                      progresses; re-poll to get new lines.
         '401':
           description: Missing or invalid X-Admin-Token header
           content:
