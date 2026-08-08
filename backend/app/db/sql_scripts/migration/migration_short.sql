@@ -41,6 +41,46 @@ FROM players_rating AS r
 JOIN staging.players_batting AS s ON r.player_id = s.player_id
 WHERE r.rating_date = '{{HEAP_DATE}}';
 
+INSERT IGNORE INTO players_pitching (
+    rating_id, stuff, movement, hra, pbabip, control, balk, hp, wild_pitch,
+    velocity, arm_slot, stamina, ground_fly, hold
+)
+SELECT
+    r.rating_id,
+    s.pitching_ratings_overall_stuff,
+    s.pitching_ratings_overall_movement,
+    s.pitching_ratings_overall_hra,
+    s.pitching_ratings_overall_pbabip,
+    s.pitching_ratings_overall_control,
+    s.pitching_ratings_overall_balk,
+    s.pitching_ratings_overall_hp,
+    s.pitching_ratings_overall_wild_pitch,
+    s.pitching_ratings_misc_velocity,
+    s.pitching_ratings_misc_arm_slot,
+    s.pitching_ratings_misc_stamina,
+    s.pitching_ratings_misc_ground_fly,
+    s.pitching_ratings_misc_hold
+FROM players_rating AS r
+JOIN staging.players_pitching AS s ON r.player_id = s.player_id
+WHERE r.rating_date = '{{HEAP_DATE}}';
+
+INSERT IGNORE INTO players_pitching_talent (
+    rating_id, stuff, movement, hra, pbabip, control, balk, hp, wild_pitch
+)
+SELECT
+    r.rating_id,
+    s.pitching_ratings_talent_stuff,
+    s.pitching_ratings_talent_movement,
+    s.pitching_ratings_talent_hra,
+    s.pitching_ratings_talent_pbabip,
+    s.pitching_ratings_talent_control,
+    s.pitching_ratings_talent_balk,
+    s.pitching_ratings_talent_hp,
+    s.pitching_ratings_talent_wild_pitch
+FROM players_rating AS r
+JOIN staging.players_pitching AS s ON r.player_id = s.player_id
+WHERE r.rating_date = '{{HEAP_DATE}}';
+
 INSERT IGNORE INTO players_basepath (
     rating_id, speed, steal_rate, steal, baserunning
 )

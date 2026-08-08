@@ -1,7 +1,7 @@
 # 0025 — Ingest pitcher ratings: re-enable staging load + `migration_short.sql`
 
 - **Tag:** feat
-- **Status:** Open
+- **Status:** Closed
 - **Depends on:** [0024](0024-pitcher-schema-ratings-tables.md)
 - **Blocks:** [0026](0026-pitcher-projection-methodology.md)
 

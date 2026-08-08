@@ -101,7 +101,7 @@ projection refinement) depends on that line's output.
 [x] 0024 Schema (players_pitching / players_pitching_talent)
       |
       v
-[ ] 0025 Migration ingestion (staging -> ootp)
+[x] 0025 Migration ingestion (staging -> ootp)
       |
       +-----------------------------------------+
       v                                         v
@@ -122,7 +122,7 @@ projection refinement) depends on that line's output.
 |---|-------|-----|--------|------------|
 | [0015](0015-pitcher-projection-epic.md) | Pitcher projections: schema, migration, and projection pipeline (epic tracker) | feat | In-Progress | — |
 | [0024](0024-pitcher-schema-ratings-tables.md) | Pitcher ratings schema: `players_pitching` / `players_pitching_talent` | feat | Closed | — |
-| [0025](0025-pitcher-migration-ingestion.md) | Ingest pitcher ratings: re-enable staging load + `migration_short.sql` | feat | Open | 0024 |
+| [0025](0025-pitcher-migration-ingestion.md) | Ingest pitcher ratings: re-enable staging load + `migration_short.sql` | feat | Closed | 0024 |
 | [0026](0026-pitcher-projection-methodology.md) | Pitcher projection methodology + `PitcherProjection` class | feat | Open | 0025 |
 | [0028](0028-pitcher-run-value-war.md) | Pitcher run-value/WAR: methodology, schema, and projection wiring | feat | Open | 0026 |
 | [0027](0027-pitcher-api-frontend-wiring.md) | Pitcher projections API route + `PitcherPercentiles` component | feat | Open | 0026, 0028 |

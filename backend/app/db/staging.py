@@ -10,6 +10,7 @@ DUMP_INCLUSION_LIST = [
     "players.mysql",
     "players_batting",
     "players_fielding",
+    "players_pitching",
     "players_career_batting_stats",
     "teams.mysql",
 ]
