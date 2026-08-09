@@ -3,16 +3,17 @@
 [← Back to Home](Home.md)
 
 This page documents the *methodology* behind expected-stat projections — how
-a 20-80 scouting rating turns into a projected AVG/wOBA/ERA/etc. Both
-methodologies are now implemented: batters in
-`backend/app/player_projection/batter.py`, pitchers in
+a 20-80 scouting rating turns into a projected AVG/wOBA/ERA/etc, plus a
+run-value/WAR figure. Both are now implemented for both player types:
+batters in `backend/app/player_projection/batter.py`, pitchers in
 `backend/app/player_projection/pitcher.py` (see
 [docs/tickets/0015](../tickets/0015-pitcher-projection-epic.md) and its
-breakdown, 0024–0027; the pitcher implementation, 0026, deliberately diverges
-from §3.2's age-development track — see §3.6). This page was originally
-written to pin down the pitcher methodology before that implementation work
-started, from the same source spreadsheet as the batter methodology; it's
-kept as the design record and confirmed/open tracker.
+breakdown, 0024–0028; the pitcher implementation deliberately diverges from
+§3.2's age-development track (0026, see §3.6) and omits a reliever-leverage
+WAR adjustment (0028, see §3.7)). This page was originally written to pin
+down the pitcher methodology before that implementation work started, from
+the same source spreadsheet as the batter methodology; it's kept as the
+design record and confirmed/open tracker.
 
 Both methodologies originate from the same source workbook:
 [`docs/resources/OOTP calculator blank.xlsx`](../resources/OOTP%20calculator%20blank.xlsx)
@@ -79,7 +80,7 @@ entirely derived from `position` + the `Prone` durability rating. This
 matters for §4 below, where the pitcher spreadsheet's equivalent turns out
 to need one.
 
-## 3. Pitcher projection methodology (spreadsheet only — not yet implemented)
+## 3. Pitcher projection methodology (implemented — production in 0026, value/WAR in 0028)
 
 Both the "Starting Pitchers" and "Relief Pitchers" tabs compute three
 parallel projection tracks per player — **Current**, **Projected**, and
@@ -247,19 +248,88 @@ methodology findings):
 
 **Still open**, deferred past 0026:
 
-- Value/WAR (wRAA-against aside, needed for RA/9 per §3.5) — deliberately
-  not covered here per this doc's scope; tracked in
-  [0028](../tickets/0028-pitcher-run-value-war.md).
 - Whether the "Current"/"Peak" tracks (not just "Projected") are ever
   needed — the app today only surfaces one expected-stat snapshot per rating
   date (`players_batting_expected` has no Current/Peak equivalent for
   batters either), so this doc assumes "Projected" is the only track that
   matters, but that wasn't an explicit product decision.
 
+## 3.7 Pitcher value/WAR methodology (implemented, 0028)
+
+Same "Projected Value" column block (`'Starting Pitchers'!DB:DH` /
+`'Relief Pitchers'!DC:DI`) read through cell-by-cell, same rigor as §3.3-3.5.
+Implemented in `PitcherProjection.calc_player_values()`
+(`backend/app/player_projection/pitcher.py`), stored in
+`players_pitching_run_value` — a parallel table to `players_run_value`, not
+an extension of it (see [0028](../tickets/0028-pitcher-run-value-war.md#2-design-choices)
+for why: `get_player_expected_value_percentiles.sql` already filters
+`p.position != 'P'`, so the batting value table and its one consumer assume
+"pitchers excluded" by contract, not just convention).
+
+- **`pitching_runs`** — the wRAA-against term: `(lg_pwOBA - wOBA_against) /
+  wOBA_scale * PA` (`'Weighting Constants'!B37`, `B34`). This is exactly
+  `PitcherProjection.runs_prevented`, already computed in `calc_rates()` to
+  derive RA/9 (§3.5) — `calc_player_values()` reuses the stashed attribute
+  rather than recomputing it, per 0028's Design choices.
+- **`baserunning_runs`** — `IP * XLOOKUP(Hold, 'Projection Constants'!$A$7:$A$23,
+  $AB$7:$AB$23)`. The Hold→runs/IP curve is the one rate curve **shared by
+  SP and RP** (both tabs' formulas point at the same `$AB$7:$AB$23` range),
+  unlike the K/HR/H/BB curves which are role-specific — added to
+  `pitching_constants.pkl` as an unprefixed `BR` column, looked up via
+  `PitcherProjection.lookup_baserunning()`. `hold` was already a
+  `players_pitching` column (0024) but unused until now; added to
+  `get_pitcher_projection_inputs.sql`'s SELECT.
+- **Replacement runs** — `IP * rep_per_ip`, where `rep_per_ip` is 0.12 (SP)
+  / 0.03 (RP) (`'Weighting Constants'!B41`/`B42` — these were already
+  documented in §3.3's baseline table, just unused until 0028).
+  Computed and folded into `total_runs` but **not stored as its own column**,
+  matching `players_run_value`'s precedent (`BatterProjection.calc_player_values()`
+  computes `Replace_runs` but `players_run_value` has no `replacement_runs`
+  column either — see `batter.py:236`, `projection.py`'s `"value"` INSERT).
+- **Defense runs — confirmed always zero, not implemented.** The workbook's
+  `Def Runs` term (`IP * (XLOOKUP(Def_rating, ...) + positional_adj)`) reads
+  a pitcher's own fielding rating, but `'Projection Constants'!V7:V23` (the
+  SP curve) is **literally 0 at every rating step** and `V4` (the positional
+  adjustment) is also 0 — verified directly against the workbook, not
+  inferred. There's no pitcher fielding rating in the OOTP export either
+  (0024 already excluded fielding ratings from `players_pitching`). Per
+  explicit decision, `players_pitching_run_value` has no `defense_runs`
+  column at all — the term is genuinely inert in the source spreadsheet
+  itself, not just unavailable to us.
+- **`total_runs`** — `pitching_runs + baserunning_runs + replacement_runs`
+  (defense runs omitted as above; same as summing the workbook's
+  `SUM(DB3:DE3)` once the always-zero Def Runs term is dropped).
+- **Runs/Win — dynamic, not a fixed constant.** Unlike `BatterProjection`'s
+  fixed `RUNS_WIN = 9.92`, the pitcher formula blends league-average RA/9
+  and the pitcher's own projected RA/9, weighted by how much of an 18-IP
+  "full game" their average outing (`IP / GS-or-G`) covers:
+  `((((18 - IP/outing) * RA9_baseline + IP/outing * RA9) / 18) + 2) * 1.5`
+  (`'Starting Pitchers'!CE3` / `'Relief Pitchers'!DH3`; the `18`/`2`/`1.5`
+  literals aren't named cells in the workbook either — same formula, same
+  literals, for both SP and RP). `PitcherProjection` computes this as a
+  local in `calc_player_values()` (not stored — like `RUNS_WIN`, it's an
+  intermediate, and unlike `RUNS_WIN` it varies per row so storing it
+  wouldn't obviously belong on the output table either way).
+- **`WAR`** — `total_runs / runs_per_win`. **Reliever leverage adjustment
+  deliberately omitted.** The workbook multiplies RP (only) WAR by an
+  `XLOOKUP` against a Leverage rating (High=1.5/Medium=1.0/Low=0.75,
+  `'Weighting Constants'!$A$18:$B$20`) — but that Leverage value, like
+  Playing Time (§3.4), is a hardcoded manual literal in the template
+  (`='Medium'`), not a formula reading real data, and has no source
+  anywhere in the OOTP export. Explicit decision: omit the multiplier
+  entirely rather than default it to a no-op 1.0x — SP and RP `WAR` use the
+  identical `total_runs / runs_per_win` formula in `PitcherProjection`.
+
+**Not covered by this section** (out of scope for 0028, same as batting):
+two-way player WAR netting — `players_run_value` and
+`players_pitching_run_value` stay fully independent per-table, no combined
+figure. See [0028](../tickets/0028-pitcher-run-value-war.md#2-design-choices).
+
 ## 4. Where this is surfaced today
 
-Backend projection exists (`players_pitching_expected`, populated per short
-heap) but nothing reads it yet — see
+Backend projection exists (`players_pitching_expected` and, as of 0028,
+`players_pitching_run_value`, both populated per short heap) but nothing
+reads either yet — see
 [Features.md](Features.md#player-profile--playersid)'s note that
 `PitcherPercentiles` is a stubbed placeholder. Once
 [0027](../tickets/0027-pitcher-api-frontend-wiring.md) ships, it'll follow

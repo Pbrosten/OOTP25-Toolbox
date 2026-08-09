@@ -19,6 +19,16 @@ OUTS_IP_MULTIPLIER = 2.91
 RA9_BASELINE = 4.65
 ERA_MULTIPLIER = 0.92
 
+# Runs/Win (ticket 0028) is dynamic per pitcher, unlike BatterProjection's
+# fixed RUNS_WIN constant -- it blends league-average and the pitcher's own
+# RA9, weighted by how much of a "full game" (18 IP, i.e. both starter's and
+# bullpen's innings) their average outing covers. Formula + these three
+# literals verified against 'Starting/Relief Pitchers'!D*3 (Runs/Win column)
+# in the source workbook -- they aren't named cells there either.
+RUNS_PER_WIN_FULL_GAME_IP = 18
+RUNS_PER_WIN_OFFSET = 2
+RUNS_PER_WIN_SCALE = 1.5
+
 # Playing_Time_input has no source in the OOTP ratings export (see
 # docs/wiki/Projections.md#34-playing-time-scaling) -- defaulted to a full
 # share for every pitcher rather than deriving a rotation/bullpen-depth
@@ -26,9 +36,11 @@ ERA_MULTIPLIER = 0.92
 PLAYING_TIME_INPUT = 1.0
 
 # === Role-specific baseline workload constants ===
+# rep_per_ip ("Weighting Constants"!B41/B42): replacement-level runs/IP,
+# pitching's equivalent of BatterProjection's HITTER_REPLACEMENT_RUNS.
 ROLE_CONSTANTS = {
-    'SP': {"ab_baseline": 900, "pa_baseline": 750, "gs_g_baseline": 27, "durability": "Starter"},
-    'RP': {"ab_baseline": 300, "pa_baseline": 300, "gs_g_baseline": 50, "durability": "Reliever"},
+    'SP': {"ab_baseline": 900, "pa_baseline": 750, "gs_g_baseline": 27, "durability": "Starter", "rep_per_ip": 0.12},
+    'RP': {"ab_baseline": 300, "pa_baseline": 300, "gs_g_baseline": 50, "durability": "Reliever", "rep_per_ip": 0.03},
 }
 
 # staging.players_pitching.role: 11 = Starting Pitcher, 12 = Relief Pitcher,
@@ -65,6 +77,7 @@ class PitcherProjection:
         self.pbabip = data.get('pbabip')
         self.hra = data.get('hra')
         self.stamina = data.get('stamina')
+        self.hold = data.get('hold')
 
         self.pitch_constants = PITCH_CONSTANTS
         self.inj_constants = INJ_CONSTANTS
@@ -74,9 +87,19 @@ class PitcherProjection:
             "HBP": None, "K": None, "BA": None, "OBP": None, "wOBA": None,
             "IP": None, "GS": None, "G": None, "RA9": None, "ERA": None,
         }
+        self.value = {
+            "pitching_runs": None, "baserunning_runs": None,
+            "total_runs": None, "WAR": None,
+        }
 
     def lookup_pitch(self, rating, feature):
         return self.pitch_constants.loc[rating, f"{self.role}_{feature}"]
+
+    def lookup_baserunning(self, rating):
+        # Hold -> baserunning-runs-allowed/IP -- the one rate curve shared
+        # by SP and RP alike ('Projection Constants'!$AB$7:$AB$23), not
+        # role-prefixed like the others.
+        return self.pitch_constants.loc[rating, 'BR']
 
     def lookup_inj(self):
         return self.inj_constants.loc[self.injury, self.role_constants["durability"]]
@@ -126,17 +149,44 @@ class PitcherProjection:
             s['HR'] * FACTOR_HR
         ) / s['PA']
         s['IP'] = (s['PA'] - s['H'] - s['BB'] - s['HBP']) / OUTS_IP_MULTIPLIER
-        runs_prevented = (LG_PWOBA - s['wOBA']) / WOBA_SCALE * s['PA']
-        s['RA9'] = RA9_BASELINE - runs_prevented / s['IP'] * 9
+        # Nominally a Value-section formula (wRAA-against), but RA9/ERA
+        # can't be derived without it -- stashed on self so
+        # calc_player_values() (ticket 0028) reuses it instead of
+        # recomputing. See wiki/Projections.md §3.5.
+        self.runs_prevented = (LG_PWOBA - s['wOBA']) / WOBA_SCALE * s['PA']
+        s['RA9'] = RA9_BASELINE - self.runs_prevented / s['IP'] * 9
         s['ERA'] = ERA_MULTIPLIER * s['RA9']
+
+    def calc_player_values(self):
+        v = self.value
+        s = self.stats
+
+        v['pitching_runs'] = self.runs_prevented
+        v['baserunning_runs'] = s['IP'] * self.lookup_baserunning(self.hold)
+        replacement_runs = s['IP'] * self.role_constants['rep_per_ip']
+        v['total_runs'] = v['pitching_runs'] + v['baserunning_runs'] + replacement_runs
+
+        # Dynamic runs/win: blends league-average RA9 and this pitcher's own
+        # RA9, weighted by how much of an 18-IP "full game" their average
+        # outing (IP / GS-or-G) covers -- same formula for SP and RP, only
+        # the GS-vs-G divisor differs (already tracked in actual_gs_or_g).
+        innings_per_outing = s['IP'] / self.actual_gs_or_g
+        runs_per_win = (
+            (
+                (RUNS_PER_WIN_FULL_GAME_IP - innings_per_outing) * RA9_BASELINE +
+                innings_per_outing * s['RA9']
+            ) / RUNS_PER_WIN_FULL_GAME_IP + RUNS_PER_WIN_OFFSET
+        ) * RUNS_PER_WIN_SCALE
+        v['WAR'] = v['total_runs'] / runs_per_win
 
     def calc_expected_stats(self):
         self.calc_baseline_stats()
         self.calc_actual_playing_time()
         self.calc_scaled_stats()
         self.calc_rates()
+        self.calc_player_values()
 
-        output = {"pitching": self.stats}
+        output = {"pitching": self.stats, "pitching_value": self.value}
         for key in output:
             output[key]["rating_id"] = self.rating_id
         return output

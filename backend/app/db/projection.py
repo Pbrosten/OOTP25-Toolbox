@@ -32,6 +32,11 @@ pitching_proj_scripts = {
         (rating_id, PA, AB, H, HR, BB, HBP, K, BA, OBP, wOBA, IP, GS, G, RA9, ERA)
         VALUES (%(rating_id)s, %(PA)s, %(AB)s, %(H)s, %(HR)s, %(BB)s, %(HBP)s, %(K)s, %(BA)s, %(OBP)s, %(wOBA)s, %(IP)s, %(GS)s, %(G)s, %(RA9)s, %(ERA)s)
     """,
+    "pitching_value": """
+        INSERT IGNORE INTO players_pitching_run_value
+        (rating_id, pitching_runs, baserunning_runs, total_runs, WAR)
+        VALUES (%(rating_id)s, %(pitching_runs)s, %(baserunning_runs)s, %(total_runs)s, %(WAR)s)
+    """,
 }
 
 

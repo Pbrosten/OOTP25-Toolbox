@@ -1,6 +1,6 @@
 SELECT
     r.rating_id,
-    pp.role, pp.stuff, pp.control, pp.pbabip, pp.hra, pp.stamina,
+    pp.role, pp.stuff, pp.control, pp.pbabip, pp.hra, pp.stamina, pp.hold,
     p.prone_overall
 FROM players AS p
 JOIN players_rating AS r ON p.player_id = r.player_id

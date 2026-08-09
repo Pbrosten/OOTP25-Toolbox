@@ -1,7 +1,7 @@
 # 0028 — Pitcher run-value/WAR: methodology, schema, and projection wiring
 
 - **Tag:** feat
-- **Status:** Open
+- **Status:** Closed
 - **Depends on:** [0026](0026-pitcher-projection-methodology.md)
 - **Blocks:** [0027](0027-pitcher-api-frontend-wiring.md)
 
@@ -43,59 +43,76 @@ wiring can't show a pitcher value percentile card without something to query
   `PitcherPercentiles` are already separate components per 0015's Approach),
   so there's no existing consumer that needs a netted figure. Revisit only
   if a future ticket asks for one.
-- **WAR formula source.** The source spreadsheet
-  (`docs/resources/OOTP calculator blank.xlsx`, "Starting Pitchers"/"Relief
-  Pitchers" tabs) has a full Value/WAR block per 0026's Design choices
-  (dynamic runs/win, hold-based baserunning runs allowed, a zeroed-out
-  defense-runs placeholder) but it was deliberately excluded from the
-  [wiki/Projections.md §3](../wiki/Projections.md#3-pitcher-projection-methodology-spreadsheet-only--not-yet-implemented)
-  extraction pass, which only covers Production. **Not yet done:** this
-  ticket needs the same cell-by-cell read-through §3 did for production,
-  written up as a new wiki section, before implementation — don't
-  reverse-engineer the formula from code, follow the established
-  spreadsheet-extraction process this project already uses for batter/pitcher
-  production.
-- **`runs_prevented` is already derived.** Wiki §3.5 notes pitcher
-  `RA/9`/`ERA` needs a wRAA-style `runs_prevented` intermediate
-  (`(0.327 - wOBA_against) / 1.2 * PA`) and that 0026 already computes it as
-  part of production, even though it's nominally a Value-section formula.
-  This ticket's `calc_player_values()`-equivalent should reuse that existing
-  value rather than recomputing it — check what 0026 actually landed on
-  (an attribute on the `PitcherProjection` instance vs. a local in
-  `calc_expected_stats()`) once it's implemented.
-- **Outstanding:** exact `players_pitching_run_value` column set — depends
-  entirely on which spreadsheet Value columns the read-through above
-  confirms are in scope (e.g. is a "replacement runs" term included the way
-  `BatterProjection` has one? `batter.py:236`).
+- **WAR formula source — done.** Full cell-by-cell read-through of the
+  Value block (`'Starting Pitchers'!DB:DH` / `'Relief Pitchers'!DC:DI`)
+  performed via `openpyxl`, written up as
+  [wiki/Projections.md §3.7](../wiki/Projections.md#37-pitcher-valuewar-methodology-implemented-0028).
+  Two real findings, both surfaced to the user and resolved before
+  implementation:
+  - **Reliever leverage WAR adjustment.** The workbook multiplies RP-only
+    WAR by an `XLOOKUP` against a "Leverage" rating (High/Medium/Low →
+    1.5/1.0/0.75), but that input is a hardcoded manual literal in the
+    template (`='Medium'`), not a formula reading real data — same shape as
+    0026's Playing Time gap. **Decision: omit the multiplier entirely**
+    (not default it to a no-op 1.0) — SP and RP `WAR` use the identical
+    `total_runs / runs_per_win` formula.
+  - **Defense runs — confirmed always zero.** Verified directly against
+    `'Projection Constants'!V7:V23`/`V4`: the pitcher defense-runs curve is
+    literally `0` at every rating step. There's also no pitcher fielding
+    rating in the OOTP export (0024 already excluded fielding from
+    `players_pitching`). **Decision: no `defense_runs` column at all** in
+    `players_pitching_run_value` — the term is inert in the source
+    spreadsheet itself, not merely unavailable to this pipeline.
+- **`runs_prevented` is already derived — reused.** `PitcherProjection.calc_rates()`
+  (0026) now stashes it as `self.runs_prevented` (was a local); `calc_player_values()`
+  reads that attribute directly as `pitching_runs` rather than recomputing.
+- **Resolved:** `players_pitching_run_value` column set —
+  `rating_id, pitching_runs, baserunning_runs, total_runs, WAR`. No
+  `replacement_runs` column, matching `players_run_value`'s own precedent
+  (`BatterProjection` computes `Replace_runs` but it's folded into
+  `total_runs` without its own column — `batter.py:236`). No `defense_runs`
+  column, per the finding above. `baserunning_runs` needed one new input:
+  `hold` (already a `players_pitching` column from 0024, unused until now)
+  — added to `get_pitcher_projection_inputs.sql`, and the Hold→runs/IP curve
+  (shared by SP and RP, not role-prefixed) added to `pitching_constants.pkl`
+  as a `BR` column.
 
 ## 3. Approach
 
-- Extend `docs/wiki/Projections.md` with a new "§X Pitcher value/WAR
-  methodology" section, same rigor as §3 (cell references, confirmed vs.
-  open breakdown), covering the spreadsheet's Value/WAR block.
-- Add `players_pitching_run_value` to `schema.sql`, shaped like
-  `players_run_value` (`rating_id INT PRIMARY KEY`, FK to
-  `players_rating`, plus whatever run-component columns the wiki
-  read-through confirms) — no `batting_runs`/`fielding_runs` columns, since
-  those don't apply to pitchers.
-- Add a `DROP TABLE IF EXISTS players_pitching_run_value;` line to
-  `schema.sql`'s drop block, ordered with the other pitching tables.
-- Add `calc_player_values()` to `PitcherProjection`
-  (`backend/app/player_projection/pitcher.py`, from 0026), returning a
-  `value` dict the same shape `BatterProjection.calc_player_values()`
-  produces, folded into `calc_expected_stats()`'s output.
-- `backend/app/db/projection.py`: add a `"pitching_value"` (or similarly
-  named) entry to `proj_scripts` with the `INSERT IGNORE INTO
-  players_pitching_run_value` statement, and wire it into whatever
-  pitcher-side batching 0026 added to
-  `update_projection_batches`/`process_player`.
-- Leave the API/frontend percentile wiring to 0027 — this ticket only needs
-  to get the table populated; 0027 already plans to read "the pitching
-  run-value table" (now: this ticket's table, not 0026's) from
-  `players_pitching_run_value`.
+- `docs/wiki/Projections.md` §3.7 (new): cell-by-cell read-through of the
+  Value block, same rigor as §3.3-3.5, covering both findings above.
+- `players_pitching_run_value` added to `schema.sql`: `rating_id INT PRIMARY
+  KEY` FK'd to `players_rating` (matching `players_run_value`'s own FK
+  target, not `players_pitching`'s), plus `pitching_runs, baserunning_runs,
+  total_runs, WAR` — no `batting_runs`/`fielding_runs` (don't apply), no
+  `defense_runs` (confirmed always zero in the source spreadsheet), no
+  `replacement_runs` (folded into `total_runs`, matching `players_run_value`'s
+  own precedent of not storing it separately). `DROP TABLE IF EXISTS
+  players_pitching_run_value;` added ordered with `players_run_value`'s drop.
+- `PitcherProjection.calc_player_values()` added
+  (`backend/app/player_projection/pitcher.py`): reuses `self.runs_prevented`
+  (promoted from a `calc_rates()` local to an instance attribute) for
+  `pitching_runs`; new `lookup_baserunning()` method for the
+  role-independent Hold→runs/IP curve; `calc_expected_stats()` now returns
+  a `"pitching_value"` key alongside `"pitching"`.
+- `pitching_constants.pkl`: added an unprefixed `BR` column (Hold→runs/IP,
+  shared by SP/RP) extracted the same way §3.3's curves were — via
+  `openpyxl` against `'Projection Constants'!$AB$7:$AB$23`.
+- `get_pitcher_projection_inputs.sql`: added `pp.hold` to the SELECT
+  (column already existed on `players_pitching` since 0024, just unused).
+- `backend/app/db/projection.py`: added a `"pitching_value"` entry to
+  `pitching_proj_scripts` with the `INSERT IGNORE INTO
+  players_pitching_run_value` statement.
+- `backend/app/db/update.py`: `insert_pitcher_projections()`'s `batches`
+  dict now includes `"pitching_value"` alongside `"pitching"`.
+- Left the API/frontend percentile wiring to 0027 — this ticket only gets
+  the table populated.
 
 **Files involved:**
-- `docs/wiki/Projections.md` (modified — new Value/WAR section)
+- `docs/wiki/Projections.md` (modified — new §3.7 Value/WAR section)
 - `backend/app/db/sql_scripts/schema.sql` (modified)
 - `backend/app/player_projection/pitcher.py` (modified)
+- `backend/app/player_projection/constants/pitching_constants.pkl` (modified — new `BR` column)
+- `backend/app/db/sql_scripts/migration/get_pitcher_projection_inputs.sql` (modified — added `pp.hold`)
+- `backend/app/db/projection.py`, `backend/app/db/update.py` (modified)
 - `backend/app/db/projection.py` (modified)

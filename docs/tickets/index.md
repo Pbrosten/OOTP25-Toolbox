@@ -80,6 +80,7 @@ alternatives, not a sequence; 0021 folds into 0022).
 | [0020](0020-unused-statement-re-regex.md) | Resolve unused STATEMENT_RE / naive statement splitting | chore | Closed | — |
 | [0021](0021-fetch-projection-inputs-cursor-scope.md) | Fetch projection inputs inside the cursor's with block | refactor | Closed | — |
 | [0022](0022-consolidate-run-script-boilerplate.md) | Consolidate repeated run-script/rollback/commit boilerplate | refactor | Closed | — |
+| [0030](0030-exclude-pitchers-from-batting-projection.md) | Exclude pitchers from the batting projection workflow (pending a future TWP tag) | fix | Open | — |
 
 ## Epic: Pitcher projections
 
@@ -110,7 +111,7 @@ projection refinement) depends on that line's output.
     <-- design decision needed                 quality) -- epic outline,
       |                                         needs breakdown
       v
-[ ] 0028 Run-value / WAR  <-- design decision needed
+[x] 0028 Run-value / WAR  <-- design decision needed
       |
       v
 [ ] 0027 API route + PitcherPercentiles frontend
@@ -124,7 +125,7 @@ projection refinement) depends on that line's output.
 | [0024](0024-pitcher-schema-ratings-tables.md) | Pitcher ratings schema: `players_pitching` / `players_pitching_talent` | feat | Closed | — |
 | [0025](0025-pitcher-migration-ingestion.md) | Ingest pitcher ratings: re-enable staging load + `migration_short.sql` | feat | Closed | 0024 |
 | [0026](0026-pitcher-projection-methodology.md) | Pitcher projection methodology + `PitcherProjection` class | feat | Closed | 0025 |
-| [0028](0028-pitcher-run-value-war.md) | Pitcher run-value/WAR: methodology, schema, and projection wiring | feat | Open | 0026 |
+| [0028](0028-pitcher-run-value-war.md) | Pitcher run-value/WAR: methodology, schema, and projection wiring | feat | Closed | 0026 |
 | [0027](0027-pitcher-api-frontend-wiring.md) | Pitcher projections API route + `PitcherPercentiles` component | feat | Open | 0026, 0028 |
 | [0029](0029-pitcher-pitch-repertoire.md) | Pitcher pitch repertoire: number of pitches + per-pitch quality (epic outline) | feat | Open | 0025 |
 

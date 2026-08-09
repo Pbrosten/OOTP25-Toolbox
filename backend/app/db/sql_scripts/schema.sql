@@ -1,6 +1,7 @@
 DROP TABLE IF EXISTS processed_heaps;
 DROP TABLE IF EXISTS players_similarity;
 DROP TABLE IF EXISTS players_run_value;
+DROP TABLE IF EXISTS players_pitching_run_value;
 DROP TABLE IF EXISTS players_fielding_expected;
 DROP TABLE IF EXISTS players_fielding_position_talent;
 DROP TABLE IF EXISTS players_fielding_position;
@@ -301,6 +302,23 @@ CREATE TABLE players_run_value (
   batting_runs FLOAT,
   basepath_runs FLOAT,
   fielding_runs FLOAT,
+  total_runs FLOAT,
+  WAR FLOAT,
+  FOREIGN KEY (rating_id) REFERENCES players_rating(rating_id)
+);
+
+-- Player Pitching Run Value --
+-- No defense_runs column: the source spreadsheet's pitcher defense-runs
+-- curve ('Projection Constants'!V7:V23 and V4) is 0 at every rating step
+-- (verified directly), and there's no pitcher fielding rating in the OOTP
+-- export to drive it anyway (see ticket 0028). pitching_runs is the
+-- wRAA-against equivalent (PitcherProjection.runs_prevented), baserunning_runs
+-- is the Hold-based runs-allowed term. No leverage adjustment on WAR for
+-- relievers -- see ticket 0028's Design choices.
+CREATE TABLE players_pitching_run_value (
+  rating_id INT PRIMARY KEY,
+  pitching_runs FLOAT,
+  baserunning_runs FLOAT,
   total_runs FLOAT,
   WAR FLOAT,
   FOREIGN KEY (rating_id) REFERENCES players_rating(rating_id)

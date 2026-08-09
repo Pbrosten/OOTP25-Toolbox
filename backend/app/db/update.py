@@ -242,7 +242,7 @@ def insert_projections(projections, db, batch_size=1000):
 
 
 def insert_pitcher_projections(projections, db, batch_size=1000):
-    batches = {key: [] for key in ("pitching",)}
+    batches = {key: [] for key in ("pitching", "pitching_value")}
     rows_inserted = 0
     for i in range(0, len(projections), batch_size):
         chunk = projections[i : i + batch_size]
