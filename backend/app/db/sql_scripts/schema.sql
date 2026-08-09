@@ -13,6 +13,7 @@ DROP TABLE IF EXISTS players_batting_talent;
 DROP TABLE IF EXISTS players_batting;
 DROP TABLE IF EXISTS players_pitching_expected;
 DROP TABLE IF EXISTS players_pitching_talent;
+DROP TABLE IF EXISTS players_pitch_repertoire;
 DROP TABLE IF EXISTS players_pitching;
 DROP TABLE IF EXISTS players_rating;
 DROP TABLE IF EXISTS players_career_batting_stats;
@@ -214,6 +215,18 @@ CREATE TABLE players_pitching_talent (
   balk INT,
   hp INT,
   wild_pitch INT,
+  FOREIGN KEY (rating_id) REFERENCES players_rating(rating_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Player Pitch Repertoire --
+-- One row per pitch type a player actually throws (grade > 0 in the
+-- source export), not a fixed 12-column-wide row -- see ticket 0029/0031.
+CREATE TABLE players_pitch_repertoire (
+  rating_id INT NOT NULL,
+  pitch_type VARCHAR(20) NOT NULL,
+  grade INT,
+  talent_grade INT,
+  PRIMARY KEY (rating_id, pitch_type),
   FOREIGN KEY (rating_id) REFERENCES players_rating(rating_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
