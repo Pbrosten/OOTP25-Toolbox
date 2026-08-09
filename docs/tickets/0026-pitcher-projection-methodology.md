@@ -1,7 +1,7 @@
 # 0026 — Pitcher projection methodology + `PitcherProjection` class
 
 - **Tag:** feat
-- **Status:** Open
+- **Status:** Closed
 - **Depends on:** [0025](0025-pitcher-migration-ingestion.md)
 - **Blocks:** [0027](0027-pitcher-api-frontend-wiring.md), [0028](0028-pitcher-run-value-war.md)
 
@@ -34,22 +34,47 @@ design question here.
   [wiki/Projections §3.6](../wiki/Projections.md#36-whats-confirmed-vs-still-open)
   for the full confirmed/open breakdown; this supersedes the "what output
   stats?" question previously listed here.
-- **Role handling (SP vs. RP) — mechanism resolved, classification open.**
-  The spreadsheet uses genuinely different rate-lookup curves and baseline
-  workload constants per role (wiki §3.3), not just a scaling factor — so
-  `PitcherProjection` needs two constant tables, not one. **Still open:**
-  how `staging.players_pitching.role`/`position` maps to "use the SP table"
-  vs. "use the RP table" hasn't been checked against real dump data.
-- **The "Playing Time" input gap — newly discovered, unresolved.** The
-  spreadsheet's playing-time scaling (wiki §3.4) depends on a manual
-  per-player share (0-1ish) that has no source in the OOTP ratings export —
-  unlike batters, whose workload is fully derived from position + the
-  `Prone` durability rating. Options: default everyone to a full share
-  (loses the rotation-depth signal the spreadsheet author was manually
-  encoding), derive a share from `role`/roster-order fields already in
-  `staging.players_pitching`/`staging.players_roster_status`, or add a
-  manual override field. **Not decided** — needs to be before implementation,
-  since it directly scales every counting stat.
+- **Role handling (SP vs. RP) — resolved against real dump data.**
+  `staging.players_pitching.role` is a numeric roster-role code (also used
+  in `staging.players_roster_status`), and — contrary to 0024's original
+  read of a smaller sample — the table has one row for **every player in
+  the league** (~135k rows/heap in `TEST.lg`, matching `staging.players`'
+  row count almost exactly), not just pitching-capable ones; non-pitchers
+  get `role = 0`. Cross-referencing `role` against actual `GS`/`G` usage in
+  `staging.players_career_pitching_stats` confirmed: `role = 11` → Starting
+  Pitcher (sampled players: 31/31 and 27/27 starts), `role = 12` → Relief
+  Pitcher (sampled: 35 G, 0 GS), `role = 13` → Closer, a small subset with
+  all-relief usage (sampled: 58 G, 0 GS). Since the spreadsheet only defines
+  two curves, role 13 is folded into the RP bucket (`PitcherProjection.ROLE_MAP`).
+  Non-pitcher rows (`role = 0`) are filtered out at **both** layers: a
+  `WHERE s.role IN (11, 12, 13)` added to `migration_short.sql`'s
+  `players_pitching`/`players_pitching_talent` INSERTs (amending
+  [0025](0025-pitcher-migration-ingestion.md), already closed, since that's
+  where the population question actually lives), and defensively in
+  `PitcherProjection.__init__` (raises on any other role value, caught by
+  `process_pitcher()` the same way any other bad-input exception is).
+  `players_pitching` also needed a new `role` column (0024's schema didn't
+  store it) so `PitcherProjection` can pick SP vs. RP back up at fetch time
+  without re-joining staging (which is wiped every heap).
+- **The "Playing Time" input gap — resolved: default to 1.0 for v1.** No
+  source exists in the OOTP export for the spreadsheet's manual per-player
+  rotation/bullpen-share input (wiki §3.4). Rather than build a derived-share
+  heuristic now, every pitcher gets a full share — this overstates playing
+  time for organizational depth/fringe arms and is a known limitation, not a
+  per-player value; `PLAYING_TIME_INPUT` in `pitcher.py` is the one constant
+  to revisit if this needs refining later.
+- **Age-development (wiki §3.2) — skipped, current ratings only.**
+  `BatterProjection` doesn't implement the spreadsheet's age-blend at all
+  today (it uses current ratings directly), and the pitcher export is
+  missing one of the three makeup traits the blend needs (`players.mysql`
+  has `personality_work_ethic`/`personality_intelligence` as raw integers,
+  but no Adaptability field at all, and none are pre-bucketed to the
+  spreadsheet's H/N/L categories). `PitcherProjection` matches
+  `BatterProjection`'s actual (simpler) behavior for consistency, rather
+  than being more spreadsheet-faithful than the batter side already is.
+  `players_pitching_talent`'s potential ratings aren't consumed by 0026 as a
+  result — nothing here removes that table, in case a future ticket revisits
+  age-development for both player types together.
 - **Question: run-value/WAR formula and how it combines with batting WAR for
   two-way players.** Deferred from [0024](0024-pitcher-schema-ratings-tables.md)
   to here. The spreadsheet does have a full Value/WAR formula (dynamic
@@ -65,31 +90,58 @@ design question here.
 
 ## 3. Approach
 
-- Build `backend/app/player_projection/constants/pitching_constants.pkl` (or
-  two tables, SP/RP) encoding the rating→rate lookup curves in
-  [wiki/Projections §3.3](../wiki/Projections.md#33-baseline-production) —
-  the pitching equivalent of `offensive_constants.pkl`, loaded once at
-  import time the same way (`backend/app/player_projection/batter.py:9-15`).
-- Add `backend/app/player_projection/pitcher.py::PitcherProjection`, shaped
-  like `BatterProjection`: `__init__(data: dict)` pulling ratings out of a
-  `players_pitching`/`players_pitching_talent` row, implementing the
-  baseline → playing-time-scaling → rates pipeline from wiki §3.3-3.5, and a
-  `calc_expected_stats()` entry point returning a dict consumed by
-  `update.py`/`projection.py`. Value/WAR output is blocked on the still-open
-  question above — production doesn't need to wait for it.
-- Add `players_pitching_expected` to `schema.sql` with the column set from
-  §2 above. A pitching run-value table is still blocked on the Value/WAR
-  design question — that follow-up is [0028](0028-pitcher-run-value-war.md),
-  filed once this ticket's production scope was resolved, rather than
-  guessing its shape now.
-- Wire into `app/db/update.py::process_single_heap()` /
-  `app/db/projection.py::project_players()` alongside the existing batter
-  pass — same per-heap trigger, parallel code path, not a shared one (batters
-  and pitchers have different input shapes).
+- `pitching_constants.pkl`: one DataFrame (indexed by rating 0/20-95, same
+  shape as `offensive_constants.pkl`) with `SP_*`/`RP_*` columns for the four
+  rating→rate curves (K, HR, non-HR-hit, BB) plus each role's
+  stamina→TBF-per-appearance curve — read directly from
+  `docs/resources/OOTP calculator blank.xlsx`'s "Projection Constants" sheet
+  via `openpyxl` (columns W-AA for SP, AC-AG for RP), not retyped from the
+  wiki's illustrative cell references. Durability (prone→multiplier) reuses
+  the *existing* `injury_constants.pkl`, which already has `Starter`/
+  `Reliever` columns nobody was reading yet — no new pickle needed there.
+- `backend/app/player_projection/pitcher.py::PitcherProjection`: baseline
+  (fixed AB=900/300) → actual-playing-time scaling → rates, per wiki §3.3-3.5,
+  role-dispatched via `self.role` ('SP'/'RP') set from `ROLE_MAP` in
+  `__init__`. **Verified formula-for-formula against the source workbook**:
+  fed the spreadsheet's own pre-filled SP and RP example rows (Stuff 55/
+  Control 70/pBABIP 50/HRR 55/Stam 65/Normal prone for SP; Stuff 75/Control
+  45/pBABIP 50/HRR 60/Stam 30/Normal prone for RP) through both
+  `PitcherProjection` and the live workbook (`openpyxl`, `data_only=True`)
+  and diffed every output stat — exact match (to float noise) on
+  PA/AB/H/HR/BB/HBP/K/BA/OBP/wOBA/IP/GS-or-G/RA9/ERA for both roles.
+  Value/WAR output is blocked on [0028](0028-pitcher-run-value-war.md) —
+  production doesn't need to wait for it.
+- `players_pitching_expected` added to `schema.sql` with the column set from
+  §2 above, FK'd to `players_pitching(rating_id)` (same pattern as
+  `players_batting_expected` → `players_batting`). `players_pitching` also
+  gained a `role SMALLINT` column (see Design choices).
+- `migration_short.sql`: both `players_pitching`/`players_pitching_talent`
+  INSERTs now select `s.role` and filter `WHERE ... AND s.role IN (11, 12, 13)`
+  — amends [0025](0025-pitcher-migration-ingestion.md)'s already-closed SQL,
+  since the "staging.players_pitching has non-pitcher rows" discovery
+  happened here, not there.
+- New `get_pitcher_projection_inputs.sql` (mirrors `get_projection_inputs.sql`),
+  and `fetch_pitcher_projection_inputs()` / `project_pitchers()` /
+  `insert_pitcher_projections()` in `update.py`, `process_pitcher()` /
+  `update_pitching_projection_batches()` / `pitching_proj_scripts` in
+  `projection.py` — parallel to the batter path throughout, wired into
+  `process_single_heap()` right after the batter pass; `projections_inserted`
+  in the returned counts sums both.
+- Verified end-to-end against a live MariaDB using an isolated throwaway
+  database (not the shared dev `ootp` database, which had real in-progress
+  data from an actual save) — real `fetch → project → insert` run through
+  the actual Flask app/DB code path, confirmed rows land in
+  `players_pitching_expected` matching the workbook-verified values exactly.
 
 **Files involved:**
 - `backend/app/player_projection/pitcher.py` (new)
-- `backend/app/player_projection/constants/` (new pickle(s))
-- `backend/app/db/sql_scripts/schema.sql` (modified — expected/run-value
-  tables)
+- `backend/app/player_projection/constants/pitching_constants.pkl` (new)
+- `backend/app/player_projection/__init__.py` (modified — export `PitcherProjection`)
+- `backend/app/db/sql_scripts/schema.sql` (modified — `players_pitching.role`,
+  `players_pitching_expected`)
+- `backend/app/db/sql_scripts/migration/migration_short.sql` (modified —
+  amends 0025's INSERTs with `role` + population filter)
+- `backend/app/db/sql_scripts/migration/get_pitcher_projection_inputs.sql` (new)
 - `backend/app/db/update.py`, `backend/app/db/projection.py` (modified)
+- `backend/tests/db/test_update.py` (modified — pitcher mocks added to
+  `test_process_single_heap_short`)

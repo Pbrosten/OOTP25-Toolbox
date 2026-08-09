@@ -10,6 +10,7 @@ DROP TABLE IF EXISTS players_basepath;
 DROP TABLE IF EXISTS players_batting_expected;
 DROP TABLE IF EXISTS players_batting_talent;
 DROP TABLE IF EXISTS players_batting;
+DROP TABLE IF EXISTS players_pitching_expected;
 DROP TABLE IF EXISTS players_pitching_talent;
 DROP TABLE IF EXISTS players_pitching;
 DROP TABLE IF EXISTS players_rating;
@@ -163,6 +164,7 @@ CREATE TABLE players_batting_talent (
 -- Player Pitching --
 CREATE TABLE players_pitching (
   rating_id INT PRIMARY KEY,
+  role SMALLINT,
   stuff INT,
   movement INT,
   hra INT,
@@ -177,6 +179,27 @@ CREATE TABLE players_pitching (
   ground_fly INT,
   hold INT,
   FOREIGN KEY (rating_id) REFERENCES players_rating(rating_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Player Pitching Expected --
+CREATE TABLE players_pitching_expected (
+  rating_id INT PRIMARY KEY,
+  PA INT,
+  AB INT,
+  H INT,
+  HR INT,
+  BB INT,
+  HBP INT,
+  K INT,
+  BA FLOAT,
+  OBP FLOAT,
+  wOBA FLOAT,
+  IP FLOAT,
+  GS INT,
+  G INT,
+  RA9 FLOAT,
+  ERA FLOAT,
+  FOREIGN KEY (rating_id) REFERENCES players_pitching(rating_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Player Pitching Talent --

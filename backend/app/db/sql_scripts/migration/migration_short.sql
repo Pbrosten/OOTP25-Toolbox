@@ -42,11 +42,12 @@ JOIN staging.players_batting AS s ON r.player_id = s.player_id
 WHERE r.rating_date = '{{HEAP_DATE}}';
 
 INSERT IGNORE INTO players_pitching (
-    rating_id, stuff, movement, hra, pbabip, control, balk, hp, wild_pitch,
+    rating_id, role, stuff, movement, hra, pbabip, control, balk, hp, wild_pitch,
     velocity, arm_slot, stamina, ground_fly, hold
 )
 SELECT
     r.rating_id,
+    s.role,
     s.pitching_ratings_overall_stuff,
     s.pitching_ratings_overall_movement,
     s.pitching_ratings_overall_hra,
@@ -62,7 +63,11 @@ SELECT
     s.pitching_ratings_misc_hold
 FROM players_rating AS r
 JOIN staging.players_pitching AS s ON r.player_id = s.player_id
-WHERE r.rating_date = '{{HEAP_DATE}}';
+-- staging.players_pitching has one row per player in the league (not just
+-- pitchers) -- role 11/12/13 = SP/RP/Closer, role 0 = non-pitcher. See
+-- ticket 0026's Design choices for how this was confirmed against a real
+-- dump export.
+WHERE r.rating_date = '{{HEAP_DATE}}' AND s.role IN (11, 12, 13);
 
 INSERT IGNORE INTO players_pitching_talent (
     rating_id, stuff, movement, hra, pbabip, control, balk, hp, wild_pitch
@@ -79,7 +84,7 @@ SELECT
     s.pitching_ratings_talent_wild_pitch
 FROM players_rating AS r
 JOIN staging.players_pitching AS s ON r.player_id = s.player_id
-WHERE r.rating_date = '{{HEAP_DATE}}';
+WHERE r.rating_date = '{{HEAP_DATE}}' AND s.role IN (11, 12, 13);
 
 INSERT IGNORE INTO players_basepath (
     rating_id, speed, steal_rate, steal, baserunning

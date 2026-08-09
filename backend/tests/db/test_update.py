@@ -155,6 +155,9 @@ def test_insert_projections(mock_update):
 
 
 @patch("app.db.update.mark_heap_processed")
+@patch("app.db.update.insert_pitcher_projections", return_value=3)
+@patch("app.db.update.project_pitchers", return_value=[{"id": 9}])
+@patch("app.db.update.fetch_pitcher_projection_inputs", return_value=[{"id": 9}])
 @patch("app.db.update.insert_projections", return_value=7)
 @patch("app.db.update.project_players", return_value=[{"id": 1}, {"id": 2}])
 @patch("app.db.update.fetch_projection_inputs", return_value=[{"id": 1}, {"id": 2}])
@@ -164,7 +167,9 @@ def test_insert_projections(mock_update):
 @patch("app.db.update.extract_heap_date_from_path", return_value=["dump", "2023", "08"])
 def test_process_single_heap_short(
     mock_extract, mock_connect, mock_load, mock_migration_short,
-    mock_fetch, mock_project, mock_insert, mock_mark_processed,
+    mock_fetch, mock_project, mock_insert,
+    mock_fetch_pitchers, mock_project_pitchers, mock_insert_pitchers,
+    mock_mark_processed,
 ):
     mock_staging_db = MagicMock()
     mock_connect.return_value = mock_staging_db
@@ -182,9 +187,14 @@ def test_process_single_heap_short(
     mock_fetch.assert_called_once_with(["dump", "2023", "08"], db)
     mock_project.assert_called_once_with([{"id": 1}, {"id": 2}])
     mock_insert.assert_called_once_with([{"id": 1}, {"id": 2}], db)
+
+    mock_fetch_pitchers.assert_called_once_with(["dump", "2023", "08"], db)
+    mock_project_pitchers.assert_called_once_with([{"id": 9}])
+    mock_insert_pitchers.assert_called_once_with([{"id": 9}], db)
+
     mock_mark_processed.assert_called_once_with(db, ["dump", "2023", "08"], True)
 
-    assert counts == {"ratings_inserted": 42, "players_updated": 0, "projections_inserted": 7}
+    assert counts == {"ratings_inserted": 42, "players_updated": 0, "projections_inserted": 10}
 
 
 @patch("app.db.update.mark_heap_processed")

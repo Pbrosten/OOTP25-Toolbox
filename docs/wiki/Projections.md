@@ -3,14 +3,16 @@
 [← Back to Home](Home.md)
 
 This page documents the *methodology* behind expected-stat projections — how
-a 20-80 scouting rating turns into a projected AVG/wOBA/ERA/etc. For batters
-this methodology is already implemented
-(`backend/app/player_projection/batter.py`); for pitchers it exists only as a
-worked spreadsheet today and is not yet implemented in code (see
+a 20-80 scouting rating turns into a projected AVG/wOBA/ERA/etc. Both
+methodologies are now implemented: batters in
+`backend/app/player_projection/batter.py`, pitchers in
+`backend/app/player_projection/pitcher.py` (see
 [docs/tickets/0015](../tickets/0015-pitcher-projection-epic.md) and its
-breakdown, 0024–0027). This page exists to pin down the pitcher methodology
-before that implementation work starts, and to document the batter
-methodology's shape for comparison.
+breakdown, 0024–0027; the pitcher implementation, 0026, deliberately diverges
+from §3.2's age-development track — see §3.6). This page was originally
+written to pin down the pitcher methodology before that implementation work
+started, from the same source spreadsheet as the batter methodology; it's
+kept as the design record and confirmed/open tracker.
 
 Both methodologies originate from the same source workbook:
 [`docs/resources/OOTP calculator blank.xlsx`](../resources/OOTP%20calculator%20blank.xlsx)
@@ -208,25 +210,46 @@ From the scaled counting stats (`PA, AB, H, HR, BB, HBP, K`):
 
 ### 3.6 What's confirmed vs. still open
 
-**Confirmed by this spreadsheet analysis** (resolves part of 0026's
-"Outstanding" methodology question):
+**Confirmed by this spreadsheet analysis, and implemented in
+`PitcherProjection` (0026):**
 
 - Output stat set for `players_pitching_expected`: `PA, AB, H, HR, BB, HBP,
   K, BA, OBP, wOBA, IP, GS (SP only) / G (RP only), RA/9, ERA`.
 - The rating→rate lookup table shape and exact constants (§3.3), split by
-  role (SP vs. RP get different curves).
-- The age-development pipeline for players under 25 (§3.2).
+  role (SP vs. RP get different curves) — verified formula-for-formula
+  against the source workbook (fed identical inputs through both
+  `PitcherProjection` and the live spreadsheet; every output stat matched
+  exactly).
+- The "Playing Time" manual-input gap (§3.4) — resolved as a known
+  limitation rather than a derivation: every pitcher gets a full share
+  (`PLAYING_TIME_INPUT = 1.0` in `pitcher.py`), not derived from roster
+  data. Overstates playing time for organizational depth/fringe arms.
+- SP vs. RP role classification — `staging.players_pitching.role` is a
+  numeric roster-role code, confirmed against real dump data (cross-checked
+  against actual `GS`/`G` usage in `staging.players_career_pitching_stats`):
+  `11` = Starting Pitcher, `12` = Relief Pitcher, `13` = Closer (small
+  subset, all-relief usage, folded into the RP bucket since the spreadsheet
+  has no third curve). Also discovered in the process:
+  `staging.players_pitching` has one row per player in the *entire league*
+  (~135k/heap), not just pitchers — non-pitchers get `role = 0` and are
+  filtered out at both the migration layer (`migration_short.sql`'s
+  `WHERE ... role IN (11, 12, 13)`) and defensively in `PitcherProjection`.
 
-**Still open**, deferred to 0026 implementation:
+**Deliberately not implemented** (implementation choice, not new
+methodology findings):
 
-- The "Playing Time" manual-input gap (§3.4) — needs a decision, not just a
-  code port.
-- SP vs. RP role classification: `staging.players_pitching.role` /
-  `position` presumably distinguishes these, but hasn't been checked against
-  real data for how reliably it maps to "use the SP curve" vs. "use the RP
-  curve."
+- The age-development pipeline for players under 25 (§3.2) — the formulas
+  were confirmed, but `PitcherProjection` skips them and uses current
+  ratings directly, matching how `BatterProjection` actually works today
+  (no age/potential blending there either). The pitcher export is also
+  missing one of the three makeup traits the blend needs (no Adaptability
+  field), which would have required inventing a mapping to fill the gap.
+
+**Still open**, deferred past 0026:
+
 - Value/WAR (wRAA-against aside, needed for RA/9 per §3.5) — deliberately
-  not covered here per this doc's scope.
+  not covered here per this doc's scope; tracked in
+  [0028](../tickets/0028-pitcher-run-value-war.md).
 - Whether the "Current"/"Peak" tracks (not just "Projected") are ever
   needed — the app today only surfaces one expected-stat snapshot per rating
   date (`players_batting_expected` has no Current/Peak equivalent for
@@ -235,9 +258,10 @@ From the scaled counting stats (`PA, AB, H, HR, BB, HBP, K`):
 
 ## 4. Where this is surfaced today
 
-Nowhere yet, for pitchers — see
+Backend projection exists (`players_pitching_expected`, populated per short
+heap) but nothing reads it yet — see
 [Features.md](Features.md#player-profile--playersid)'s note that
 `PitcherPercentiles` is a stubbed placeholder. Once
-[0024](../tickets/0024-pitcher-schema-ratings-tables.md)-[0027](../tickets/0027-pitcher-api-frontend-wiring.md)
-ship, it'll follow the same path batters already use — see
+[0027](../tickets/0027-pitcher-api-frontend-wiring.md) ships, it'll follow
+the same path batters already use — see
 [Features.md → Underlying data](Features.md#underlying-data-projections--run-value).
