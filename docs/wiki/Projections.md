@@ -327,11 +327,10 @@ figure. See [0028](../tickets/0028-pitcher-run-value-war.md#2-design-choices).
 
 ## 4. Where this is surfaced today
 
-Backend projection exists (`players_pitching_expected` and, as of 0028,
-`players_pitching_run_value`, both populated per short heap) but nothing
-reads either yet — see
-[Features.md](Features.md#player-profile--playersid)'s note that
-`PitcherPercentiles` is a stubbed placeholder. Once
-[0027](../tickets/0027-pitcher-api-frontend-wiring.md) ships, it'll follow
-the same path batters already use — see
-[Features.md → Underlying data](Features.md#underlying-data-projections--run-value).
+Both `players_pitching_expected` (0026) and `players_pitching_run_value`
+(0028) are populated per short heap and, as of
+[0027](../tickets/0027-pitcher-api-frontend-wiring.md), surfaced in the UI —
+see [Features.md → Player Profile](Features.md#player-profile--playersid)
+for the `PitcherPercentiles` component and
+[Features.md → Underlying data](Features.md#underlying-data-projections--run-value)
+for how the pipeline feeds it.

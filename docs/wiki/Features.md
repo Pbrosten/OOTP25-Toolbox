@@ -22,9 +22,11 @@ The main analytics view for a single player. It shows:
   `/api/players/ratings/*/expected/*/percentiles` endpoints. This is what
   answers "how good is this player's projected performance *relative to
   their peers*," not just in absolute terms.
-
-  > Pitcher percentiles are stubbed out in the UI (`PitcherPercentiles` is a
-  > placeholder component) — only batters are fully supported today.
+- **Pitcher percentiles** (`position === 'P'`) — the pitching equivalent,
+  comparing expected production (ERA, xBA/xwOBA against, ratings) and
+  run-value/WAR against a cohort of pitchers in the same league, backed by
+  `/api/players/ratings/*/expected/pitching/percentiles`
+  ([0027](../tickets/0027-pitcher-api-frontend-wiring.md)).
 
 ## Admin Panel — `/admin`
 

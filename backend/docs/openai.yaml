@@ -100,6 +100,40 @@ paths:
         '404':
           description: Not found
 
+  /api/players/stats/expected/pitching:
+    get:
+      summary: Retrieve all player expected pitching stat entries
+      tags: [Projections, Pitching]
+      responses:
+        '200':
+          description: List of expected pitching stats
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PitchingExpected'
+
+  /api/players/stats/expected/pitching/{rating_id}:
+    get:
+      summary: Retrieve pitching expected stats by ID
+      tags: [Projections, Pitching]
+      parameters:
+        - name: rating_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Player pitching expected stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PitchingExpected'
+        '404':
+          description: Not found
+
   /api/players/stats/expected/basepath:
     get:
       summary: Retrieve all basepath expected stats
@@ -736,6 +770,50 @@ components:
           type: number
           format: float
         wOBA:
+          type: number
+          format: float
+
+    PitchingExpected:
+      type: object
+      properties:
+        rating_id:
+          type: integer
+        PA:
+          type: integer
+        AB:
+          type: integer
+        H:
+          type: integer
+        HR:
+          type: integer
+        BB:
+          type: integer
+        HBP:
+          type: integer
+        K:
+          type: integer
+        BA:
+          type: number
+          format: float
+        OBP:
+          type: number
+          format: float
+        wOBA:
+          type: number
+          format: float
+        IP:
+          type: number
+          format: float
+        GS:
+          type: number
+          format: float
+        G:
+          type: number
+          format: float
+        RA9:
+          type: number
+          format: float
+        ERA:
           type: number
           format: float
 

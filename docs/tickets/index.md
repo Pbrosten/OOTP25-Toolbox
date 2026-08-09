@@ -114,7 +114,7 @@ projection refinement) depends on that line's output.
 [x] 0028 Run-value / WAR  <-- design decision needed
       |
       v
-[ ] 0027 API route + PitcherPercentiles frontend
+[x] 0027 API route + PitcherPercentiles frontend
 
 [x] = Closed   [ ] = Open   [~] = In-Progress
 ```
@@ -126,7 +126,7 @@ projection refinement) depends on that line's output.
 | [0025](0025-pitcher-migration-ingestion.md) | Ingest pitcher ratings: re-enable staging load + `migration_short.sql` | feat | Closed | 0024 |
 | [0026](0026-pitcher-projection-methodology.md) | Pitcher projection methodology + `PitcherProjection` class | feat | Closed | 0025 |
 | [0028](0028-pitcher-run-value-war.md) | Pitcher run-value/WAR: methodology, schema, and projection wiring | feat | Closed | 0026 |
-| [0027](0027-pitcher-api-frontend-wiring.md) | Pitcher projections API route + `PitcherPercentiles` component | feat | Open | 0026, 0028 |
+| [0027](0027-pitcher-api-frontend-wiring.md) | Pitcher projections API route + `PitcherPercentiles` component | feat | Closed | 0026, 0028 |
 | [0029](0029-pitcher-pitch-repertoire.md) | Pitcher pitch repertoire: number of pitches + per-pitch quality (epic outline) | feat | Open | 0025 |
 
 ## Frontend / stats display fixes

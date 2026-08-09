@@ -1,7 +1,7 @@
 # 0027 — Pitcher projections API route + `PitcherPercentiles` component
 
 - **Tag:** feat
-- **Status:** Open
+- **Status:** Closed
 - **Depends on:** [0026](0026-pitcher-projection-methodology.md), [0028](0028-pitcher-run-value-war.md)
 - **Blocks:** —
 
@@ -31,31 +31,66 @@ has `/expected/batting`, `/expected/basepath`, `/expected/fielding`, and
   `backend/app/api/projections.py:61-95`, for the exact query shape). The
   pitching route should compare against `players_pitching_expected` the same
   way — no new design question here, just needs 0026's table to exist first.
-- **Outstanding:** exact response shape depends entirely on what 0026's
-  `players_pitching_expected` columns and
-  [0028](0028-pitcher-run-value-war.md)'s `players_pitching_run_value`
-  columns turn out to be.
+- **Resolved:** response shape. Rather than a separate value-percentiles
+  route mirroring the batting side's standalone `/expected/value/percentiles`,
+  `players_pitching_expected` and `players_pitching_run_value` are joined
+  in a single `get_player_expected_pitching_percentiles.sql` query — one
+  route, one fetch on the frontend — since pitchers only have these two
+  backing tables (no basepath/fielding equivalents: fielding is always zero
+  per 0028, pitchers don't steal bases). Fields returned: `pitching_runs`,
+  `baserunning_runs`, `total_runs`, `war` (from `players_pitching_run_value`,
+  all higher-is-better); `era`, `xba`, `xwoba` (from
+  `players_pitching_expected`, all **lower**-is-better — comparisons
+  inverted, `WHERE stat > target.stat` instead of `<`); `stuff`, `control`,
+  `pbabip`, `hra`, `stamina`, `hold` (from `players_pitching` ratings, all
+  higher-is-better, same direction as batting ratings). Cohort filter is
+  `p.position = 'P'` (inverse of the batting query's `!= 'P'`), otherwise
+  identical to `get_player_expected_batting_percentiles.sql`'s shape — no
+  SP/RP split, matching this ticket's own stated non-decision on cohort
+  scoping.
 
 ## 3. Approach
 
-- `backend/app/api/projections.py`: add routes mirroring
-  `get_expected_batting_stats` / `get_expected_batting_stats_by_id` /
-  `get_expected_batting_percentiles` (lines 13-95), reading from
-  `players_pitching_expected` (and
-  [0028](0028-pitcher-run-value-war.md)'s `players_pitching_run_value`)
-  instead of the batting tables.
-- `backend/docs/openai.yaml`: document the new routes, per this repo's
-  standing convention of keeping the OpenAPI spec in sync.
+- `backend/app/api/projections.py`: added `get_expected_pitching_stats` /
+  `get_expected_pitching_stats_by_id` / `get_expected_pitching_percentiles`,
+  structural mirrors of the batting routes, reading from
+  `players_pitching_expected` and (percentiles route only) the new SQL file
+  below.
+- `get_player_expected_pitching_percentiles.sql` (new): see Design choices
+  above for the exact shape — three CTEs (`expected_filtered`,
+  `ratings_filtered`, `value_filtered`), one per source table.
+- `backend/docs/openai.yaml`: added `/api/players/stats/expected/pitching`
+  and `/{rating_id}` entries plus a `PitchingExpected` schema, mirroring the
+  existing `BattingExpected` entries. Percentile routes remain undocumented
+  here, matching the pre-existing gap for batting/basepath/fielding/value
+  percentiles (not this ticket's scope to fix).
 - `frontend/src/components/percentiles/PitcherPercentiles.vue` (new):
-  mirror `BatterPercentiles.vue`'s structure (fetch by `playerId`, render
-  percentile bars) against the new endpoint.
-- `frontend/src/views/PlayerProfile.vue`: uncomment the real import
-  (line 6), delete the `const PitcherPercentiles = {}` stand-in (line 17).
-- `docs/wiki/Features.md`: remove the "stubbed out" note once shipped.
+  mirrors `BatterPercentiles.vue`'s structure (year selector, MLB/current
+  toggle, `PercentileBar` rows) but simpler — one fetch instead of four,
+  since the one combined percentiles endpoint covers both "Value" and
+  "Pitching" sections.
+- `frontend/src/views/PlayerProfile.vue`: uncommented the real import,
+  deleted the `const PitcherPercentiles = {}` stand-in, passed `leagueId`
+  through (the stand-in usage was missing it).
+- `docs/wiki/Features.md` / `docs/wiki/Projections.md`: removed the
+  "stubbed out" note, documented the new section and its endpoint.
+
+**Verified:** full pytest suite (same 11 pre-existing, unrelated failures);
+live end-to-end run seeding an isolated throwaway database (3 pitchers + 1
+batter) through the real `fetch → project → insert` path, then hitting all
+three new HTTP routes and hand-verifying the percentile math (including the
+inverted ERA/xBA/xwOBA direction and the `position = 'P'` cohort filter
+correctly 404ing a batter's rating_id); confirmed against the real, live
+`ootp` database (427,439 populated `players_pitching_expected` rows) after
+restarting the backend container (its `flask run` process predated this
+session's code changes and wasn't running with the reloader, so the
+bind-mounted source updates weren't picked up until restart) — real pitcher
+profile pages now load percentiles correctly end-to-end.
 
 **Files involved:**
 - `backend/app/api/projections.py` (modified)
+- `backend/app/db/sql_scripts/api/get_player_expected_pitching_percentiles.sql` (new)
 - `backend/docs/openai.yaml` (modified)
 - `frontend/src/components/percentiles/PitcherPercentiles.vue` (new)
 - `frontend/src/views/PlayerProfile.vue` (modified)
-- `docs/wiki/Features.md` (modified)
+- `docs/wiki/Features.md`, `docs/wiki/Projections.md` (modified)
