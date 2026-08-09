@@ -432,6 +432,43 @@ paths:
                   error:
                     type: string
 
+  /api/ratings/pitch_repertoire:
+    get:
+      summary: Get all pitch repertoire entries
+      description: Returns a list of all pitch repertoire records (one row per pitch type a player throws).
+      tags: [Ratings, Pitching]
+      responses:
+        '200':
+          description: A list of pitch repertoire entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PitchRepertoireEntry'
+
+  /api/ratings/pitch_repertoire/{rating_id}:
+    get:
+      summary: Get the pitch repertoire for a rating ID
+      description: Returns all pitch repertoire entries for a given rating ID. Unlike other rating-by-id routes, rating_id is not unique in this table, so this always returns a list (possibly empty), never a single object or a 404.
+      tags: [Ratings, Pitching]
+      parameters:
+        - in: path
+          name: rating_id
+          required: true
+          schema:
+            type: integer
+          description: The rating ID to look up
+      responses:
+        '200':
+          description: Pitch repertoire entries for the given rating ID (possibly empty)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PitchRepertoireEntry'
+
   /api/admin/init-db:
     post:
       summary: Initialize the database schema
@@ -734,7 +771,20 @@ components:
           type: integer
         pos9:
           type: integer
-    
+
+    PitchRepertoireEntry:
+      type: object
+      properties:
+        rating_id:
+          type: integer
+        pitch_type:
+          type: string
+          description: One of fastball, slider, curveball, screwball, forkball, changeup, sinker, splitter, knuckleball, cutter, circlechange, knucklecurve.
+        grade:
+          type: integer
+        talent_grade:
+          type: integer
+
     BattingExpected:
       type: object
       properties:

@@ -27,6 +27,12 @@ The main analytics view for a single player. It shows:
   run-value/WAR against a cohort of pitchers in the same league, backed by
   `/api/players/ratings/*/expected/pitching/percentiles`
   ([0027](../tickets/0027-pitcher-api-frontend-wiring.md)).
+- **Pitch repertoire** (`position === 'P'`) — a plain grade/potential table
+  of every pitch a pitcher actually throws (fastball, slider, etc.), not a
+  population comparison like the percentile sections above. Backed by
+  `/api/players/ratings/*/pitch_repertoire`, which returns one row per
+  pitch with a nonzero grade in the source export
+  ([0029](../tickets/0029-pitcher-pitch-repertoire.md)–[0033](../tickets/0033-pitch-repertoire-report.md)).
 
 ## Admin Panel — `/admin`
 

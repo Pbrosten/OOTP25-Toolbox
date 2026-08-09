@@ -1,7 +1,7 @@
 # 0033 — Pitch repertoire API route + report component
 
 - **Tag:** feat
-- **Status:** Open
+- **Status:** Closed
 - **Depends on:** [0032](0032-pitch-repertoire-migration.md)
 - **Blocks:** —
 
@@ -75,6 +75,28 @@ pitches does this pitcher throw, and how good is each one," the gap
 - `frontend/src/views/PlayerProfile.vue`: render `PitchRepertoire` alongside
   `PitcherPercentiles` in the `position === 'P'` branch.
 - `docs/wiki/Features.md`: document the new report.
+
+**Verified:** full pytest suite (same 11 pre-existing, unrelated
+`test_players.py` failures, no new failures). `openai.yaml` parses as valid
+YAML. Backend routes verified live: spun up another throwaway `mariadbd`
+instance (same approach as 0032), loaded `schema.sql`, seeded one pitcher
+with 3 repertoire rows, ran the real Flask dev server against it, and
+curled all three cases — `GET /api/players/ratings/pitch_repertoire`
+(all rows), `GET /api/players/ratings/100/pitch_repertoire` (that
+pitcher's 3 rows), and `GET /api/players/ratings/999/pitch_repertoire`
+(no rows → `[]`, not a 404, confirming the documented shape) — plus the
+frontend's dependency chain, `GET /api/players/1/ratings?latest=true` →
+`rating_id`. All correct. Instance torn down after.
+
+No `node`/`npm` available in this sandboxed environment, so the frontend
+change (`PitchRepertoire.vue`, `PlayerProfile.vue`) could not be
+type-checked (`vue-tsc`) or built/run in a browser — verified by careful
+inspection against the sibling components' patterns
+(`PitcherPercentiles.vue`'s fetch-latest-rating-then-fetch-data flow,
+`PlayerDetails.vue`'s plain-table styling) instead. Flagging this
+explicitly since it's the one piece of this ticket not exercised
+end-to-end — worth a manual check in a real browser before considering the
+UI side fully done.
 
 **Files involved:**
 - `backend/app/api/ratings.py` (modified)
