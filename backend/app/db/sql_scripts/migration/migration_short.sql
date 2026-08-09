@@ -86,6 +86,69 @@ FROM players_rating AS r
 JOIN staging.players_pitching AS s ON r.player_id = s.player_id
 WHERE r.rating_date = '{{HEAP_DATE}}' AND s.role IN (11, 12, 13);
 
+-- One row per pitch type actually thrown (grade > 0), not a fixed
+-- 12-column-wide row -- see ticket 0029/0031/0032's Design choices.
+INSERT IGNORE INTO players_pitch_repertoire (rating_id, pitch_type, grade, talent_grade)
+SELECT r.rating_id, 'fastball', s.pitching_ratings_pitches_fastball, s.pitching_ratings_pitches_talent_fastball
+FROM players_rating AS r
+JOIN staging.players_pitching AS s ON r.player_id = s.player_id
+WHERE r.rating_date = '{{HEAP_DATE}}' AND s.role IN (11, 12, 13) AND s.pitching_ratings_pitches_fastball > 0
+UNION ALL
+SELECT r.rating_id, 'slider', s.pitching_ratings_pitches_slider, s.pitching_ratings_pitches_talent_slider
+FROM players_rating AS r
+JOIN staging.players_pitching AS s ON r.player_id = s.player_id
+WHERE r.rating_date = '{{HEAP_DATE}}' AND s.role IN (11, 12, 13) AND s.pitching_ratings_pitches_slider > 0
+UNION ALL
+SELECT r.rating_id, 'curveball', s.pitching_ratings_pitches_curveball, s.pitching_ratings_pitches_talent_curveball
+FROM players_rating AS r
+JOIN staging.players_pitching AS s ON r.player_id = s.player_id
+WHERE r.rating_date = '{{HEAP_DATE}}' AND s.role IN (11, 12, 13) AND s.pitching_ratings_pitches_curveball > 0
+UNION ALL
+SELECT r.rating_id, 'screwball', s.pitching_ratings_pitches_screwball, s.pitching_ratings_pitches_talent_screwball
+FROM players_rating AS r
+JOIN staging.players_pitching AS s ON r.player_id = s.player_id
+WHERE r.rating_date = '{{HEAP_DATE}}' AND s.role IN (11, 12, 13) AND s.pitching_ratings_pitches_screwball > 0
+UNION ALL
+SELECT r.rating_id, 'forkball', s.pitching_ratings_pitches_forkball, s.pitching_ratings_pitches_talent_forkball
+FROM players_rating AS r
+JOIN staging.players_pitching AS s ON r.player_id = s.player_id
+WHERE r.rating_date = '{{HEAP_DATE}}' AND s.role IN (11, 12, 13) AND s.pitching_ratings_pitches_forkball > 0
+UNION ALL
+SELECT r.rating_id, 'changeup', s.pitching_ratings_pitches_changeup, s.pitching_ratings_pitches_talent_changeup
+FROM players_rating AS r
+JOIN staging.players_pitching AS s ON r.player_id = s.player_id
+WHERE r.rating_date = '{{HEAP_DATE}}' AND s.role IN (11, 12, 13) AND s.pitching_ratings_pitches_changeup > 0
+UNION ALL
+SELECT r.rating_id, 'sinker', s.pitching_ratings_pitches_sinker, s.pitching_ratings_pitches_talent_sinker
+FROM players_rating AS r
+JOIN staging.players_pitching AS s ON r.player_id = s.player_id
+WHERE r.rating_date = '{{HEAP_DATE}}' AND s.role IN (11, 12, 13) AND s.pitching_ratings_pitches_sinker > 0
+UNION ALL
+SELECT r.rating_id, 'splitter', s.pitching_ratings_pitches_splitter, s.pitching_ratings_pitches_talent_splitter
+FROM players_rating AS r
+JOIN staging.players_pitching AS s ON r.player_id = s.player_id
+WHERE r.rating_date = '{{HEAP_DATE}}' AND s.role IN (11, 12, 13) AND s.pitching_ratings_pitches_splitter > 0
+UNION ALL
+SELECT r.rating_id, 'knuckleball', s.pitching_ratings_pitches_knuckleball, s.pitching_ratings_pitches_talent_knuckleball
+FROM players_rating AS r
+JOIN staging.players_pitching AS s ON r.player_id = s.player_id
+WHERE r.rating_date = '{{HEAP_DATE}}' AND s.role IN (11, 12, 13) AND s.pitching_ratings_pitches_knuckleball > 0
+UNION ALL
+SELECT r.rating_id, 'cutter', s.pitching_ratings_pitches_cutter, s.pitching_ratings_pitches_talent_cutter
+FROM players_rating AS r
+JOIN staging.players_pitching AS s ON r.player_id = s.player_id
+WHERE r.rating_date = '{{HEAP_DATE}}' AND s.role IN (11, 12, 13) AND s.pitching_ratings_pitches_cutter > 0
+UNION ALL
+SELECT r.rating_id, 'circlechange', s.pitching_ratings_pitches_circlechange, s.pitching_ratings_pitches_talent_circlechange
+FROM players_rating AS r
+JOIN staging.players_pitching AS s ON r.player_id = s.player_id
+WHERE r.rating_date = '{{HEAP_DATE}}' AND s.role IN (11, 12, 13) AND s.pitching_ratings_pitches_circlechange > 0
+UNION ALL
+SELECT r.rating_id, 'knucklecurve', s.pitching_ratings_pitches_knucklecurve, s.pitching_ratings_pitches_talent_knucklecurve
+FROM players_rating AS r
+JOIN staging.players_pitching AS s ON r.player_id = s.player_id
+WHERE r.rating_date = '{{HEAP_DATE}}' AND s.role IN (11, 12, 13) AND s.pitching_ratings_pitches_knucklecurve > 0;
+
 INSERT IGNORE INTO players_basepath (
     rating_id, speed, steal_rate, steal, baserunning
 )

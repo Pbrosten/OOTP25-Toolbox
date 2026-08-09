@@ -1,7 +1,7 @@
 # 0032 — Ingest pitch repertoire: `migration_short.sql`
 
 - **Tag:** feat
-- **Status:** Open
+- **Status:** Closed
 - **Depends on:** [0031](0031-pitch-repertoire-schema.md)
 - **Blocks:** [0033](0033-pitch-repertoire-report.md)
 
@@ -64,6 +64,21 @@ staging re-enablement needed (`staging.players_pitching`, including its
   `players_pitch_repertoire` rows land (spot-check a known multi-pitch
   pitcher's row count and grades against the raw dump), and that
   `INSERT IGNORE` isn't silently no-opping.
+
+**Verified:** full pytest suite (same 11 pre-existing, unrelated
+`test_players.py` failures, no new failures). No live Podman/Docker stack
+available in this environment (rootless container storage isn't writable
+here), so instead spun up a throwaway local `mariadbd` instance (own
+datadir/socket in the scratchpad, no system service touched), loaded
+`schema.sql` into a fresh `ootp` database plus a hand-built minimal
+`staging` fixture (3 players: a 3-pitch SP, a 1-pitch RP, and a non-pitcher
+with a nonzero `role=0` fastball grade), then ran the real
+`app.db.update.run_migration_short()` end-to-end against it. Confirmed:
+the SP got 3 correctly-graded rows, the RP got 1, the non-pitcher got 0
+(role filter works), and re-running the same migration was a true no-op
+(0 rows affected, no duplicate-key errors) — `INSERT IGNORE` +
+`PRIMARY KEY (rating_id, pitch_type)` behaves correctly on replay. Instance
+torn down and scratch files removed after verification.
 
 **Files involved:**
 - `backend/app/db/sql_scripts/migration/migration_short.sql` (modified)

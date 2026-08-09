@@ -112,7 +112,7 @@ projection refinement) depends on that line's output.
       v                            [x] 0031 Schema (players_pitch_repertoire)
 [x] 0028 Run-value / WAR                 |
       |                                  v
-      v                            [ ] 0032 Migration (staging -> ootp)
+      v                            [x] 0032 Migration (staging -> ootp)
 [x] 0027 API route +                     |
     PitcherPercentiles frontend          v
                                     [ ] 0033 API route + report component
@@ -130,7 +130,7 @@ projection refinement) depends on that line's output.
 | [0027](0027-pitcher-api-frontend-wiring.md) | Pitcher projections API route + `PitcherPercentiles` component | feat | Closed | 0026, 0028 |
 | [0029](0029-pitcher-pitch-repertoire.md) | Pitcher pitch repertoire: number of pitches + per-pitch quality (epic tracker) | feat | In-Progress | 0025 |
 | [0031](0031-pitch-repertoire-schema.md) | Pitch repertoire schema: `players_pitch_repertoire` | feat | Closed | 0025 |
-| [0032](0032-pitch-repertoire-migration.md) | Ingest pitch repertoire: `migration_short.sql` | feat | Open | 0031 |
+| [0032](0032-pitch-repertoire-migration.md) | Ingest pitch repertoire: `migration_short.sql` | feat | Closed | 0031 |
 | [0033](0033-pitch-repertoire-report.md) | Pitch repertoire API route + report component | feat | Open | 0032 |
 
 ## Frontend / stats display fixes
