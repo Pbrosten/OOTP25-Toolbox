@@ -17,6 +17,7 @@ DROP TABLE IF EXISTS players_pitch_repertoire;
 DROP TABLE IF EXISTS players_pitching;
 DROP TABLE IF EXISTS players_rating;
 DROP TABLE IF EXISTS players_career_batting_stats;
+DROP TABLE IF EXISTS players_career_pitching_stats;
 DROP TABLE IF EXISTS players;
 DROP TABLE IF EXISTS teams;
 
@@ -105,6 +106,71 @@ CREATE TABLE players_career_batting_stats (
   FOREIGN KEY (player_id) REFERENCES players(player_id),
   FOREIGN KEY (team_id) REFERENCES teams(team_id)
   -- FOREIGN KEY (league_id) REFERENCES leagues(league_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Player Career Pitching --
+CREATE TABLE players_career_pitching_stats (
+  player_id INT,
+  year SMALLINT,
+  team_id INT,
+  game_id INT,
+  league_id INT,
+  level_id SMALLINT,
+  split_id SMALLINT,
+  ip SMALLINT,
+  ab SMALLINT,
+  tb SMALLINT,
+  ha SMALLINT,
+  k SMALLINT,
+  bf SMALLINT,
+  rs SMALLINT,
+  bb SMALLINT,
+  r SMALLINT,
+  er SMALLINT,
+  gb SMALLINT,
+  fb SMALLINT,
+  pi SMALLINT,
+  ipf SMALLINT,
+  g SMALLINT,
+  gs SMALLINT,
+  w SMALLINT,
+  l SMALLINT,
+  s SMALLINT,
+  sa SMALLINT,
+  da SMALLINT,
+  sh SMALLINT,
+  sf SMALLINT,
+  ta SMALLINT,
+  hra SMALLINT,
+  bk SMALLINT,
+  ci SMALLINT,
+  iw SMALLINT,
+  wp SMALLINT,
+  hp SMALLINT,
+  gf SMALLINT,
+  dp SMALLINT,
+  qs SMALLINT,
+  svo SMALLINT,
+  bs SMALLINT,
+  ra SMALLINT,
+  cg SMALLINT,
+  sho SMALLINT,
+  sb SMALLINT,
+  cs SMALLINT,
+  hld SMALLINT,
+  ir DOUBLE,
+  irs DOUBLE,
+  wpa DOUBLE,
+  li DOUBLE,
+  stint SMALLINT,
+  outs SMALLINT,
+  sd SMALLINT,
+  md SMALLINT,
+  war DOUBLE,
+  ra9war DOUBLE,
+  PRIMARY KEY (player_id, year, team_id),
+  FOREIGN KEY (player_id) REFERENCES players(player_id),
+  FOREIGN KEY (team_id) REFERENCES teams(team_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Player Rating --

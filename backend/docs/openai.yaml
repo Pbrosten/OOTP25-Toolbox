@@ -66,6 +66,40 @@ paths:
                   error:
                     type: string
   
+  /api/players/{player_id}/career/pitching:
+    get:
+      summary: Retrieve a player's career pitching stats, by season
+      description: |
+        Returns one row per season/team of raw career pitching counting
+        stats. Automatically selects the MLB-only or MiLB-only variant
+        based on whether the player has any MLB (league_id 203) rows.
+      tags: [Players, Pitching]
+      parameters:
+        - in: path
+          name: player_id
+          required: true
+          schema:
+            type: integer
+          description: The ID of the player to retrieve
+      responses:
+        '200':
+          description: List of career pitching stat rows, one per season/team
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PitchingCareerStats'
+        '404':
+          description: Player not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+
   /api/players/stats/expected/batting:
     get:
       summary: Retrieve all player expected batting stat entries
@@ -866,6 +900,34 @@ components:
         ERA:
           type: number
           format: float
+
+    PitchingCareerStats:
+      type: object
+      properties:
+        year:
+          type: integer
+        abbr:
+          type: string
+        w:
+          type: integer
+        l:
+          type: integer
+        s:
+          type: integer
+        g:
+          type: integer
+        gs:
+          type: integer
+        outs:
+          type: integer
+        k:
+          type: integer
+        bb:
+          type: integer
+        ha:
+          type: integer
+        er:
+          type: integer
 
     BasepathExpected:
       type: object

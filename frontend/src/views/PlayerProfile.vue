@@ -22,25 +22,26 @@ const leagueId = computed(() => playerDetails.value?.league_id ?? null)
       class="flex gap-4 items-start
              md:flex-row flex-col"
     >
-      <PlayerDetails
-        ref="playerDetailsRef"
-        :playerId="playerId"
-        class="flex-1 max-w-[50%] md:max-w-[50%] w-full"
-      />
+      <div class="flex-1 max-w-[50%] md:max-w-[50%] w-full flex flex-col gap-4">
+        <PlayerDetails
+          ref="playerDetailsRef"
+          :playerId="playerId"
+          class="w-full"
+        />
+        <PitchRepertoire
+          v-if="position === 'P'"
+          :playerId="playerId"
+          class="w-full"
+        />
+      </div>
 
       <template v-if="playerDetails">
         <template v-if="position === 'P'">
-          <div class="flex-1 max-w-[50%] md:max-w-[50%] w-full flex flex-col gap-4">
-            <PitcherPercentiles
-              :playerId="playerId"
-              :leagueId="leagueId"
-              class="w-full"
-            />
-            <PitchRepertoire
-              :playerId="playerId"
-              class="w-full"
-            />
-          </div>
+          <PitcherPercentiles
+            :playerId="playerId"
+            :leagueId="leagueId"
+            class="flex-1 max-w-[50%] md:max-w-[50%] w-full"
+          />
         </template>
         <template v-else>
           <BatterPercentiles
