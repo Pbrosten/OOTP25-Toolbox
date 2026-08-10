@@ -325,6 +325,52 @@ two-way player WAR netting — `players_run_value` and
 `players_pitching_run_value` stay fully independent per-table, no combined
 figure. See [0028](../tickets/0028-pitcher-run-value-war.md#2-design-choices).
 
+## 3.8 Fastball/Breaking/Offspeed grade percentiles (0034)
+
+**Unlike §3.7, this is not a run-value figure at all** — it's computed the
+same way as `stuff_percentile` / `control_percentile` / etc. (a rating
+percentile, not runs/WAR), just over a category-level grade instead of one
+of the four `players_pitching` aggregate ratings; it's displayed in
+`PitcherPercentiles.vue`'s Value section rather than alongside those other
+rating percentiles (an explicit UI-grouping call — see below). Not stored
+anywhere — computed
+live in `get_player_expected_pitching_percentiles.sql` directly from
+`players_pitch_repertoire`, using data that didn't exist until
+[0029](../tickets/0029-pitcher-pitch-repertoire.md)'s `players_pitch_repertoire`
+table landed. Deliberately **not** tied to `players_pitching_run_value` in
+any way (an earlier version of this ticket approximated it as a
+proportional share of `pitching_runs`; that approach was dropped in favor
+of this simpler, more honest one).
+
+- **Category mapping.** Fastball = `fastball`, `sinker`, `cutter`; Breaking
+  = `slider`, `curveball`, `knucklecurve`; Offspeed = `changeup`,
+  `splitter`, `forkball`, `circlechange`, `knuckleball`, `screwball`
+  (`screwball` is the one ambiguous case — grouped under Offspeed as a
+  changeup-family pitch; see [0034](../tickets/0034-pitch-type-run-value-percentiles.md)'s
+  Design choices).
+- **Formula.** For each category, `avg_grade` = `AVG(grade)` over that
+  category's pitch types in `players_pitch_repertoire` for a given
+  `rating_id` (`pitch_category_filtered`/`target_cat` CTEs) — NULL if the
+  pitcher throws nothing in that category. That average is then percentiled
+  against the same cohort every other pitching percentile in this query
+  uses (same league/date/age-filtered population), higher-is-better, same
+  `COUNT(*) / population` mechanism as `stuff_percentile`. A pitcher with no
+  pitches in a category simply has no percentile for it (NULL, excluded
+  from the comparison population and not returned as a misleading 0) —
+  different from how the earlier run-value-based approach handled the
+  same case (that one deliberately used `0.0`, since a runs figure can
+  meaningfully be zero; a rating percentile of nothing can't).
+- **UI labeling and placement.** Displayed as "Fastball/Breaking/Offspeed
+  Run Value" in `PitcherPercentiles.vue`'s **Value** section, alongside
+  `pitching_runs_percentile` — matching Baseball Savant's "Pitch Type Run
+  Value" widget both in naming and layout (explicit product call), even
+  though the calculation itself has nothing to do with `pitching_runs` or
+  any other runs/WAR figure. The naming choice is consistent with how
+  `K %`/`BB %`/`Barrel %`/`Hard-Hit %` elsewhere in the same component
+  already borrow Savant's outcome-stat names for OOTP scouting-grade
+  percentiles that aren't actually derived from pitch-tracking outcomes
+  either.
+
 ## 4. Where this is surfaced today
 
 Both `players_pitching_expected` (0026) and `players_pitching_run_value`

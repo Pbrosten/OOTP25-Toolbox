@@ -18,13 +18,16 @@ const leagueId = props.leagueId ?? 203
 // (https://baseballsavant.mlb.com/savant-player/<id>?stats=statcast-r-pitching-mlb).
 // xERA/xBA/xwOBA are direct matches (our ERA/BA/wOBA are already
 // ratings-derived "expected" stats, not actuals). K %/BB %/Barrel %/
-// Hard-Hit %/Fastball Velo are Savant's real pitch-tracking outcome-stat
-// names borrowed for the closest analogous OOTP scouting rating (stuff,
-// control, pbabip, hra, velocity, respectively) -- these are still 20-80
-// (or misc-scale) grades under the hood, not derived per-pitch rates, but
-// are displayed under their outcome-stat names by design.
+// Hard-Hit %/Fastball Velo/Fastball-Breaking-Offspeed Run Value are
+// Savant's real pitch-tracking outcome-stat names borrowed for the closest
+// analogous OOTP scouting rating (stuff, control, pbabip, hra, velocity,
+// and average players_pitch_repertoire grade per pitch category
+// respectively -- see ticket 0034) -- these are still 20-80 (or misc-scale)
+// grades under the hood, not derived per-pitch outcome data, but are
+// displayed under their outcome-stat names by design, same as the rest of
+// this map.
 const statLabelMap: Record<string, string> = {
-  pitching_runs_percentile: 'Pitching',
+  pitching_runs_percentile: 'Pitching Run Value',
   era_percentile: 'xERA',
   xba_percentile: 'xBA',
   xwoba_percentile: 'xwOBA',
@@ -33,29 +36,38 @@ const statLabelMap: Record<string, string> = {
   pbabip_percentile: 'Barrel %',
   hra_percentile: 'Hard-Hit %',
   velocity_percentile: 'Fastball Velo',
+  fastball_grade_percentile: 'Fastball Run Value',
+  breaking_grade_percentile: 'Breaking Run Value',
+  offspeed_grade_percentile: 'Offspeed Run Value',
 }
 
-// Savant's "Pitch Type Run Value" widget breaks this down into
-// Pitching / Fastball / Breaking / Off Speed. We only have the aggregate
-// today -- per-pitch-type run value is blocked on
-// docs/tickets/0029-pitcher-pitch-repertoire.md's pitch-level data existing
-// at all. 'Pitching' here is deliberately the only entry until that lands;
-// baserunning_runs/total_runs/WAR (still returned by the API) aren't shown
-// in this section since Savant's run-value widget doesn't mix those in
-// either -- it's pitch-based value only.
+// Savant's "Pitch Type Run Value" widget breaks pitching value down into
+// Pitching / Fastball / Breaking / Off Speed. 'Pitching Run Value' here is
+// the real aggregate run-value figure (players_pitching_run_value.pitching_runs).
+// fastball/breaking/offspeed_grade_percentile (ticket 0034) are grouped
+// here to match that widget's layout even though they're mechanically a
+// rating percentile (combined players_pitch_repertoire grade per category,
+// percentiled directly against other pitchers), not derived from
+// pitching_runs or any other run-value figure -- see 0034's Design
+// choices. baserunning_runs/total_runs/WAR (still returned by the API)
+// aren't shown in this section since Savant's run-value widget doesn't mix
+// those in either -- it's pitch-based value only.
 const valueOrder = [
   'pitching_runs_percentile',
+  'fastball_grade_percentile',
+  'breaking_grade_percentile',
+  'offspeed_grade_percentile',
 ]
 
 const pitchingOrder = [
   'era_percentile',
   'xba_percentile',
   'xwoba_percentile',
+  'velocity_percentile',
   'stuff_percentile',
   'control_percentile',
   'pbabip_percentile',
   'hra_percentile',
-  'velocity_percentile',
 ]
 
 const xStatsPitch = ref<any>(null)
@@ -92,6 +104,34 @@ function sortedEntries(obj: any, order: string[]) {
 
 function getStatLabel(key: string): string {
   return statLabelMap[key] || key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+}
+
+// Only show a raw value for genuine projected statistics (PitcherProjection
+// output: expected ERA/xBA/xwOBA, projected run value) -- NOT for raw game
+// ratings (stuff/control/pbabip/hra/velocity, and the fastball/breaking/
+// offspeed grade percentiles), even though several of those borrow
+// outcome-stat names (K %, BB %, ...) per statLabelMap's comment above.
+// Showing e.g. a 20-80 `stuff` grade next to a "K %" label would read as a
+// real strikeout rate, which it isn't -- so those stay percentile-bar-only,
+// no raw number.
+const PROJECTED_STAT_KEYS = new Set([
+  'pitching_runs_percentile', 'era_percentile', 'xba_percentile', 'xwoba_percentile',
+])
+
+// Rate stats (batting-average-shaped, < 1) drop the leading "0" per this
+// project's OOTP display convention -- same rule as
+// PlayerDetails.vue's formatRate().
+const RATE_KEYS = new Set(['xba_percentile', 'xwoba_percentile'])
+
+function getStatValue(key: string): string | undefined {
+  if (!PROJECTED_STAT_KEYS.has(key)) return undefined
+  const raw = xStatsPitch.value?.[key.replace('_percentile', '_value')]
+  if (raw === null || raw === undefined) return undefined
+  const num = Number(raw)
+  if (RATE_KEYS.has(key)) return num.toFixed(3).replace(/^0\./, '.')
+  if (key === 'era_percentile') return num.toFixed(2)
+  if (key === 'pitching_runs_percentile') return num.toFixed(1)
+  return String(Math.round(num))
 }
 
 function formatYear(dateString: string): string {
@@ -208,8 +248,17 @@ function isValidPercentile(value: any): boolean {
             <h3 class="text-base font-semibold">Value</h3>
           </div>
         </div>
+        <div class="grid grid-cols-[150px_1fr_44px] items-end gap-3 mb-1">
+          <div></div>
+          <div class="flex justify-between text-[10px] font-semibold text-gray-400 uppercase tracking-wide leading-tight">
+            <span class="flex flex-col items-start"><span>Poor</span><span>&#9650;</span></span>
+            <span class="flex flex-col items-center"><span>Average</span><span>&#9650;</span></span>
+            <span class="flex flex-col items-end"><span>Great</span><span>&#9650;</span></span>
+          </div>
+          <div></div>
+        </div>
         <template v-for="[key, value] in sortedEntries(xStatsPitch, valueOrder)" :key="key">
-          <PercentileBar :label="getStatLabel(key)" :percentile="Number(value)" />
+          <PercentileBar :label="getStatLabel(key)" :percentile="Number(value)" :value="getStatValue(key)" />
         </template>
       </div>
 
@@ -222,8 +271,17 @@ function isValidPercentile(value: any): boolean {
             <h3 class="text-base font-semibold">Pitching</h3>
           </div>
         </div>
+        <div class="grid grid-cols-[150px_1fr_44px] items-end gap-3 mb-1">
+          <div></div>
+          <div class="flex justify-between text-[10px] font-semibold text-gray-400 uppercase tracking-wide leading-tight">
+            <span class="flex flex-col items-start"><span>Poor</span><span>&#9650;</span></span>
+            <span class="flex flex-col items-center"><span>Average</span><span>&#9650;</span></span>
+            <span class="flex flex-col items-end"><span>Great</span><span>&#9650;</span></span>
+          </div>
+          <div></div>
+        </div>
         <template v-for="[key, value] in sortedEntries(xStatsPitch, pitchingOrder)" :key="key">
-          <PercentileBar :label="getStatLabel(key)" :percentile="Number(value)" />
+          <PercentileBar :label="getStatLabel(key)" :percentile="Number(value)" :value="getStatValue(key)" />
         </template>
       </div>
     </div>

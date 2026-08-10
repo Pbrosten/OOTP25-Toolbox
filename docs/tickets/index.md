@@ -93,7 +93,16 @@ genuinely open design questions blocking implementation — except that the
 line forks after 0025: pitch-repertoire storage (0029) shares the same
 staging source but is independent of the projection-methodology/value/API
 line, since neither of its consumers (an analytics report, long-term
-projection refinement) depends on that line's output.
+projection refinement) depends on that line's output. 0034 is the first of
+that "long-term projection refinement" consumer 0029 anticipated — it
+depends on 0029's data existing but, like 0026/0028, is blocked on an open
+design question (how "combined pitch-category quality" becomes a run-value
+number) — resolved as a proportional-share approximation off the existing
+aggregate `pitching_runs`, see 0034's Design choices. [0035](0035-pitcher-career-stats-page.md)
+is a separate branch off nothing in the diagram below — it mirrors
+`players_career_batting_stats` / `PlayerDetails.vue`'s batting table with raw
+per-season box-score counting stats (W/L/ERA/G/GS/SV/IP/SO/WHIP), independent
+of the ratings/projection pipeline (0025–0028) and of pitch repertoire (0029).
 
 ```
 [~] 0015 Epic tracker
@@ -116,6 +125,10 @@ projection refinement) depends on that line's output.
 [x] 0027 API route +                     |
     PitcherPercentiles frontend          v
                                     [x] 0033 API route + report component
+                                          |
+                                          v
+                                    [x] 0034 Fastball/Breaking/Offspeed
+                                        run-value percentiles
 
 [x] = Closed   [ ] = Open   [~] = In-Progress
 ```
@@ -132,6 +145,8 @@ projection refinement) depends on that line's output.
 | [0031](0031-pitch-repertoire-schema.md) | Pitch repertoire schema: `players_pitch_repertoire` | feat | Closed | 0025 |
 | [0032](0032-pitch-repertoire-migration.md) | Ingest pitch repertoire: `migration_short.sql` | feat | Closed | 0031 |
 | [0033](0033-pitch-repertoire-report.md) | Pitch repertoire API route + report component | feat | Closed | 0032 |
+| [0034](0034-pitch-type-run-value-percentiles.md) | Per-pitch-category run-value percentiles: Fastball / Breaking / Offspeed | feat | Closed | 0029 |
+| [0035](0035-pitcher-career-stats-page.md) | Pitcher career stats table (mirror batter career stats) | feat | Open | — |
 
 ## Frontend / stats display fixes
 

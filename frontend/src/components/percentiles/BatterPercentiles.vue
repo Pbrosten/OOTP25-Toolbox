@@ -128,6 +128,38 @@ function getStatLabel(key: string): string {
   return statLabelMap[key] || key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 }
 
+// Raw value shown next to the bar (Savant-style) -- only for genuine
+// projected statistics, not raw game ratings/grades that borrow
+// outcome-stat names (Barrel %, Bat Speed, Chase %, Whiff %, Sprint Speed,
+// Stealing Value, Extra Bases, Arm Value, Range Value, Framing all stay
+// percentile-bar-only). Explicit map rather than mechanical
+// key.replace('_percentile', '_value') like PitcherPercentiles.vue uses,
+// since fielding_value_percentile's raw value is already named
+// fielding_value (no doubled "_value" suffix) in
+// get_player_expected_fielding_percentiles.sql.
+const VALUE_KEY_MAP: Record<string, string> = {
+  batting_runs_percentile: 'batting_runs_value',
+  basepath_runs_percentile: 'basepath_runs_value',
+  fielding_runs_percentile: 'fielding_runs_value',
+  total_runs_percentile: 'total_runs_value',
+  xba_percentile: 'xba_value',
+  xslg_percentile: 'xslg_value',
+  xwoba_percentile: 'xwoba_value',
+  fielding_value_percentile: 'fielding_value',
+}
+
+const RATE_VALUE_KEYS = new Set(['xba_percentile', 'xslg_percentile', 'xwoba_percentile'])
+
+function getStatValue(source: any, key: string): string | undefined {
+  const valueKey = VALUE_KEY_MAP[key]
+  if (!valueKey) return undefined
+  const raw = source?.[valueKey]
+  if (raw === null || raw === undefined) return undefined
+  const num = Number(raw)
+  if (RATE_VALUE_KEYS.has(key)) return num.toFixed(3).replace(/^0\./, '.')
+  return num.toFixed(1)
+}
+
 function formatYear(dateString: string): string {
   const date = new Date(dateString)
   return date.getFullYear().toString()
@@ -279,8 +311,17 @@ const filteredFieldingPercentiles = computed(() => {
             <h3 class="text-base font-semibold">Value</h3>
           </div>
         </div>
+        <div class="grid grid-cols-[150px_1fr_44px] items-end gap-3 mb-1">
+          <div></div>
+          <div class="flex justify-between text-[10px] font-semibold text-gray-400 uppercase tracking-wide leading-tight">
+            <span class="flex flex-col items-start"><span>Poor</span><span>&#9650;</span></span>
+            <span class="flex flex-col items-center"><span>Average</span><span>&#9650;</span></span>
+            <span class="flex flex-col items-end"><span>Great</span><span>&#9650;</span></span>
+          </div>
+          <div></div>
+        </div>
         <template v-for="[key, value] in sortedEntries(xStatsValue, valueOrder)" :key="key">
-          <PercentileBar :label="getStatLabel(key)" :percentile="Number(value)" />
+          <PercentileBar :label="getStatLabel(key)" :percentile="Number(value)" :value="getStatValue(xStatsValue, key)" />
         </template>
       </div>
 
@@ -293,8 +334,17 @@ const filteredFieldingPercentiles = computed(() => {
             <h3 class="text-base font-semibold">Batting</h3>
           </div>
         </div>
+        <div class="grid grid-cols-[150px_1fr_44px] items-end gap-3 mb-1">
+          <div></div>
+          <div class="flex justify-between text-[10px] font-semibold text-gray-400 uppercase tracking-wide leading-tight">
+            <span class="flex flex-col items-start"><span>Poor</span><span>&#9650;</span></span>
+            <span class="flex flex-col items-center"><span>Average</span><span>&#9650;</span></span>
+            <span class="flex flex-col items-end"><span>Great</span><span>&#9650;</span></span>
+          </div>
+          <div></div>
+        </div>
         <template v-for="[key, value] in sortedEntries(xStatsBat, battingOrder)" :key="key">
-          <PercentileBar :label="getStatLabel(key)" :percentile="Number(value)" />
+          <PercentileBar :label="getStatLabel(key)" :percentile="Number(value)" :value="getStatValue(xStatsBat, key)" />
         </template>
       </div>
 
@@ -307,8 +357,17 @@ const filteredFieldingPercentiles = computed(() => {
             <h3 class="text-base font-semibold">Fielding</h3>
           </div>
         </div>
+        <div class="grid grid-cols-[150px_1fr_44px] items-end gap-3 mb-1">
+          <div></div>
+          <div class="flex justify-between text-[10px] font-semibold text-gray-400 uppercase tracking-wide leading-tight">
+            <span class="flex flex-col items-start"><span>Poor</span><span>&#9650;</span></span>
+            <span class="flex flex-col items-center"><span>Average</span><span>&#9650;</span></span>
+            <span class="flex flex-col items-end"><span>Great</span><span>&#9650;</span></span>
+          </div>
+          <div></div>
+        </div>
         <template v-for="[key, value] in sortedEntries(filteredFieldingPercentiles, fieldOrder)" :key="key">
-          <PercentileBar :label="getStatLabel(key)" :percentile="Number(value)" />
+          <PercentileBar :label="getStatLabel(key)" :percentile="Number(value)" :value="getStatValue(xStatsField, key)" />
         </template>
       </div>
 
@@ -321,8 +380,17 @@ const filteredFieldingPercentiles = computed(() => {
             <h3 class="text-base font-semibold">Base Running</h3>
           </div>
         </div>
+        <div class="grid grid-cols-[150px_1fr_44px] items-end gap-3 mb-1">
+          <div></div>
+          <div class="flex justify-between text-[10px] font-semibold text-gray-400 uppercase tracking-wide leading-tight">
+            <span class="flex flex-col items-start"><span>Poor</span><span>&#9650;</span></span>
+            <span class="flex flex-col items-center"><span>Average</span><span>&#9650;</span></span>
+            <span class="flex flex-col items-end"><span>Great</span><span>&#9650;</span></span>
+          </div>
+          <div></div>
+        </div>
         <template v-for="[key, value] in sortedEntries(xStatsRun, basepathOrder)" :key="key">
-          <PercentileBar :label="getStatLabel(key)" :percentile="Number(value)" />
+          <PercentileBar :label="getStatLabel(key)" :percentile="Number(value)" :value="getStatValue(xStatsRun, key)" />
         </template>
       </div>
     </div>

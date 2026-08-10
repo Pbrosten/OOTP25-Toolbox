@@ -53,6 +53,47 @@ value_filtered AS (
       (t.league_id = 203 AND p.age >= 22)
       OR (t.league_id <> 203)
     )
+),
+
+-- Pitch-category grade comparison group (ticket 0034): one row per
+-- rating_id, average players_pitch_repertoire.grade within each of the
+-- three Fastball/Breaking/Offspeed categories (see 0034's Design choices
+-- for the pitch-type -> category mapping). NULL for a category the
+-- pitcher throws nothing in, same NULL-exclusion convention as every
+-- other percentile in this file.
+pitch_category_filtered AS (
+  SELECT
+    pr.rating_id,
+    AVG(CASE WHEN pr.pitch_type IN ('fastball', 'sinker', 'cutter') THEN pr.grade END) AS fastball_grade,
+    AVG(CASE WHEN pr.pitch_type IN ('slider', 'curveball', 'knucklecurve') THEN pr.grade END) AS breaking_grade,
+    AVG(CASE WHEN pr.pitch_type IN ('changeup', 'splitter', 'forkball', 'circlechange', 'knuckleball', 'screwball') THEN pr.grade END) AS offspeed_grade
+  FROM players_pitch_repertoire AS pr
+  JOIN players_rating AS r ON pr.rating_id = r.rating_id
+  JOIN players AS p ON r.player_id = p.player_id
+  JOIN target_player AS t ON r.rating_date = t.rating_date
+  WHERE
+    p.position = 'P'
+    AND p.team_id != 999
+    AND r.league_id = t.league_id
+    AND (
+      (t.league_id = 203 AND p.age >= 22)
+      OR (t.league_id <> 203)
+    )
+  GROUP BY pr.rating_id
+),
+
+-- Target player's own category grades, computed unfiltered (same pattern
+-- as target_exp/target_rate/target_val being read straight off the base
+-- tables below, not the cohort-filtered CTEs).
+target_cat AS (
+  SELECT
+    pr.rating_id,
+    AVG(CASE WHEN pr.pitch_type IN ('fastball', 'sinker', 'cutter') THEN pr.grade END) AS fastball_grade,
+    AVG(CASE WHEN pr.pitch_type IN ('slider', 'curveball', 'knucklecurve') THEN pr.grade END) AS breaking_grade,
+    AVG(CASE WHEN pr.pitch_type IN ('changeup', 'splitter', 'forkball', 'circlechange', 'knuckleball', 'screwball') THEN pr.grade END) AS offspeed_grade
+  FROM players_pitch_repertoire AS pr
+  WHERE pr.rating_id = %(rating_id)s
+  GROUP BY pr.rating_id
 )
 
 SELECT
@@ -68,6 +109,48 @@ SELECT
       SELECT COUNT(*) FROM value_filtered WHERE pitching_runs IS NOT NULL
     )
    ) AS pitching_runs_percentile,
+
+  -- Fastball/Breaking/Offspeed grade percentiles (ticket 0034) -- combined
+  -- quality of all pitch types in each category, percentiled directly
+  -- against the rest of pitchers (not tied to pitching_runs/run-value at
+  -- all). Higher grade is better, same direction as the rating percentiles
+  -- below. Explicit CASE guard: without it, a NULL target_cat.*_grade
+  -- (pitcher throws nothing in that category) silently computes to a
+  -- misleading 0 rather than NULL -- COUNT(*) against a `< NULL` WHERE
+  -- clause returns a real 0, it doesn't propagate NULL the way a scalar
+  -- comparison would.
+  CASE WHEN target_cat.fastball_grade IS NOT NULL THEN ROUND(
+    (
+      SELECT COUNT(*) * 1.0
+      FROM pitch_category_filtered
+      WHERE fastball_grade < target_cat.fastball_grade AND fastball_grade IS NOT NULL
+    ) * 100  /
+    (
+      SELECT COUNT(*) FROM pitch_category_filtered WHERE fastball_grade IS NOT NULL
+    )
+   ) END AS fastball_grade_percentile,
+
+  CASE WHEN target_cat.breaking_grade IS NOT NULL THEN ROUND(
+    (
+      SELECT COUNT(*) * 1.0
+      FROM pitch_category_filtered
+      WHERE breaking_grade < target_cat.breaking_grade AND breaking_grade IS NOT NULL
+    ) * 100  /
+    (
+      SELECT COUNT(*) FROM pitch_category_filtered WHERE breaking_grade IS NOT NULL
+    )
+   ) END AS breaking_grade_percentile,
+
+  CASE WHEN target_cat.offspeed_grade IS NOT NULL THEN ROUND(
+    (
+      SELECT COUNT(*) * 1.0
+      FROM pitch_category_filtered
+      WHERE offspeed_grade < target_cat.offspeed_grade AND offspeed_grade IS NOT NULL
+    ) * 100  /
+    (
+      SELECT COUNT(*) FROM pitch_category_filtered WHERE offspeed_grade IS NOT NULL
+    )
+   ) END AS offspeed_grade_percentile,
 
   ROUND(
     (
@@ -212,9 +295,24 @@ SELECT
     (
       SELECT COUNT(*) FROM ratings_filtered WHERE velocity IS NOT NULL
     )
-   ) AS velocity_percentile
+   ) AS velocity_percentile,
+
+  -- Raw values alongside each percentile above, for display next to the
+  -- percentile bar (Savant-style raw-value column) -- only for genuine
+  -- projected statistics (PitcherProjection output), not raw game ratings
+  -- (stuff/control/pbabip/hra/velocity, pitch-category grades): those
+  -- borrow outcome-stat names in the frontend (see PitcherPercentiles.vue's
+  -- statLabelMap) but showing their raw 20-80 grade next to that name would
+  -- misrepresent it as a real rate stat. Named <stat>_value so the
+  -- frontend can derive the lookup key from each *_percentile key
+  -- mechanically.
+  target_val.pitching_runs AS pitching_runs_value,
+  target_exp.ERA AS era_value,
+  target_exp.BA AS xba_value,
+  target_exp.wOBA AS xwoba_value
 
 FROM players_pitching_expected AS target_exp
 JOIN players_pitching AS target_rate ON target_exp.rating_id = target_rate.rating_id
 JOIN players_pitching_run_value AS target_val ON target_exp.rating_id = target_val.rating_id
+LEFT JOIN target_cat ON target_exp.rating_id = target_cat.rating_id
 WHERE target_exp.rating_id = %(rating_id)s;

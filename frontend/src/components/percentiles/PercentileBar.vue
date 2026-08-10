@@ -14,6 +14,13 @@ export default {
         return val >= 0 && val <= 100
       },
     },
+    // Pre-formatted raw stat value shown to the right of the bar
+    // (Savant-style), e.g. "3.13", ".223", "55". Optional -- omitted
+    // entirely if the caller has no raw value to show for this stat.
+    value: {
+      type: String,
+      default: null,
+    },
   },
   computed: {
     computedColor() {
@@ -48,10 +55,10 @@ export default {
 </script>
 
 <template>
-  <div class="grid grid-cols-[150px_1fr] items-center gap-3 my-3 w-full">
-    <!-- Right-aligned label -->
+  <div class="grid grid-cols-[150px_1fr_44px] items-center gap-3 my-3 w-full">
+    <!-- Right-aligned label, short dotted underline beneath it (Savant-style leader) -->
     <div class="whitespace-nowrap font-bold text-sm text-right">
-      {{ label }}
+      <span class="inline-block border-b-2 border-dotted border-teal-600 pb-0.5">{{ label }}</span>
     </div>
 
     <!-- Bar container -->
@@ -75,6 +82,11 @@ export default {
       >
         {{ percentile }}
       </div>
+    </div>
+
+    <!-- Raw stat value -->
+    <div class="whitespace-nowrap text-sm text-gray-600 text-left">
+      {{ value ?? '' }}
     </div>
   </div>
 </template>
