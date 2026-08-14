@@ -103,6 +103,9 @@ is a separate branch off nothing in the diagram below — it mirrors
 `players_career_batting_stats` / `PlayerDetails.vue`'s batting table with raw
 per-season box-score counting stats (W/L/ERA/G/GS/SV/IP/SO/WHIP), independent
 of the ratings/projection pipeline (0025–0028) and of pitch repertoire (0029).
+[0036](0036-fastball-velocity-display.md) is likewise independent — it reads
+the existing `players_pitching.velocity` column (already ingested by 0025)
+and surfaces it as a display-only MPH band on the player-info bio line.
 
 ```
 [~] 0015 Epic tracker
@@ -147,6 +150,7 @@ of the ratings/projection pipeline (0025–0028) and of pitch repertoire (0029).
 | [0033](0033-pitch-repertoire-report.md) | Pitch repertoire API route + report component | feat | Closed | 0032 |
 | [0034](0034-pitch-type-run-value-percentiles.md) | Per-pitch-category run-value percentiles: Fastball / Breaking / Offspeed | feat | Closed | 0029 |
 | [0035](0035-pitcher-career-stats-page.md) | Pitcher career stats table (mirror batter career stats) | feat | Closed | — |
+| [0036](0036-fastball-velocity-display.md) | Fastball velocity display on pitcher player pages | feat | Closed | — |
 
 ## Frontend / stats display fixes
 

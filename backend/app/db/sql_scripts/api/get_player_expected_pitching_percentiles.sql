@@ -309,7 +309,14 @@ SELECT
   target_val.pitching_runs AS pitching_runs_value,
   target_exp.ERA AS era_value,
   target_exp.BA AS xba_value,
-  target_exp.wOBA AS xwoba_value
+  target_exp.wOBA AS xwoba_value,
+
+  -- Unlike the other raw ratings (stuff/control/pbabip/hra), velocity's
+  -- 1-20 index IS meant to represent a real physical quantity (OOTP's own
+  -- velocity-band convention) rather than an abstract 20-80 grade borrowing
+  -- an unrelated outcome-stat's name -- so it gets a raw value too, mapped
+  -- to an MPH band in the frontend (PitcherPercentiles.vue's VELOCITY_MAP).
+  target_rate.velocity AS velocity_value
 
 FROM players_pitching_expected AS target_exp
 JOIN players_pitching AS target_rate ON target_exp.rating_id = target_rate.rating_id

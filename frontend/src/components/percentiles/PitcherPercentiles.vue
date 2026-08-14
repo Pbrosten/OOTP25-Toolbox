@@ -70,6 +70,32 @@ const pitchingOrder = [
   'hra_percentile',
 ]
 
+// OOTP's 1-20 fastball-velocity rating index -> displayed MPH band. Not
+// derived from any exported column -- it's a fixed UI convention baked into
+// the game itself, so it lives here as a plain lookup rather than a DB table.
+const VELOCITY_MAP: Record<number, string> = {
+  20: '100+',
+  19: '99-101',
+  18: '98-100',
+  17: '97-99',
+  16: '96-98',
+  15: '95-97',
+  14: '94-96',
+  13: '93-95',
+  12: '92-94',
+  11: '91-93',
+  10: '90-92',
+  9: '89-91',
+  8: '88-90',
+  7: '87-89',
+  6: '86-88',
+  5: '85-87',
+  4: '84-86',
+  3: '83-85',
+  2: '80-83',
+  1: '75-80',
+}
+
 const xStatsPitch = ref<any>(null)
 
 const loading = ref(true)
@@ -113,7 +139,10 @@ function getStatLabel(key: string): string {
 // outcome-stat names (K %, BB %, ...) per statLabelMap's comment above.
 // Showing e.g. a 20-80 `stuff` grade next to a "K %" label would read as a
 // real strikeout rate, which it isn't -- so those stay percentile-bar-only,
-// no raw number.
+// no raw number. velocity_percentile is the one exception: its "Fastball
+// Velo" label isn't borrowed from an unrelated stat, it's literally what the
+// underlying 1-20 rating encodes, so its raw value is handled separately
+// below via VELOCITY_MAP rather than through this set.
 const PROJECTED_STAT_KEYS = new Set([
   'pitching_runs_percentile', 'era_percentile', 'xba_percentile', 'xwoba_percentile',
 ])
@@ -124,6 +153,11 @@ const PROJECTED_STAT_KEYS = new Set([
 const RATE_KEYS = new Set(['xba_percentile', 'xwoba_percentile'])
 
 function getStatValue(key: string): string | undefined {
+  if (key === 'velocity_percentile') {
+    const raw = xStatsPitch.value?.velocity_value
+    if (raw === null || raw === undefined) return undefined
+    return VELOCITY_MAP[Number(raw)]
+  }
   if (!PROJECTED_STAT_KEYS.has(key)) return undefined
   const raw = xStatsPitch.value?.[key.replace('_percentile', '_value')]
   if (raw === null || raw === undefined) return undefined
