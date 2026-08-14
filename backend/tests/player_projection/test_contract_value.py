@@ -2,6 +2,7 @@ import pytest
 
 from app.player_projection.contract_value import (
     calculate_surplus_value,
+    recommend_contract_action,
     WAR_DOLLAR_VALUE,
     FA_SERVICE_YEARS,
     MIN_SALARY,
@@ -115,3 +116,85 @@ def test_negative_surplus_is_not_floored():
         base_war=0.5, current_age=25, mlb_service_years=0, contract=contract
     )
     assert result["total_surplus"] < 0
+
+
+# === recommend_contract_action (ticket 0058) ===
+
+
+def test_recommend_expiring_positive_surplus_trade_before_fa():
+    contract = make_contract(current_year=0, years=1, salary0=1_000_000)
+    result = calculate_surplus_value(
+        base_war=3.0, current_age=28, mlb_service_years=5, contract=contract
+    )
+    assert len(result["years"]) == 1  # confirms the "years <= 1" bucket
+    assert recommend_contract_action(result) == "Trade before free agency"
+
+
+def test_recommend_expiring_negative_surplus_let_walk():
+    contract = make_contract(current_year=0, years=1, salary0=50_000_000)
+    result = calculate_surplus_value(
+        base_war=0.5, current_age=28, mlb_service_years=5, contract=contract
+    )
+    assert len(result["years"]) == 1
+    assert recommend_contract_action(result) == "Let walk"
+
+
+def test_recommend_strong_surplus_multiyear_extend():
+    contract = make_contract(
+        current_year=0, years=3, salary0=1_000_000, salary1=1_000_000, salary2=1_000_000
+    )
+    result = calculate_surplus_value(
+        base_war=3.0, current_age=25, mlb_service_years=2, contract=contract
+    )
+    assert len(result["years"]) >= 2
+    assert recommend_contract_action(result) == "Extend"
+
+
+def test_recommend_mild_surplus_multiyear_keep_short_term():
+    contract = make_contract(
+        current_year=0, years=3, salary0=7_000_000, salary1=7_000_000, salary2=7_000_000
+    )
+    result = calculate_surplus_value(
+        base_war=1.0, current_age=25, mlb_service_years=2, contract=contract
+    )
+    assert len(result["years"]) >= 2
+    assert recommend_contract_action(result) == "Keep short-term"
+
+
+def test_recommend_negative_surplus_discretionary_year_non_tender():
+    # No signed contract -- the upcoming year is a projected arbitration
+    # estimate (source="arbitration"), which the team could walk away from.
+    result = calculate_surplus_value(
+        base_war=-1.0, current_age=25, mlb_service_years=3, contract=None
+    )
+    assert len(result["years"]) >= 2
+    assert result["years"][0]["source"] == "arbitration"
+    assert recommend_contract_action(result) == "Non-tender"
+
+
+def test_recommend_negative_surplus_signed_current_year_still_non_tender():
+    # Regression, modeled on a real case: a low-WAR arb-1 player already
+    # signed for *this* season (years=1, current_year=0 -- years[0] is
+    # "contract", already tendered) but whose following seasons revert to
+    # projected arbitration estimates. The team can't walk away from this
+    # year, but can still non-tender him afterward -- checking only
+    # years[0] missed this and returned "Let walk" instead.
+    contract = make_contract(current_year=0, years=1, salary0=1_680_000)
+    result = calculate_surplus_value(
+        base_war=0.109, current_age=25, mlb_service_years=3, contract=contract
+    )
+    assert result["years"][0]["source"] == "contract"
+    assert result["years"][1]["source"] == "arbitration"
+    assert recommend_contract_action(result) == "Non-tender"
+
+
+def test_recommend_negative_surplus_guaranteed_contract_let_walk():
+    contract = make_contract(
+        current_year=0, years=3, salary0=50_000_000, salary1=50_000_000, salary2=50_000_000
+    )
+    result = calculate_surplus_value(
+        base_war=-1.0, current_age=25, mlb_service_years=10, contract=contract
+    )
+    assert len(result["years"]) >= 2
+    assert result["years"][0]["source"] == "contract"
+    assert recommend_contract_action(result) == "Let walk"

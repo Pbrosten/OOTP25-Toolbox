@@ -3,7 +3,7 @@
 - **Tag:** feat
 - **Status:** In-Progress
 - **Depends on:** [0053](0053-contract-service-time-schema.md), [0054](0054-contract-service-time-migration.md)
-- **Blocks:** [0056](0056-surplus-value-calculation.md), [0057](0057-surplus-value-frontend-display.md)
+- **Blocks:** [0056](0056-surplus-value-calculation.md), [0057](0057-surplus-value-frontend-display.md), [0058](0058-contract-recommendation-thresholds.md)
 
 ## 1. Problem
 
@@ -53,9 +53,14 @@ a dependency chain despite sharing a data gap.
   once real free-agent-market signings are ingested.
 - **Recommendation thresholds.** Turning a surplus-value number into a
   categorical Extend/Keep/Let-walk/Non-tender/Trade recommendation needs
-  threshold rules the source doc doesn't specify. **Left fully deferred** —
-  scoped as its own later sub-ticket once the surplus-value number actually
-  exists, not decided here.
+  threshold rules the source doc doesn't specify. **Resolved in
+  [0058](0058-contract-recommendation-thresholds.md):** a two-axis
+  (years-of-control-remaining × surplus/year tier) decision table, with
+  cutoffs derived from a curated cohort of real, meaningfully-salaried
+  contracts in the `TEST.lg` save (deriving from the full player pool
+  produced nonsense — traced to this save having 259 teams, so most rated
+  players are organizational depth, not a projection-system bug; see
+  0058's Design choices for the full investigation).
 - **Aging/injury risk inputs.** Two distinct things ended up decided
   separately. "Aging" at the *rating-projection* level (`BatterProjection`/
   `PitcherProjection`'s own output) still has no age-curve blend — that gap
@@ -87,9 +92,9 @@ a dependency chain despite sharing a data gap.
   that's the still-deferred thresholds question above; this shows the
   underlying value/cost/surplus figures a recommendation would eventually
   be derived from.
-- Not yet ticketed: the recommendation-threshold layer (deferred design
-  question above) that would turn 0056's surplus number into an
-  Extend/Keep/Let-walk/Non-tender/Trade label.
+- Recommendation label: [0058](0058-contract-recommendation-thresholds.md) —
+  turns 0056's surplus number into the Extend/Keep/Let-walk/Non-tender/
+  Trade label the original ask wanted, displayed in 0057's component.
 
 **Files involved:**
 - Contract ingestion: see [0053](0053-contract-service-time-schema.md)/
@@ -98,3 +103,5 @@ a dependency chain despite sharing a data gap.
   [0056](0056-surplus-value-calculation.md) for exact files.
 - Frontend display: see
   [0057](0057-surplus-value-frontend-display.md) for exact files.
+- Recommendation label: see
+  [0058](0058-contract-recommendation-thresholds.md) for exact files.

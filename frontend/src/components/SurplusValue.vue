@@ -13,6 +13,7 @@ interface SurplusYear {
 }
 
 const available = ref(false)
+const recommendation = ref<string | null>(null)
 const totalValue = ref(0)
 const totalCost = ref(0)
 const totalSurplus = ref(0)
@@ -31,6 +32,7 @@ async function fetchSurplusValue() {
     const data = await res.json()
     available.value = data.available
     if (data.available) {
+      recommendation.value = data.recommendation
       totalValue.value = data.total_value
       totalCost.value = data.total_cost
       totalSurplus.value = data.total_surplus
@@ -41,6 +43,18 @@ async function fetchSurplusValue() {
   } finally {
     loading.value = false
   }
+}
+
+// Ticket 0058's decision table groups into three real outcomes for a GM
+// glancing at this badge: "good news" (worth keeping/extending), "neutral/
+// exit" (let it play out or move him), "cut him loose now" (non-tender) --
+// colored accordingly rather than a five-way palette.
+const recommendationClass: Record<string, string> = {
+  Extend: 'bg-teal-50 text-teal-900',
+  'Keep short-term': 'bg-teal-50 text-teal-900',
+  'Trade before free agency': 'bg-amber-50 text-amber-900',
+  'Let walk': 'bg-amber-50 text-amber-900',
+  'Non-tender': 'bg-red-50 text-red-900',
 }
 
 // Whole-dollar figures at this scale (six-to-nine digits) are unreadable
@@ -76,6 +90,14 @@ function formatWar(value: number): string {
       </div>
 
       <template v-else>
+        <div
+          v-if="recommendation"
+          class="inline-block px-3 py-1 mb-3 rounded-full text-sm font-semibold"
+          :class="recommendationClass[recommendation] || 'bg-gray-50 text-gray-900'"
+        >
+          {{ recommendation }}
+        </div>
+
         <div class="flex flex-wrap gap-4 mb-4 text-sm">
           <div class="px-3 py-2 rounded bg-gray-50">
             <div class="text-gray-500">Projected Value</div>

@@ -1,7 +1,7 @@
 # 0057 — Surplus-value frontend display
 
 - **Tag:** feat
-- **Status:** In-Progress
+- **Status:** Closed
 - **Depends on:** [0056](0056-surplus-value-calculation.md)
 - **Blocks:** —
 

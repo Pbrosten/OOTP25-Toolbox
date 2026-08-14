@@ -4,7 +4,12 @@ import pandas as pd
 
 from flask import Blueprint, jsonify, current_app, request
 from app.db.connection import get_db, close_db
-from app.player_projection.contract_value import calculate_surplus_value
+from app.player_projection.contract_value import (
+    calculate_surplus_value,
+    recommend_contract_action,
+    ARB_ELIGIBLE_SERVICE_YEARS,
+    FA_SERVICE_YEARS,
+)
 
 bp = Blueprint("players", __name__, url_prefix="/api/players")
 
@@ -299,8 +304,11 @@ def get_player_ratings(player_id):
 @bp.route("/<int:player_id>/surplus-value", methods=["GET"])
 def get_player_surplus_value(player_id):
     """
-    Retrieve a player's projected surplus value (ticket 0056): fair value
-    over their years of control minus what they're actually owed.
+    Retrieve a player's projected surplus value (ticket 0056) and, if
+    they're currently arbitration-eligible, a contract recommendation
+    (ticket 0058): fair value over their years of control minus what
+    they're actually owed, plus an Extend/Keep short-term/Let walk/
+    Non-tender/Trade before free agency label.
 
     Returns:
         JSON response:
@@ -309,7 +317,10 @@ def get_player_surplus_value(player_id):
               WAR projection, or has neither a contract nor a service-time
               record on file.
             - {"available": True, "years": [...], "total_value": ...,
-              "total_cost": ..., "total_surplus": ...} otherwise.
+              "total_cost": ..., "total_surplus": ...} otherwise, plus
+              "recommendation" only when the player's current
+              mlb_service_years falls in the arbitration window
+              (ARB_ELIGIBLE_SERVICE_YEARS <= years < FA_SERVICE_YEARS).
     """
     con = get_db()
     try:
@@ -347,15 +358,25 @@ def get_player_surplus_value(player_id):
         ):
             return jsonify({"available": False})
 
+        mlb_service_years = row["mlb_service_years"] or 0
         result = calculate_surplus_value(
             base_war=base_war,
             current_age=row["age"],
-            mlb_service_years=row["mlb_service_years"] or 0,
+            mlb_service_years=mlb_service_years,
             contract=row if has_contract else None,
         )
         if result is None:
             return jsonify({"available": False})
 
-        return jsonify({"available": True, **result})
+        response = {"available": True, **result}
+        # Recommendation labels only apply to a player's current
+        # arbitration-eligibility window -- pre-arb rookies and players
+        # already past free-agency service (whether on a long-term deal or
+        # otherwise) aren't the "should we tender/extend/non-tender him"
+        # decision this label set describes (ticket 0058, per user report).
+        if ARB_ELIGIBLE_SERVICE_YEARS <= mlb_service_years < FA_SERVICE_YEARS:
+            response["recommendation"] = recommend_contract_action(result)
+
+        return jsonify(response)
     finally:
         close_db()

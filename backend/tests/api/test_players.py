@@ -262,6 +262,52 @@ def test_get_player_surplus_value_available(mock_open_resource, mock_close_db, m
     body = response.get_json()
     assert body["available"] is True
     assert len(body["years"]) > 0
+    assert "recommendation" in body  # mlb_service_years=4 is arb-eligible
+
+
+# Recommendation labels only apply during a player's arbitration window
+# (ARB_ELIGIBLE_SERVICE_YEARS <= mlb_service_years < FA_SERVICE_YEARS) --
+# per user report, showing "Extend"/"Non-tender"/etc. for a pre-arb rookie
+# or a player already past free-agency service isn't the decision this
+# label set describes.
+@patch("app.api.players.get_db")
+@patch("app.api.players.close_db")
+@patch("app.api.players.current_app.open_resource")
+def test_get_player_surplus_value_pre_arb_omits_recommendation(
+    mock_open_resource, mock_close_db, mock_get_db, client
+):
+    mock_con = MagicMock()
+    mock_cursor = MagicMock()
+    mock_cursor.fetchone.return_value = _contract_row(mlb_service_years=1)
+    mock_con.cursor.return_value.__enter__.return_value = mock_cursor
+    mock_get_db.return_value = mock_con
+    mock_open_resource.return_value.__enter__.return_value.read.return_value = "SELECT ..."
+
+    response = client.get("/api/players/1/surplus-value")
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["available"] is True
+    assert "recommendation" not in body
+
+
+@patch("app.api.players.get_db")
+@patch("app.api.players.close_db")
+@patch("app.api.players.current_app.open_resource")
+def test_get_player_surplus_value_past_free_agency_service_omits_recommendation(
+    mock_open_resource, mock_close_db, mock_get_db, client
+):
+    mock_con = MagicMock()
+    mock_cursor = MagicMock()
+    mock_cursor.fetchone.return_value = _contract_row(mlb_service_years=8)
+    mock_con.cursor.return_value.__enter__.return_value = mock_cursor
+    mock_get_db.return_value = mock_con
+    mock_open_resource.return_value.__enter__.return_value.read.return_value = "SELECT ..."
+
+    response = client.get("/api/players/1/surplus-value")
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["available"] is True
+    assert "recommendation" not in body
 
 
 # Regression: OOTP writes a years=0/current_year=0 placeholder contract row

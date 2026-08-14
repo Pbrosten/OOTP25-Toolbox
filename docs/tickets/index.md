@@ -231,7 +231,10 @@ build-order list above for that nuance):
 [x] 0056 Surplus-value calculation                |
       |                                          |
       v                                          |
-[~] 0057 Surplus-value frontend display           |
+[x] 0057 Surplus-value frontend display           |
+      |                                          |
+      v                                          |
+[x] 0058 Recommendation thresholds                |
       |                                          |
       v                                          |
 [~] 0042 Contract & Arbitration Analyzer --------+
@@ -321,16 +324,24 @@ is filed as [0053](0053-contract-service-time-schema.md)/
 surplus-value calculation itself is broken into
 [0056](0056-surplus-value-calculation.md) (calc module + API,
 age-decline/years-of-control model, $/WAR constant derived from real
-`TEST.lg` contract data) and [0057](0057-surplus-value-frontend-display.md)
-(display). The Extend/Keep/Let-walk/Non-tender/Trade recommendation label
-itself remains deferred, unticketed — see 0042's Design choices.
+`TEST.lg` contract data — later corrected twice post-close: a
+`current_year` indexing bug and a missing non-decreasing-arbitration
+floor, both from real user-reported cases) and
+[0057](0057-surplus-value-frontend-display.md) (display, gated off for
+free agents). The Extend/Keep/Let-walk/Non-tender/Trade recommendation
+label is [0058](0058-contract-recommendation-thresholds.md) — a two-axis
+decision table derived from a curated cohort of real, salaried contracts
+(deriving from the full player pool failed initially: this save has 259
+teams, so most rated players are organizational depth, not a
+projection-system bug).
 
 | # | Title | Tag | Status | Depends on |
 |---|-------|-----|--------|------------|
 | [0053](0053-contract-service-time-schema.md) | Contract/salary/service-time schema | feat | Closed | — |
 | [0054](0054-contract-service-time-migration.md) | Ingest contract/salary/service-time: `migration_long.sql` | feat | Closed | 0053 |
 | [0056](0056-surplus-value-calculation.md) | Surplus-value calculation module + API route | feat | Closed | 0053, 0054 |
-| [0057](0057-surplus-value-frontend-display.md) | Surplus-value frontend display | feat | In-Progress | 0056 |
+| [0057](0057-surplus-value-frontend-display.md) | Surplus-value frontend display | feat | Closed | 0056 |
+| [0058](0058-contract-recommendation-thresholds.md) | Contract recommendation thresholds | feat | Closed | 0056 |
 
 ### Tool: GM Command Center
 

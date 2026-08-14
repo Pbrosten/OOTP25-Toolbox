@@ -24,6 +24,14 @@ MIN_SALARY = 740_000
 
 MAX_PROJECTION_YEARS = 15  # matches salary0..salary14's width, safety cap
 
+# Recommendation threshold (ticket 0058): rounded from p70 (~$4.4M) of
+# average-surplus-per-year across a curated cohort of real, meaningfully
+# salaried TEST.lg contracts (years > 0, salary0 > $1,000,000, n=611) --
+# deriving from the full player pool produced nonsense (this save has 259
+# teams, so most rated players are organizational depth, not a projection
+# bug). Tune against more data later.
+RECOMMENDATION_EXTEND_THRESHOLD = 5_000_000
+
 
 def _age_decline(from_age: int, to_age: int) -> float:
     """Cumulative WAR deduction from from_age (exclusive) to to_age (inclusive)."""
@@ -71,8 +79,10 @@ def calculate_surplus_value(base_war, current_age, mlb_service_years, contract):
 
         if under_contract:
             year_cost = salaries[contract["current_year"] + y]
+            source = "contract"
         elif projected_service < ARB_ELIGIBLE_SERVICE_YEARS:
             year_cost = MIN_SALARY
+            source = "pre_arb"
         else:
             arb_year = projected_service - ARB_ELIGIBLE_SERVICE_YEARS
             pct = ARB_PCT_OF_MARKET[min(arb_year, len(ARB_PCT_OF_MARKET) - 1)]
@@ -83,6 +93,7 @@ def calculate_surplus_value(base_war, current_age, mlb_service_years, contract):
             # just this year's own WAR-driven estimate.
             if previous_cost is not None:
                 year_cost = max(year_cost, previous_cost)
+            source = "arbitration"
 
         previous_cost = year_cost
         years.append(
@@ -93,6 +104,7 @@ def calculate_surplus_value(base_war, current_age, mlb_service_years, contract):
                 "value": year_value,
                 "cost": year_cost,
                 "surplus": year_value - year_cost,
+                "source": source,
             }
         )
         y += 1
@@ -106,3 +118,30 @@ def calculate_surplus_value(base_war, current_age, mlb_service_years, contract):
         "total_cost": sum(yr["cost"] for yr in years),
         "total_surplus": sum(yr["surplus"] for yr in years),
     }
+
+
+def recommend_contract_action(result):
+    """
+    result: calculate_surplus_value's return value (not None). Two-axis
+    decision: years-of-control-remaining x average-surplus-per-year tier,
+    with "guaranteed vs. discretionary" (is there any point in the horizon
+    the team could walk away for free) gating Non-tender. Checks the whole
+    horizon, not just years[0] -- years[0] is often already a signed,
+    already-tendered season (e.g. a real years=1 arb-1 deal), which the
+    team is committed to regardless; what actually makes "Non-tender" a
+    live option is a *later* projected year reverting to an
+    arbitration/pre-arb estimate once that signed year runs out. See
+    ticket 0058.
+    """
+    years = result["years"]
+    years_remaining = len(years)
+    avg_surplus = result["total_surplus"] / years_remaining
+    discretionary = any(yr["source"] != "contract" for yr in years)
+
+    if years_remaining <= 1:
+        return "Trade before free agency" if avg_surplus >= 0 else "Let walk"
+    if avg_surplus >= RECOMMENDATION_EXTEND_THRESHOLD:
+        return "Extend"
+    if avg_surplus >= 0:
+        return "Keep short-term"
+    return "Non-tender" if discretionary else "Let walk"
