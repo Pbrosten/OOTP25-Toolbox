@@ -503,6 +503,45 @@ paths:
                 items:
                   $ref: '#/components/schemas/PitchRepertoireEntry'
 
+  /api/players/ratings/{player_id}/trends:
+    get:
+      summary: Get a player's rating deltas over the last 3 heaps
+      description: |
+        Returns per-category rating deltas for a player: their latest heap's
+        ratings vs. the ratings from 3 heaps prior (the player's own heap
+        sequence, not a fixed calendar offset), across all "overall"
+        (current-ability) and "talent" (potential) rating tables. Each
+        overall-table delta is flagged `exceeded` at +/-5 points; each
+        talent-table delta at +/-10 points (ticket 0050). Note this route
+        lives under `/api/players/ratings`, not `/api/ratings` like the
+        other Ratings-tagged routes in this file above.
+      tags: [Ratings, Development]
+      parameters:
+        - in: path
+          name: player_id
+          required: true
+          description: The ID of the player to compute rating trends for
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Rating deltas for the player (empty if fewer than 4 recorded heaps)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RatingTrendEntry'
+        '404':
+          description: Player has no players_rating rows at all
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+
   /api/admin/init-db:
     post:
       summary: Initialize the database schema
@@ -719,7 +758,39 @@ components:
         rating_date:
           type: string
           format: date
-    
+
+    RatingTrendEntry:
+      type: object
+      description: One rating column's delta between a player's latest heap and the heap 3 heaps prior (ticket 0050).
+      properties:
+        table_name:
+          type: string
+          description: Source rating table, e.g. players_batting or players_batting_talent
+        column_name:
+          type: string
+          description: Rating column within table_name, e.g. contact
+        from_date:
+          type: string
+          format: date
+          description: rating_date of the heap 3 heaps prior
+        to_date:
+          type: string
+          format: date
+          description: rating_date of the player's latest heap
+        from_value:
+          type: integer
+        to_value:
+          type: integer
+        delta:
+          type: integer
+          description: to_value minus from_value
+        threshold:
+          type: integer
+          description: 5 for overall-table rows, 10 for talent-table rows
+        exceeded:
+          type: boolean
+          description: True if abs(delta) >= threshold
+
     BattingRating:
       type: object
       properties:

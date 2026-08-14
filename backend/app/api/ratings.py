@@ -1,4 +1,6 @@
-from flask import Blueprint, jsonify
+import os
+
+from flask import Blueprint, jsonify, current_app
 from app.db.connection import get_db, close_db
 
 bp = Blueprint("ratings", __name__, url_prefix="/api/players/ratings")
@@ -290,6 +292,50 @@ def get_pitch_repertoire_by_id(rating_id):
                 "SELECT * FROM players_pitch_repertoire WHERE rating_id = %s",
                 (rating_id,),
             )
+            rows = cursor.fetchall()
+            return jsonify(rows)
+    finally:
+        close_db()
+
+
+########################### DEVELOPMENT TRENDS (0050) #######################
+@bp.route("/<int:player_id>/trends", methods=["GET"])
+def get_player_rating_trends(player_id):
+    """
+    Retrieve per-category rating deltas for a player: their latest heap's
+    ratings vs. the ratings from 3 heaps prior, across all "overall" and
+    "talent" rating tables (see ticket 0050's Design choices for the table
+    list and thresholds).
+
+    Args:
+        player_id (int): The unique ID of the player.
+
+    Returns:
+        JSON response:
+            - A list of `{table_name, column_name, from_date, to_date,
+              from_value, to_value, delta, threshold, exceeded}` objects.
+              Empty if the player has fewer than 4 recorded heaps.
+            - 404 error if the player has no `players_rating` rows at all.
+    """
+    con = get_db()
+    try:
+        with con.cursor() as cursor:
+            cursor.execute(
+                "SELECT 1 FROM players_rating WHERE player_id = %s LIMIT 1",
+                (player_id,),
+            )
+            if cursor.fetchone() is None:
+                return jsonify({"error": "Player not found"}), 404
+
+            with current_app.open_resource(
+                os.path.join(
+                    "db", "sql_scripts", "api", "get_player_rating_trends.sql"
+                ),
+                "r",
+            ) as f:
+                sql = f.read()
+
+            cursor.execute(sql, {"player_id": player_id})
             rows = cursor.fetchall()
             return jsonify(rows)
     finally:

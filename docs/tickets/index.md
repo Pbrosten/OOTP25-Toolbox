@@ -158,76 +158,156 @@ built, not a new data source.
 | [0036](0036-fastball-velocity-display.md) | Fastball velocity display on pitcher player pages | feat | Closed | — |
 | [0037](0037-split-sp-rp-percentile-cohorts.md) | Split SP/RP percentile cohorts (stop comparing starters to relievers) | fix | Closed | 0027 |
 
-## Epic: GM Command Center
+## Epic: GM Tools
 
-Sourced from [docs/improvements/expanded-functionality.md](../improvements/expanded-functionality.md)
-Tier 1 #1, tagged `stagged` there. Filed as a single epic-tracker ticket, in
-the style of [0015](0015-pitcher-projection-epic.md) — it's a landing
-dashboard that aggregates output from several of the epics below (roster
-weaknesses from Roster Optimization, promotion readiness from Prospect
-Pipeline, contract decisions from Contract & Arbitration Analyzer), so
-whether it's built first as a shell or last once its dependencies exist is
-itself an open question — see 0038's own Design choices.
+Sourced from [docs/improvements/expanded-functionality.md](../improvements/expanded-functionality.md)'s
+Tier 1 #1, #2, #3, #5, #6, #7 and Tier 2 #12 — the full slate of GM-facing
+analysis tools tagged `stagged` there. Previously filed under five separate
+epic headings; merged into one, since the tools overlap more than they
+divide: two data gaps (no minor-league level/affiliate data; no
+contract/salary/arbitration data anywhere in `staging`/`ootp`) block or
+partially block five of the seven, and several tools consume each other's
+output (Command Center aggregates Roster Optimization + Prospect Pipeline +
+Contract Analyzer; Prospect Pipeline reuses Player Development Monitor's
+trend layer; Defensive Optimization reuses Roster Optimization's query
+layer).
+
+`### Tool` subsections below are ordered by build recommendation — gated by
+data readiness, not by the epic's original grouping:
+
+1. **Player Development Monitor** (0044) — zero data gaps, ships first.
+2. **Trade Target Finder** (0041) reduced v1 — position/age/WAR/role
+   filtering ships now; full scope waits on contract data (step 7).
+3. **Roster Optimization & Organizational Depth** (0039) MLB-roster slice —
+   the WAR-by-player-by-position data source is already resolved; only the
+   org-depth slice waits on level/affiliate data (step 6).
+4. **Defensive Optimization** (0040) — follows 0039, reuses its shared
+   query layer with a defense-weighted variant.
+5. *(prerequisite, not yet its own ticket)* — inspect a real dump export for
+   minor-league level/affiliate fields and contract/salary/arbitration
+   tables; file schema + migration tickets mirroring
+   [0024](0024-pitcher-schema-ratings-tables.md)/[0025](0025-pitcher-migration-ingestion.md).
+   Unblocks steps 6–8.
+6. **Prospect Pipeline** (0043) — needs level/affiliate data from step 5,
+   plus reuses 0044's trend layer from step 1.
+7. **Contract & Arbitration Analyzer** (0042) — needs contract/salary data
+   from step 5; no reduced-scope fallback exists.
+8. **Trade Target Finder** (0041) full scope — layers in contract/injury/
+   organizational-fit filters once step 5's data and 0039's depth-chart
+   output exist.
+9. **GM Command Center** (0038) — aggregates 0039 + 0042 + 0043 output, so
+   it has the least value built first; sequenced last. Also needs its own
+   "current team" concept resolved (no session/team-selection exists
+   anywhere in the app today) — see 0038's Design choices.
+
+Ticket-level dependency graph (matches the table's "Depends on" column
+below; the unticketed step-5 data prerequisite that partially gates
+0039/0041/0042/0043 isn't a ticket so it isn't drawn here — see the
+build-order list above for that nuance):
+
+```
+[~] 0044 Player Development Monitor
+      |
+      v
+[ ] 0043 Prospect Pipeline ----------------------+
+                                                  |
+[ ] 0039 Roster Optimization & Org Depth --------+
+      |                                          |
+      v                                          |
+[ ] 0040 Defensive Optimization                  |
+                                                  |
+[ ] 0042 Contract & Arbitration Analyzer --------+
+                                                  |
+                                                  v
+                                       [ ] 0038 GM Command Center
+
+[ ] 0041 Trade Target Finder — standalone, omitted above (reduced v1 has no
+    ticket dependencies; full-scope layering is data/output-gated per the
+    build-order list, not a hard ticket dependency — same convention as
+    0035/0036/0037 being left out of the pitcher-projection epic's diagram).
+
+[x] = Closed   [ ] = Open   [~] = In-Progress
+```
 
 | # | Title | Tag | Status | Depends on |
 |---|-------|-----|--------|------------|
-| [0038](0038-gm-command-center.md) | GM Command Center (epic tracker) | feat | Open | — |
-
-## Epic: Roster & Defensive Optimization
-
-Sourced from [docs/improvements/expanded-functionality.md](../improvements/expanded-functionality.md)
-Tier 1 #2 and Tier 2 #12, both tagged `stagged`. Filed as sibling
-epic-tracker tickets rather than a dependency chain — either could be scoped
-first, and whichever lands first builds the shared "WAR by player by
-eligible position" query layer the other also needs. Both are blocked on the
-same missing minor-league level/affiliate data for their organizational-depth
-scope; see each ticket's Design choices.
-
-| # | Title | Tag | Status | Depends on |
-|---|-------|-----|--------|------------|
-| [0039](0039-roster-optimization-org-depth.md) | Roster Optimization & Organizational Depth (epic tracker) | feat | Open | — |
-| [0040](0040-defensive-optimization.md) | Defensive Optimization (epic tracker) | feat | Open | — |
-
-## Epic: Transactions — Trade Targets & Contract Valuation
-
-Sourced from [docs/improvements/expanded-functionality.md](../improvements/expanded-functionality.md)
-Tier 1 #3 and #5, both tagged `stagged`. Filed as sibling epic-tracker
-tickets — both are blocked (fully, in 0042's case) on contract/salary data
-that isn't currently ingested anywhere in `staging`/`ootp`; see each ticket's
-Design choices for the specifics. That ingestion isn't scoped as its own
-ticket yet — it needs a real dump export inspected first to know what OOTP
-actually exports for contracts/arbitration.
-
-| # | Title | Tag | Status | Depends on |
-|---|-------|-----|--------|------------|
+| [0044](0044-player-development-monitor.md) | Player Development Monitor (epic tracker) | feat | In-Progress | — |
 | [0041](0041-trade-target-finder.md) | Trade Target Finder (epic tracker) | feat | Open | — |
+| [0039](0039-roster-optimization-org-depth.md) | Roster Optimization & Organizational Depth (epic tracker) | feat | Open | — |
+| [0040](0040-defensive-optimization.md) | Defensive Optimization (epic tracker) | feat | Open | 0039 |
+| [0043](0043-prospect-pipeline.md) | Prospect Pipeline (epic tracker) | feat | Open | 0044 |
 | [0042](0042-contract-arbitration-analyzer.md) | Contract & Arbitration Analyzer (epic tracker) | feat | Open | — |
+| [0038](0038-gm-command-center.md) | GM Command Center (epic tracker) | feat | Open | 0039, 0042, 0043 |
 
-## Epic: Prospect Pipeline
+### Tool: Player Development Monitor
 
-Sourced from [docs/improvements/expanded-functionality.md](../improvements/expanded-functionality.md)
-Tier 1 #6, tagged `stagged`. Filed as a single epic-tracker ticket. Shares
-the minor-league level/affiliate data gap with the Roster & Defensive
-Optimization epic above, and its "development trajectory" scope is intended
-to build on the Player Development Monitor epic below rather than duplicate
-it — see 0043's Design choices.
-
-| # | Title | Tag | Status | Depends on |
-|---|-------|-----|--------|------------|
-| [0043](0043-prospect-pipeline.md) | Prospect Pipeline (epic tracker) | feat | Open | — |
-
-## Epic: Player Development Monitor
-
-Sourced from [docs/improvements/expanded-functionality.md](../improvements/expanded-functionality.md)
-Tier 1 #7, tagged `stagged`. Filed as a single epic-tracker ticket. Unlike
-the other epics sourced from that document, its core scope (tracking rating
-changes across existing per-heap snapshots) needs no new data ingestion —
-see 0044's Design choices for why it's a reasonable candidate to prioritize
-first among this batch.
+[0044](0044-player-development-monitor.md) — the only epic whose core scope
+(tracking rating changes across existing per-heap snapshots) needs zero new
+data ingestion. Its "meaningful change" threshold design question is
+resolved (see 0044's Design choices) and broken into three sub-tickets. Its
+trend-computation layer, once built, is a direct input to Prospect Pipeline
+below.
 
 | # | Title | Tag | Status | Depends on |
 |---|-------|-----|--------|------------|
-| [0044](0044-player-development-monitor.md) | Player Development Monitor (epic tracker) | feat | Open | — |
+| [0050](0050-rating-trend-query-layer.md) | Rating delta/trend query layer + API route | feat | Closed | — |
+| [0051](0051-development-alert-generation.md) | Development alert generation (narrative rule layer) | feat | Open | 0050 |
+| [0052](0052-development-monitor-frontend.md) | Frontend trend/alert display (PlayerDetails.vue) | feat | Open | 0050, 0051 |
+
+### Tool: Trade Target Finder
+
+[0041](0041-trade-target-finder.md) — ships in two passes. A reduced v1
+(filter/rank by position, age, projected WAR, and role) is buildable today
+with no new ingestion, so it can ship alongside Player Development Monitor.
+The full scope (contract status, salary, years-of-control, injury risk,
+team-competitiveness, organizational fit) waits on the contract/salary
+ingestion prerequisite and, for organizational fit, on Roster Optimization's
+depth-chart output.
+
+### Tool: Roster Optimization & Organizational Depth
+
+[0039](0039-roster-optimization-org-depth.md) — also ships in two passes.
+The MLB-roster slice (best lineup, position eligibility, WAR by position)
+has a fully resolved data source already. The organizational-depth slice
+(AAA/AA/A) waits on the minor-league level/affiliate ingestion prerequisite.
+Whichever of this or Defensive Optimization starts first builds the shared
+"WAR by player by eligible position" query layer the other reuses — sequenced
+first here since its output also feeds GM Command Center and Trade Target
+Finder's organizational-fit filter.
+
+### Tool: Defensive Optimization
+
+[0040](0040-defensive-optimization.md) — sibling of Roster Optimization;
+sequenced immediately after it to reuse rather than duplicate the shared
+depth-chart query layer with a defense-weighted variant. Needs confirming
+that `players_fielding_position` grades are populated across all 9 slots per
+player regardless of games actually played there, before scoping
+"position-switch scenarios."
+
+### Tool: Prospect Pipeline
+
+[0043](0043-prospect-pipeline.md) — blocked on the same minor-league
+level/affiliate data gap as Roster Optimization's org-depth slice (resolve
+once, not twice), and its "development trajectory" scope is intended to
+reuse Player Development Monitor's trend layer rather than reimplement
+snapshot-diffing. Sequenced after both.
+
+### Tool: Contract & Arbitration Analyzer
+
+[0042](0042-contract-arbitration-analyzer.md) — the one tool with no
+reduced-scope fallback: "should we pay this player" is meaningless without
+knowing what he's currently owed. Cannot start until the contract/salary
+ingestion prerequisite lands.
+
+### Tool: GM Command Center
+
+[0038](0038-gm-command-center.md) — a landing dashboard that aggregates
+roster weaknesses (Roster Optimization), promotion readiness (Prospect
+Pipeline), and contract decisions (Contract & Arbitration Analyzer). Built
+last, once those three exist, rather than as an early placeholder shell —
+it has no data of its own. Also needs a "current team" concept designed
+(session/config value, or route param) before it can scope anything to a
+specific GM's roster.
 
 ## Frontend / stats display fixes
 
