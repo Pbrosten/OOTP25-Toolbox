@@ -76,13 +76,13 @@ Broken down into three sequential sub-tickets, mirroring the layering used
 by the pitcher-projection epic (0026/0027/0028):
 
 ```
-[ ] 0050 Rating delta/trend query layer + API route
+[x] 0050 Rating delta/trend query layer + API route
       |
       v
-[ ] 0051 Development alert generation (narrative rule layer)
+[x] 0051 Development alert generation (narrative rule layer)
       |
       v
-[ ] 0052 Frontend trend/alert display (PlayerDetails.vue)
+[x] 0052 Frontend trend/alert display (PlayerDetails.vue)
 
 [x] = Closed   [ ] = Open   [~] = In-Progress
 ```

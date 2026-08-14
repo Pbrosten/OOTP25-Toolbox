@@ -86,3 +86,20 @@ list).
 - `backend/app/player_projection/development_alerts.py` (new)
 - `backend/app/api/ratings.py` (modified)
 - `backend/docs/openai.yaml` (modified)
+
+## 4. Amendment — label maps trimmed to 0050's restricted category set
+
+See [0050](0050-rating-trend-query-layer.md)'s own Amendment section for
+the full scope change (a curated per-player-type category set, overall vs.
+talent now conditioned on MLB status). `development_alerts.py`'s label
+dicts (`_BATTING_LABELS`, `_PITCHING_LABELS`, `_FIELDING_LABELS`,
+`_BASEPATH_LABELS`) were trimmed to only the columns 0050 can now return
+(babip/power/eye; stuff/movement/control/velocity/stamina; infield_range/
+outfield_range/catcher_framing; speed), and
+`_OVERALL_LABELS_BY_TABLE`/`_TALENT_LABELS_BY_TABLE` no longer reference
+`players_fielding_position`/`players_fielding_position_talent` (dropped
+from scope entirely — defense is now tracked via `players_fielding`'s
+three named columns, not per-position). No logic changes — `get_development_alerts`
+still just filters `exceeded` rows generically, whatever 0050 returns.
+Re-verified via the live `/trends/alerts` route (player 25549, a pitcher)
+returns only pitching-category alerts post-change.

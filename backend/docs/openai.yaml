@@ -509,12 +509,21 @@ paths:
       description: |
         Returns per-category rating deltas for a player: their latest heap's
         ratings vs. the ratings from 3 heaps prior (the player's own heap
-        sequence, not a fixed calendar offset), across all "overall"
-        (current-ability) and "talent" (potential) rating tables. Each
-        overall-table delta is flagged `exceeded` at +/-5 points; each
-        talent-table delta at +/-10 points (ticket 0050). Note this route
-        lives under `/api/players/ratings`, not `/api/ratings` like the
-        other Ratings-tagged routes in this file above.
+        sequence, not a fixed calendar offset). Tracked categories are
+        curated per player type (ticket 0050, restricted after initial
+        release): position players get babip, power, eye, speed, and
+        defense (infield range, outfield range, catcher framing); pitchers
+        get stuff, movement, control, velocity, and stamina. For the
+        categories with both an "overall" (current-ability) and "talent"
+        (potential) rating -- babip/power/eye for batters, stuff/movement/
+        control for pitchers -- the overall rating is tracked once the
+        player has reached the majors (latest heap's league_id = 203),
+        talent until then; velocity/stamina/speed/defense always track
+        overall, having no talent-table equivalent. Each overall-table
+        delta is flagged `exceeded` at +/-5 points; each talent-table delta
+        at +/-10 points. Note this route lives under `/api/players/ratings`,
+        not `/api/ratings` like the other Ratings-tagged routes in this
+        file above.
       tags: [Ratings, Development]
       parameters:
         - in: path

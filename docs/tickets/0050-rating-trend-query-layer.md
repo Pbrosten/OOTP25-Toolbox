@@ -102,3 +102,51 @@ UNION ALL branches, so this was a single fix, not 67).
 - `backend/app/db/sql_scripts/api/get_player_rating_trends.sql` (new)
 - `backend/app/api/ratings.py` (modified)
 - `backend/docs/openai.yaml` (modified)
+
+## 4. Amendment — restricted to a curated per-player-type category set
+
+After 0052 shipped, the tracked-category scope above ("all columns across
+all 8 tables") was replaced with a curated whitelist, requested directly
+rather than filed as a separate ticket:
+
+- **Position players** (`players.position <> 'P'`): babip, power, eye
+  (`players_batting`), speed (`players_basepath`), and defense —
+  infield range, outfield range, catcher framing (`players_fielding`).
+- **Pitchers** (`players.position = 'P'`): stuff, movement, control
+  (`players_pitching`, all three also tracked via
+  `players_pitching_talent`), velocity, stamina (`players_pitching` only —
+  no talent counterpart exists in the schema for these two).
+
+**Resolved — overall vs. talent now conditioned on MLB status, not always
+both.** For the three categories per type that have both an overall and a
+talent column (babip/power/eye; stuff/movement/control), only one is
+tracked per player: overall if the player's latest heap has
+`league_id = 203` (MLB — same convention as `PlayerDetails.vue`'s MLB/MiLB
+label), talent otherwise (prospect). velocity/stamina/speed/defense have no
+talent-table equivalent at all, so they always track overall regardless of
+MLB status. This replaces the original "both overall and talent, always"
+scope entirely, superseding the design choice above by that name.
+
+**Resolved — gate on `players.position`, not on which tables have rows.**
+The original version relied on `players_batting`/`players_pitching` only
+ever having rows for one player type (migration_short.sql's role filter).
+Testing this change against the live `ootp` database found a
+counterexample: player_id 5 has `position = 'P'` but still carries
+`players_batting` rows — the role/position mismatch edge case
+[0030](0030-exclude-pitchers-from-batting-projection.md)'s Design choices
+flagged as never fully carved out for TWPs (that ticket found 3 of 63,163
+rows mismatched). Every branch in the rewritten query now explicitly joins
+`players` and filters on `position`, rather than trusting table membership.
+
+**Verified:** full pytest suite (86 passed). Ran the rewritten SQL directly
+against the live database: player 5 (the `position = 'P'` / stray-batting-row
+case above) now correctly returns only the 5 pitching categories, not
+batting; player 6 (MLB position player) returns overall `players_batting` +
+`players_basepath`/`players_fielding`; player 12 (non-MLB position player)
+returns `players_batting_talent` for babip/power/eye but still *overall*
+`players_basepath`/`players_fielding` for speed/defense (no talent table
+for those). Re-verified the alert route end-to-end (player 25549, a
+pitcher) now returns only pitching-category alerts, where it previously
+also surfaced a now-out-of-scope `players_batting_talent` alert. Hit the
+live route after restarting the backend container. `backend/docs/openai.yaml`
+updated to describe the restricted scope.
