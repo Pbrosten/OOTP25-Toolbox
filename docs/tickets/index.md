@@ -233,7 +233,7 @@ first among this batch.
 | # | Title | Tag | Status | Depends on |
 |---|-------|-----|--------|------------|
 | [0023](0023-fix-career-batting-rate-stats-display.md) | Fix OBP/SLG/OPS in the career batting stats table | fix | Closed | — |
-| [0048](0048-batting-career-totals-seasons-label.md) | Replace "Total" with a season count in the batting career stats table | fix | Open | — |
+| [0048](0048-batting-career-totals-seasons-label.md) | Replace "Total" with a season count in the batting career stats table | fix | Closed | — |
 
 ## Search & display refinements
 

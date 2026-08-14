@@ -1,7 +1,7 @@
 # 0048 — Replace "Total" with a season count in the batting career stats table
 
 - **Tag:** fix
-- **Status:** Open
+- **Status:** Closed
 - **Depends on:** —
 - **Blocks:** —
 
@@ -42,6 +42,16 @@ informative than pitchers' as a result.
 - Replace the three `<td class="px-2 py-1" colspan="...">Total</td>` cells
   (lines 285, 292, 302) with `{{ totals.seasons }} Seasons`, matching the
   pitching table's markup at lines 358/368.
+- **Verified against real data**: `GET /api/players/15/career/batting`
+  (Trea Turner, on the dev database populated by ticket 0046's full
+  update-db run) returns 16 rows but only 15 distinct `year` values — a
+  mid-season stint split produces two rows for the same year. Confirms the
+  `Set`-based count is doing real work (not just row-counting) and matches
+  pitching's already-proven approach for the same shape of data. Vite HMR
+  picked up the change with no compile errors; `vue-tsc -b` (run inside the
+  frontend container) shows the same pre-existing unrelated errors in other
+  files both before and after this change, none in `PlayerDetails.vue`. No
+  browser available in this session to visually confirm the rendered label.
 
 **Files involved:**
 - `frontend/src/components/PlayerDetails.vue` (modified)

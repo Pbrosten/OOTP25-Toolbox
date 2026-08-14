@@ -137,6 +137,7 @@ const totals = computed(() => {
     obp: calcObp(totalsStat),
     slg: calcSlg(totalsStat),
     ops: calcOps(totalsStat),
+    seasons: new Set(battingStats.value.map((s) => s.year)).size,
   }
 })
 
@@ -282,14 +283,14 @@ defineExpose({
           <!-- Totals row -->
           <template v-if="totals">
             <tr class="bg-gray-100 font-bold sm:hidden">
-              <td class="px-2 py-1" colspan="2">Total</td>
+              <td class="px-2 py-1" colspan="2">{{ totals.seasons }} Seasons</td>
               <td class="px-2 py-1">{{ totals.totalHR }}</td>
               <td class="px-2 py-1">{{ totals.totalSB }}</td>
               <td class="px-2 py-1">{{ formatRate(totals.avg) }}</td>
               <td class="px-2 py-1">{{ formatRate(totals.ops) }}</td>
             </tr>
             <tr class="bg-gray-100 font-bold hidden sm:table-row lg:hidden">
-              <td class="px-2 py-1" colspan="2">Total</td>
+              <td class="px-2 py-1" colspan="2">{{ totals.seasons }} Seasons</td>
               <td class="px-2 py-1">{{ totals.totalH }}</td>
               <td class="px-2 py-1">{{ totals.totalHR }}</td>
               <td class="px-2 py-1">{{ totals.totalSB }}</td>
@@ -299,7 +300,7 @@ defineExpose({
               <td class="px-2 py-1">{{ formatRate(totals.ops) }}</td>
             </tr>
             <tr class="bg-gray-100 font-bold hidden lg:table-row">
-              <td class="px-2 py-1" colspan="4">Total</td>
+              <td class="px-2 py-1" colspan="4">{{ totals.seasons }} Seasons</td>
               <td class="px-2 py-1">{{ totals.totalR }}</td>
               <td class="px-2 py-1">{{ totals.totalH }}</td>
               <td class="px-2 py-1">{{ totals.totalHR }}</td>
