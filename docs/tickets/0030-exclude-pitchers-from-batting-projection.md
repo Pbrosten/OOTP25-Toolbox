@@ -1,7 +1,7 @@
 # 0030 — Exclude pitchers from the batting projection workflow (pending a future TWP tag)
 
 - **Tag:** fix
-- **Status:** Open
+- **Status:** Closed
 - **Depends on:** —
 - **Blocks:** —
 
@@ -31,18 +31,18 @@ upstream of that one percentile query.
 
 ## 2. Design choices
 
-- **Where to filter?** Options: (a) `get_projection_inputs.sql` only — stops
-  the wasted projection compute but leaves the ingestion bloat in
-  `players_batting`/`players_batting_talent`; (b) `migration_short.sql`'s
-  `players_batting`/`players_batting_talent` INSERTs — stops the rows from
-  ever landing in `ootp` at all, mirroring
-  [0026](0026-pitcher-projection-methodology.md)'s precedent of filtering
-  `players_pitching`'s population at the migration layer ("since that's
-  where the population question actually lives"). **Recommend (b)**, likely
-  still paired with a defensive check at the fetch/projection layer the way
-  `PitcherProjection.__init__` defensively re-checks role even though
-  `migration_short.sql` already filters it — left for the implementer to
-  decide, not resolved here.
+- **Where to filter? Resolved: (b), `migration_short.sql`, no dual-layer
+  defensive filter needed.** Filtering at the `players_batting`/
+  `players_batting_talent` INSERTs (mirroring
+  [0026](0026-pitcher-projection-methodology.md)'s `players_pitching`
+  precedent) means pitchers never get a `players_batting` row at all. Unlike
+  `PitcherProjection.__init__`'s defensive re-check (which guards against a
+  bad *value* reaching a class that processes `players_pitching` rows
+  directly), `get_projection_inputs.sql` reaches `players_batting` only via
+  an **inner join** (`JOIN players_batting as b ON r.rating_id =
+  b.rating_id`) — a player with no `players_batting` row is structurally
+  absent from that query's result set already, no separate `WHERE` filter
+  needed there. No changes made to `get_projection_inputs.sql`.
 - **TWP (two-way player) tag — explicitly out of scope for this ticket,
   deferred to a future ticket.** The stated end state: players with
   average-or-above skill/potential in *both* hitting and pitching should be
@@ -62,34 +62,50 @@ upstream of that one percentile query.
   will temporarily under-serve genuine two-way players in saves that have
   them — an explicit, accepted regression until the follow-up lands, not an
   oversight.
-- **Outstanding:** `ootp.players.position` still has un-normalized raw
-  numeric codes (`'1'`-`'9'`) for some rows even after `migration_short.sql`'s
-  own `UPDATE players SET position = CASE position WHEN '1' THEN 'P' ...`
-  block — confirmed live (`SELECT DISTINCT position FROM players` returns
-  both string and numeric values in the same database). A `position != 'P'`
-  filter could miss rows still numerically coded `'1'`. Whether that's this
-  ticket's problem to fix or belongs to a separate pre-existing
-  data-quality ticket isn't decided here.
+- **Resolved — the numeric-position-code Outstanding question, by not using
+  `position` at all.** Rather than filter on `ootp.players.position`/
+  `staging.players_batting.position` (which needs the numeric→letter `CASE`
+  mapping and is exactly the column with the confirmed normalization-timing
+  gap — a player inserted earlier in the same run hasn't had that `UPDATE`
+  applied yet when `players_batting` is populated), the filter uses
+  `staging.players_batting.role` instead — same roster-role code
+  `staging.players_pitching.role` already uses (11/12/13 = SP/RP/Closer, 0 =
+  non-pitcher), confirmed by 0026 and re-confirmed here directly against a
+  real dump export: cross-tabulating `(position, role)` on
+  `staging.players_batting` (`dump_2029_yearly`, 134,808 rows), `position=1`
+  (Pitcher) pairs with `role IN (11,12,13)` in 63,160 of 63,163 such rows —
+  the tiny remainder (13 rows total across all position/role combinations)
+  is pre-existing save noise unrelated to this filter, not a Pitcher/role
+  mismatch. `role` sidesteps the numeric/letter question entirely — no
+  normalization step is involved in either the filter or its input.
 
 ## 3. Approach
 
-- Add a population filter (`position != 'P'`, or the staging-side numeric
-  equivalent — `staging.players_batting` has its own `position` column,
-  same shape as `staging.players_pitching.position`/`role` did before 0026)
-  to `migration_short.sql`'s `players_batting` and `players_batting_talent`
-  INSERT statements, mirroring 0026's `players_pitching` population-filter
-  precedent (`WHERE ... AND s.role IN (11, 12, 13)`).
-- Decide whether `get_projection_inputs.sql` also needs its own defensive
-  filter (dual-layer) or whether excluding at ingestion is sufficient, since
-  it already inner-joins `players_batting`.
-- No schema changes — this is purely a population filter on existing
-  tables, not a new column.
-- Verify against a real dump: row-count comparison for `players_batting` /
-  `players_batting_expected` before and after, confirming the `position =
-  'P'` rows disappear and no non-pitcher rows are accidentally caught by
-  whatever numeric/string position check is used (see the Outstanding note
-  above).
+- Added `AND s.role NOT IN (11, 12, 13)` to `migration_short.sql`'s
+  `players_batting` and `players_batting_talent` INSERT statements' `WHERE`
+  clauses, mirroring 0026's `players_pitching` precedent. No changes to
+  `get_projection_inputs.sql` (see Design choices) and no schema changes.
+- **Verified against real data** (the same `TEST.lg` `dump_2029_yearly`
+  staging load already sitting in the dev database post-
+  [0046](0046-prune-inactive-players.md)): re-ran the position/role
+  cross-tab above directly against `staging.players_batting`, and separately
+  computed the real per-heap impact by joining to `staging.players` `WHERE
+  retired = 0` (matching `players_rating`'s own population filter) — of
+  11,706 non-retired players, 5,730 (49%) are pitchers that the new filter
+  excludes and 5,976 remain, matching the Problem section's ~51% estimate.
+  Did not re-run the full `update-db` pipeline end-to-end for this ticket
+  (that only re-validates plumbing already proven working by
+  [0046](0046-prune-inactive-players.md)'s full 66-heap run) — the change
+  itself is a single added `WHERE` predicate, validated directly against
+  real-shaped data rather than through a ~45-minute full pipeline run.
+- Not run against the live `ootp` database. `players_batting`/
+  `players_batting_talent`/`players_batting_expected` rows already inserted
+  by past heap runs (before this fix) aren't retroactively removed — the
+  filter only affects new inserts going forward. Existing pitcher rows for
+  past heap dates are inert storage, not an ongoing compute cost (`get_
+  projection_inputs.sql` and the projection pass are both scoped to the
+  *current* heap date each run), so no backfill/cleanup was done here;
+  flag if that's wanted as a separate, explicit ask.
 
 **Files involved:**
 - `backend/app/db/sql_scripts/migration/migration_short.sql` (modified)
-- `backend/app/db/sql_scripts/migration/get_projection_inputs.sql` (modified, if dual-layer filter is chosen)

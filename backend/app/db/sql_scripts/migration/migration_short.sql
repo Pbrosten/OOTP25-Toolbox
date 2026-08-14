@@ -9,6 +9,17 @@ FROM staging.players AS p
 LEFT JOIN staging.teams AS t ON p.team_id = t.team_id
 WHERE p.retired = 0;
 
+-- Excludes pitchers (ticket 0030) -- staging.players_batting has a row for
+-- every player in the league, not just hitters, and carries the same
+-- role code as staging.players_pitching (11/12/13 = SP/RP/Closer, 0 =
+-- non-pitcher; confirmed against a real dump export: position=1/Pitcher
+-- pairs with role 11/12/13 in 63,160 of 63,163 such rows). Filtering here
+-- on staging's role -- not ootp.players.position -- deliberately avoids
+-- the position-normalization timing gap noted in 0030's Design choices
+-- (ootp.players.position only gets converted from OOTP's raw numeric codes
+-- to letter codes by a later UPDATE in this same script, so a
+-- newly-inserted player can still read as numeric '1' rather than 'P' at
+-- this point in a run). No TWP (two-way player) carve-out -- see 0030.
 INSERT IGNORE INTO players_batting (
     rating_id, contact, gap, eye, strikeouts, power, babip, bunt, bunt_for_hit
 )
@@ -24,7 +35,7 @@ SELECT
     s.batting_ratings_misc_bunt_for_hit
 FROM players_rating AS r
 JOIN staging.players_batting AS s ON r.player_id = s.player_id
-WHERE r.rating_date = '{{HEAP_DATE}}';
+WHERE r.rating_date = '{{HEAP_DATE}}' AND s.role NOT IN (11, 12, 13);
 
 INSERT IGNORE INTO players_batting_talent (
     rating_id, contact, gap, eye, strikeouts, power, babip
@@ -39,7 +50,7 @@ SELECT
     s.batting_ratings_talent_babip
 FROM players_rating AS r
 JOIN staging.players_batting AS s ON r.player_id = s.player_id
-WHERE r.rating_date = '{{HEAP_DATE}}';
+WHERE r.rating_date = '{{HEAP_DATE}}' AND s.role NOT IN (11, 12, 13);
 
 INSERT IGNORE INTO players_pitching (
     rating_id, role, stuff, movement, hra, pbabip, control, balk, hp, wild_pitch,
