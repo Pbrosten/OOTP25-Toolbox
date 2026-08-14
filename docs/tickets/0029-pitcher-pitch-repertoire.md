@@ -1,7 +1,7 @@
 # 0029 — Pitcher pitch repertoire: number of pitches and per-pitch quality
 
 - **Tag:** feat
-- **Status:** In-Progress
+- **Status:** Closed
 - **Depends on:** [0025](0025-pitcher-migration-ingestion.md)
 - **Blocks:** [0031](0031-pitch-repertoire-schema.md), [0032](0032-pitch-repertoire-migration.md), [0033](0033-pitch-repertoire-report.md)
 

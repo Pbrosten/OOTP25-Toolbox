@@ -1,7 +1,7 @@
 # 0015 — Pitcher projections: schema, migration, and projection pipeline
 
 - **Tag:** feat
-- **Status:** In-Progress
+- **Status:** Closed
 - **Depends on:** —
 - **Blocks:** —
 - **Broken down into:** [0024](0024-pitcher-schema-ratings-tables.md) (schema)

@@ -111,7 +111,7 @@ percentile bar. [0037](0037-split-sp-rp-percentile-cohorts.md) depends on
 built, not a new data source.
 
 ```
-[~] 0015 Epic tracker
+[x] 0015 Epic tracker
       |
       v
 [x] 0024 Schema (players_pitching / players_pitching_talent)
@@ -121,7 +121,7 @@ built, not a new data source.
       |
       +----------------------------------+
       v                                  v
-[x] 0026 Projection methodology    [~] 0029 Pitch repertoire (epic tracker)
+[x] 0026 Projection methodology    [x] 0029 Pitch repertoire (epic tracker)
     + PitcherProjection                  |
       |                                  v
       v                            [x] 0031 Schema (players_pitch_repertoire)
@@ -141,13 +141,13 @@ built, not a new data source.
 
 | # | Title | Tag | Status | Depends on |
 |---|-------|-----|--------|------------|
-| [0015](0015-pitcher-projection-epic.md) | Pitcher projections: schema, migration, and projection pipeline (epic tracker) | feat | In-Progress | — |
+| [0015](0015-pitcher-projection-epic.md) | Pitcher projections: schema, migration, and projection pipeline (epic tracker) | feat | Closed | — |
 | [0024](0024-pitcher-schema-ratings-tables.md) | Pitcher ratings schema: `players_pitching` / `players_pitching_talent` | feat | Closed | — |
 | [0025](0025-pitcher-migration-ingestion.md) | Ingest pitcher ratings: re-enable staging load + `migration_short.sql` | feat | Closed | 0024 |
 | [0026](0026-pitcher-projection-methodology.md) | Pitcher projection methodology + `PitcherProjection` class | feat | Closed | 0025 |
 | [0028](0028-pitcher-run-value-war.md) | Pitcher run-value/WAR: methodology, schema, and projection wiring | feat | Closed | 0026 |
 | [0027](0027-pitcher-api-frontend-wiring.md) | Pitcher projections API route + `PitcherPercentiles` component | feat | Closed | 0026, 0028 |
-| [0029](0029-pitcher-pitch-repertoire.md) | Pitcher pitch repertoire: number of pitches + per-pitch quality (epic tracker) | feat | In-Progress | 0025 |
+| [0029](0029-pitcher-pitch-repertoire.md) | Pitcher pitch repertoire: number of pitches + per-pitch quality (epic tracker) | feat | Closed | 0025 |
 | [0031](0031-pitch-repertoire-schema.md) | Pitch repertoire schema: `players_pitch_repertoire` | feat | Closed | 0025 |
 | [0032](0032-pitch-repertoire-migration.md) | Ingest pitch repertoire: `migration_short.sql` | feat | Closed | 0031 |
 | [0033](0033-pitch-repertoire-report.md) | Pitch repertoire API route + report component | feat | Closed | 0032 |
