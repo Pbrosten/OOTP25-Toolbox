@@ -40,9 +40,9 @@ design discussion (log-tail progress needs backend work 0004 didn't do).
 [x] 0005 Frontend trigger
       |
       v
-[ ] 0006 Job log capture
+[x] 0006 Job log capture
 
-[x] = Closed   [ ] = Open
+[x] = Closed   [ ] = Open   [~] = In-Progress
 ```
 
 | # | Title | Tag | Status | Depends on |
@@ -52,7 +52,7 @@ design discussion (log-tail progress needs backend work 0004 didn't do).
 | [0003](0003-admin-api-auth-guard.md) | Guard admin endpoints with access control | feat | Closed | 0002 |
 | [0004](0004-async-update-db-job.md) | Run update-db as an async background job with status polling | feat | Closed | 0002, 0003 |
 | [0005](0005-frontend-admin-trigger.md) | Frontend trigger for admin DB operations | feat | Closed | 0004 |
-| [0006](0006-job-log-capture.md) | Capture per-line logs for update-db jobs | feat | Open | 0004, 0005 |
+| [0006](0006-job-log-capture.md) | Capture per-line logs for update-db jobs | feat | Closed | 0004, 0005 |
 
 ## Backend pipeline improvements
 
@@ -72,7 +72,7 @@ alternatives, not a sequence; 0021 folds into 0022).
 | [0012](0012-projection-worker-app-context.md) | Stop relying on fork() semantics for Flask context in projection workers | refactor | Closed | — |
 | [0013](0013-reenable-staging-reset.md) | Re-enable the staging DB reset before each load | chore | Closed | — |
 | [0014](0014-drop-unused-pitching-ingestion.md) | Stop ingesting players_pitching until something reads it | chore | Closed | — |
-| [0015](0015-pitcher-projection-epic.md) | Pitcher projections: schema, migration, and projection pipeline | feat | Open | — |
+| [0015](0015-pitcher-projection-epic.md) | Pitcher projections: schema, migration, and projection pipeline | feat | In-Progress | — |
 | [0016](0016-update-db-row-count-visibility.md) | Report row counts actually written by update-db | feat | Closed | — |
 | [0017](0017-rewrite-stale-pipeline-tests.md) | Rewrite or remove 16 stale pipeline tests | chore | Closed | — |
 | [0018](0018-remove-vestigial-sqlite-converter.md) | Remove vestigial SQLite converter registration | chore | Closed | — |
@@ -80,6 +80,81 @@ alternatives, not a sequence; 0021 folds into 0022).
 | [0020](0020-unused-statement-re-regex.md) | Resolve unused STATEMENT_RE / naive statement splitting | chore | Closed | — |
 | [0021](0021-fetch-projection-inputs-cursor-scope.md) | Fetch projection inputs inside the cursor's with block | refactor | Closed | — |
 | [0022](0022-consolidate-run-script-boilerplate.md) | Consolidate repeated run-script/rollback/commit boilerplate | refactor | Closed | — |
+| [0030](0030-exclude-pitchers-from-batting-projection.md) | Exclude pitchers from the batting projection workflow (pending a future TWP tag) | fix | Open | — |
+
+## Epic: Pitcher projections
+
+[0015](0015-pitcher-projection-epic.md) was filed as a large epic outline
+rather than a scoped plan (see its Design choices section). Broken down here
+into per-subsystem tickets the way the admin-API epic was split into
+0001–0006. Mostly sequential — each stage's column shapes depend on the
+previous stage existing, and 0026 (methodology) and 0028 (value/WAR) are
+genuinely open design questions blocking implementation — except that the
+line forks after 0025: pitch-repertoire storage (0029) shares the same
+staging source but is independent of the projection-methodology/value/API
+line, since neither of its consumers (an analytics report, long-term
+projection refinement) depends on that line's output. 0034 is the first of
+that "long-term projection refinement" consumer 0029 anticipated — it
+depends on 0029's data existing but, like 0026/0028, is blocked on an open
+design question (how "combined pitch-category quality" becomes a run-value
+number) — resolved as a proportional-share approximation off the existing
+aggregate `pitching_runs`, see 0034's Design choices. [0035](0035-pitcher-career-stats-page.md)
+is a separate branch off nothing in the diagram below — it mirrors
+`players_career_batting_stats` / `PlayerDetails.vue`'s batting table with raw
+per-season box-score counting stats (W/L/ERA/G/GS/SV/IP/SO/WHIP), independent
+of the ratings/projection pipeline (0025–0028) and of pitch repertoire (0029).
+[0036](0036-fastball-velocity-display.md) is likewise independent — it reads
+the existing `players_pitching.velocity` column (already ingested by 0025)
+and surfaces it as a display-only MPH band next to the Fastball Velo
+percentile bar. [0037](0037-split-sp-rp-percentile-cohorts.md) depends on
+0027 directly — it's a cohort-scoping fix to the same percentile query 0027
+built, not a new data source.
+
+```
+[x] 0015 Epic tracker
+      |
+      v
+[x] 0024 Schema (players_pitching / players_pitching_talent)
+      |
+      v
+[x] 0025 Migration ingestion (staging -> ootp)
+      |
+      +----------------------------------+
+      v                                  v
+[x] 0026 Projection methodology    [x] 0029 Pitch repertoire (epic tracker)
+    + PitcherProjection                  |
+      |                                  v
+      v                            [x] 0031 Schema (players_pitch_repertoire)
+[x] 0028 Run-value / WAR                 |
+      |                                  v
+      v                            [x] 0032 Migration (staging -> ootp)
+[x] 0027 API route +                     |
+    PitcherPercentiles frontend          v
+                                    [x] 0033 API route + report component
+                                          |
+                                          v
+                                    [x] 0034 Fastball/Breaking/Offspeed
+                                        run-value percentiles
+
+[x] = Closed   [ ] = Open   [~] = In-Progress
+```
+
+| # | Title | Tag | Status | Depends on |
+|---|-------|-----|--------|------------|
+| [0015](0015-pitcher-projection-epic.md) | Pitcher projections: schema, migration, and projection pipeline (epic tracker) | feat | Closed | — |
+| [0024](0024-pitcher-schema-ratings-tables.md) | Pitcher ratings schema: `players_pitching` / `players_pitching_talent` | feat | Closed | — |
+| [0025](0025-pitcher-migration-ingestion.md) | Ingest pitcher ratings: re-enable staging load + `migration_short.sql` | feat | Closed | 0024 |
+| [0026](0026-pitcher-projection-methodology.md) | Pitcher projection methodology + `PitcherProjection` class | feat | Closed | 0025 |
+| [0028](0028-pitcher-run-value-war.md) | Pitcher run-value/WAR: methodology, schema, and projection wiring | feat | Closed | 0026 |
+| [0027](0027-pitcher-api-frontend-wiring.md) | Pitcher projections API route + `PitcherPercentiles` component | feat | Closed | 0026, 0028 |
+| [0029](0029-pitcher-pitch-repertoire.md) | Pitcher pitch repertoire: number of pitches + per-pitch quality (epic tracker) | feat | Closed | 0025 |
+| [0031](0031-pitch-repertoire-schema.md) | Pitch repertoire schema: `players_pitch_repertoire` | feat | Closed | 0025 |
+| [0032](0032-pitch-repertoire-migration.md) | Ingest pitch repertoire: `migration_short.sql` | feat | Closed | 0031 |
+| [0033](0033-pitch-repertoire-report.md) | Pitch repertoire API route + report component | feat | Closed | 0032 |
+| [0034](0034-pitch-type-run-value-percentiles.md) | Per-pitch-category run-value percentiles: Fastball / Breaking / Offspeed | feat | Closed | 0029 |
+| [0035](0035-pitcher-career-stats-page.md) | Pitcher career stats table (mirror batter career stats) | feat | Closed | — |
+| [0036](0036-fastball-velocity-display.md) | Fastball velocity display on pitcher player pages | feat | Closed | — |
+| [0037](0037-split-sp-rp-percentile-cohorts.md) | Split SP/RP percentile cohorts (stop comparing starters to relievers) | fix | Closed | 0027 |
 
 ## Frontend / stats display fixes
 

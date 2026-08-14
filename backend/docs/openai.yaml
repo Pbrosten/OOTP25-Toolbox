@@ -66,6 +66,40 @@ paths:
                   error:
                     type: string
   
+  /api/players/{player_id}/career/pitching:
+    get:
+      summary: Retrieve a player's career pitching stats, by season
+      description: |
+        Returns one row per season/team of raw career pitching counting
+        stats. Automatically selects the MLB-only or MiLB-only variant
+        based on whether the player has any MLB (league_id 203) rows.
+      tags: [Players, Pitching]
+      parameters:
+        - in: path
+          name: player_id
+          required: true
+          schema:
+            type: integer
+          description: The ID of the player to retrieve
+      responses:
+        '200':
+          description: List of career pitching stat rows, one per season/team
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PitchingCareerStats'
+        '404':
+          description: Player not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+
   /api/players/stats/expected/batting:
     get:
       summary: Retrieve all player expected batting stat entries
@@ -97,6 +131,40 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BattingExpected'
+        '404':
+          description: Not found
+
+  /api/players/stats/expected/pitching:
+    get:
+      summary: Retrieve all player expected pitching stat entries
+      tags: [Projections, Pitching]
+      responses:
+        '200':
+          description: List of expected pitching stats
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PitchingExpected'
+
+  /api/players/stats/expected/pitching/{rating_id}:
+    get:
+      summary: Retrieve pitching expected stats by ID
+      tags: [Projections, Pitching]
+      parameters:
+        - name: rating_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Player pitching expected stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PitchingExpected'
         '404':
           description: Not found
 
@@ -398,6 +466,43 @@ paths:
                   error:
                     type: string
 
+  /api/ratings/pitch_repertoire:
+    get:
+      summary: Get all pitch repertoire entries
+      description: Returns a list of all pitch repertoire records (one row per pitch type a player throws).
+      tags: [Ratings, Pitching]
+      responses:
+        '200':
+          description: A list of pitch repertoire entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PitchRepertoireEntry'
+
+  /api/ratings/pitch_repertoire/{rating_id}:
+    get:
+      summary: Get the pitch repertoire for a rating ID
+      description: Returns all pitch repertoire entries for a given rating ID. Unlike other rating-by-id routes, rating_id is not unique in this table, so this always returns a list (possibly empty), never a single object or a 404.
+      tags: [Ratings, Pitching]
+      parameters:
+        - in: path
+          name: rating_id
+          required: true
+          schema:
+            type: integer
+          description: The rating ID to look up
+      responses:
+        '200':
+          description: Pitch repertoire entries for the given rating ID (possibly empty)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PitchRepertoireEntry'
+
   /api/admin/init-db:
     post:
       summary: Initialize the database schema
@@ -538,6 +643,16 @@ paths:
                   started_at:
                     type: string
                     format: date-time
+                  logs:
+                    type: array
+                    items:
+                      type: string
+                    description: |
+                      Log lines emitted by this job's pipeline run, in order,
+                      formatted the same way as the server console (e.g.
+                      "[2026-03-01 12:00:00,000] INFO in update: [27/76]
+                      Processing short heap: 2026_03"). Grows as the job
+                      progresses; re-poll to get new lines.
         '401':
           description: Missing or invalid X-Admin-Token header
           content:
@@ -690,7 +805,20 @@ components:
           type: integer
         pos9:
           type: integer
-    
+
+    PitchRepertoireEntry:
+      type: object
+      properties:
+        rating_id:
+          type: integer
+        pitch_type:
+          type: string
+          description: One of fastball, slider, curveball, screwball, forkball, changeup, sinker, splitter, knuckleball, cutter, circlechange, knucklecurve.
+        grade:
+          type: integer
+        talent_grade:
+          type: integer
+
     BattingExpected:
       type: object
       properties:
@@ -728,6 +856,78 @@ components:
         wOBA:
           type: number
           format: float
+
+    PitchingExpected:
+      type: object
+      properties:
+        rating_id:
+          type: integer
+        PA:
+          type: integer
+        AB:
+          type: integer
+        H:
+          type: integer
+        HR:
+          type: integer
+        BB:
+          type: integer
+        HBP:
+          type: integer
+        K:
+          type: integer
+        BA:
+          type: number
+          format: float
+        OBP:
+          type: number
+          format: float
+        wOBA:
+          type: number
+          format: float
+        IP:
+          type: number
+          format: float
+        GS:
+          type: number
+          format: float
+        G:
+          type: number
+          format: float
+        RA9:
+          type: number
+          format: float
+        ERA:
+          type: number
+          format: float
+
+    PitchingCareerStats:
+      type: object
+      properties:
+        year:
+          type: integer
+        abbr:
+          type: string
+        w:
+          type: integer
+        l:
+          type: integer
+        s:
+          type: integer
+        g:
+          type: integer
+        gs:
+          type: integer
+        outs:
+          type: integer
+        k:
+          type: integer
+        bb:
+          type: integer
+        ha:
+          type: integer
+        er:
+          type: integer
 
     BasepathExpected:
       type: object

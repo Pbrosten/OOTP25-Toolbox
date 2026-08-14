@@ -173,6 +173,51 @@ def get_player_career_batting(player_id):
         close_db(con)
 
 
+@bp.route("/<int:player_id>/career/pitching", methods=["GET"])
+def get_player_career_pitching(player_id):
+    """
+    Retrieve the player career pitching statistics for a single player by their unique ID.
+
+    Args:
+        player_id (int): The ID of the player to retrieve.
+
+    Returns:
+        JSON response:
+            - Player career pitching records if found.
+            - 404 error if not found.
+    """
+    con = get_db()
+    try:
+        with con.cursor() as cursor:
+            check_query = """
+                SELECT 1
+                FROM players_career_pitching_stats
+                WHERE player_id = %s AND split_id = 1 AND league_id = 203
+                LIMIT 1
+            """
+            cursor.execute(check_query, (player_id,))
+            has_mlb_stats = cursor.fetchone() is not None
+
+            sql_file = (
+                "get_player_career_pitching_mlb.sql"
+                if has_mlb_stats
+                else "get_player_career_pitching_milb.sql"
+            )
+
+            sql_path = os.path.join("db", "sql_scripts", "api", sql_file)
+            with current_app.open_resource(sql_path, "r") as f:
+                query = f.read()
+                cursor.execute(query, (player_id,))
+                rows = cursor.fetchall()
+
+                if rows:
+                    return jsonify(rows)
+                else:
+                    return jsonify({"error": "Player not found"}), 404
+    finally:
+        close_db(con)
+
+
 @bp.route("/<int:player_id>/ratings", methods=["GET"])
 def get_player_ratings(player_id):
     """

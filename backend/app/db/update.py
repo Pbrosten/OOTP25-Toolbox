@@ -13,7 +13,12 @@ from .staging import (
     DUMP_INCLUSION_LIST,
 )
 from .migration import inject_heap_date
-from .projection import process_player, update_projection_batches
+from .projection import (
+    process_player,
+    process_pitcher,
+    update_projection_batches,
+    update_pitching_projection_batches,
+)
 
 logger = logging.getLogger("api/db/update")
 
@@ -45,6 +50,19 @@ def process_single_heap(heap_path, heap_index, total_heaps, db, short_heap=True)
             logger.debug(f"First projection: {projections[0]}")
 
         counts["projections_inserted"] = insert_projections(projections, db)
+
+        pitchers = fetch_pitcher_projection_inputs(heap_date, db)
+        logger.info(f"Number of pitchers: {len(pitchers)}")
+
+        pitcher_projections = project_pitchers(pitchers)
+        logger.info(
+            f"Generated {len(pitcher_projections)} pitcher projections (after filtering None)"
+        )
+
+        if pitcher_projections:
+            logger.debug(f"First pitcher projection: {pitcher_projections[0]}")
+
+        counts["projections_inserted"] += insert_pitcher_projections(pitcher_projections, db)
     else:
         counts["players_updated"] = run_migration_long(heap_date, db)
         counts["players_updated"] += update_player_age(db=db, heap_date=heap_date)
@@ -178,6 +196,13 @@ def fetch_projection_inputs(heap_date, db):
     return _run_sql_script(query_path, db, heap_date=heap_date, fetch=True)
 
 
+def fetch_pitcher_projection_inputs(heap_date, db):
+    query_path = os.path.join(
+        "db", "sql_scripts", "migration", "get_pitcher_projection_inputs.sql"
+    )
+    return _run_sql_script(query_path, db, heap_date=heap_date, fetch=True)
+
+
 def project_players(players):
     with Pool(processes=cpu_count()) as pool:
         results = list(
@@ -185,6 +210,18 @@ def project_players(players):
                 pool.imap_unordered(process_player, players),
                 total=len(players),
                 desc="Projecting players",
+            )
+        )
+    return [r for r in results if r is not None]
+
+
+def project_pitchers(pitchers):
+    with Pool(processes=cpu_count()) as pool:
+        results = list(
+            tqdm(
+                pool.imap_unordered(process_pitcher, pitchers),
+                total=len(pitchers),
+                desc="Projecting pitchers",
             )
         )
     return [r for r in results if r is not None]
@@ -200,5 +237,19 @@ def insert_projections(projections, db, batch_size=1000):
         )
         rows_inserted += chunk_rows
     _, final_rows = update_projection_batches(batches, db=db, final=True)
+    rows_inserted += final_rows
+    return rows_inserted
+
+
+def insert_pitcher_projections(projections, db, batch_size=1000):
+    batches = {key: [] for key in ("pitching", "pitching_value")}
+    rows_inserted = 0
+    for i in range(0, len(projections), batch_size):
+        chunk = projections[i : i + batch_size]
+        batches, chunk_rows = update_pitching_projection_batches(
+            batches, projections=chunk, inject=True, db=db
+        )
+        rows_inserted += chunk_rows
+    _, final_rows = update_pitching_projection_batches(batches, db=db, final=True)
     rows_inserted += final_rows
     return rows_inserted

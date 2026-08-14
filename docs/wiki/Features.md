@@ -22,9 +22,17 @@ The main analytics view for a single player. It shows:
   `/api/players/ratings/*/expected/*/percentiles` endpoints. This is what
   answers "how good is this player's projected performance *relative to
   their peers*," not just in absolute terms.
-
-  > Pitcher percentiles are stubbed out in the UI (`PitcherPercentiles` is a
-  > placeholder component) — only batters are fully supported today.
+- **Pitcher percentiles** (`position === 'P'`) — the pitching equivalent,
+  comparing expected production (ERA, xBA/xwOBA against, ratings) and
+  run-value/WAR against a cohort of pitchers in the same league, backed by
+  `/api/players/ratings/*/expected/pitching/percentiles`
+  ([0027](../tickets/0027-pitcher-api-frontend-wiring.md)).
+- **Pitch repertoire** (`position === 'P'`) — a plain grade/potential table
+  of every pitch a pitcher actually throws (fastball, slider, etc.), not a
+  population comparison like the percentile sections above. Backed by
+  `/api/players/ratings/*/pitch_repertoire`, which returns one row per
+  pitch with a nonzero grade in the source export
+  ([0029](../tickets/0029-pitcher-pitch-repertoire.md)–[0033](../tickets/0033-pitch-repertoire-report.md)).
 
 ## Admin Panel — `/admin`
 
@@ -55,7 +63,8 @@ through the batter projection system to produce expected stats
 (`*_expected` tables) and an estimated run value (`players_run_value`). The
 UI doesn't compute these live — it reads the results of the last database
 update, so a profile only reflects data as current as your last
-`update-db` run.
+`update-db` run. For how the ratings-to-stats math actually works, see
+[Projections](Projections.md).
 
 ## API reference
 

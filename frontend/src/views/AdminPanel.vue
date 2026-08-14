@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref } from 'vue'
 import { AdminApiError, getJob, initDatabase, updateDatabase } from '@/api/admin'
 import type { Job } from '@/api/admin'
 
@@ -11,6 +11,7 @@ const initError = ref<string | null>(null)
 
 const job = ref<Job | null>(null)
 const updateError = ref<string | null>(null)
+const logContainer = ref<HTMLElement | null>(null)
 let pollHandle: ReturnType<typeof setInterval> | null = null
 
 const isUpdateRunning = computed(
@@ -32,6 +33,7 @@ function trackJob(jobId: string) {
     result: null,
     error: null,
     started_at: new Date().toISOString(),
+    logs: [],
   }
   pollHandle = setInterval(() => pollJob(jobId), POLL_INTERVAL_MS)
   pollJob(jobId)
@@ -42,6 +44,10 @@ async function pollJob(jobId: string) {
     job.value = await getJob(jobId)
     if (job.value.status === 'succeeded' || job.value.status === 'failed') {
       stopPolling()
+    }
+    await nextTick()
+    if (logContainer.value) {
+      logContainer.value.scrollTop = logContainer.value.scrollHeight
     }
   } catch (err) {
     updateError.value = err instanceof AdminApiError ? err.message : 'Failed to fetch job status'
@@ -137,6 +143,14 @@ onBeforeUnmount(stopPolling)
           {{ JSON.stringify(job.result) }}
         </p>
         <p v-if="job.status === 'failed'" class="text-red-700 mt-1">{{ job.error }}</p>
+
+        <div v-if="job.logs.length" class="mt-3">
+          <p class="text-sm font-semibold text-gray-700 mb-1">Logs</p>
+          <pre
+            ref="logContainer"
+            class="bg-gray-50 border border-gray-200 text-gray-800 text-xs font-mono p-3 rounded max-h-64 overflow-y-auto whitespace-pre-wrap"
+          >{{ job.logs.join('\n') }}</pre>
+        </div>
       </div>
 
       <p v-if="updateError" class="mt-3 text-red-700">{{ updateError }}</p>

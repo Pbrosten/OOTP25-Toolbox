@@ -66,8 +66,16 @@ SELECT
     (
       SELECT COUNT(*) FROM expected_filtered WHERE total_runs IS NOT NULL
     )
-   ) AS total_runs_percentile
+   ) AS total_runs_percentile,
 
+  -- Raw values alongside each percentile above (all four are genuine
+  -- projected run values, not raw game ratings, so all get one -- unlike
+  -- the batting/fielding percentile queries where some fields borrow
+  -- outcome-stat names for raw scouting grades).
+  target_exp.batting_runs AS batting_runs_value,
+  target_exp.basepath_runs AS basepath_runs_value,
+  target_exp.fielding_runs AS fielding_runs_value,
+  target_exp.total_runs AS total_runs_value
 
 FROM players_run_value AS target_exp
 WHERE target_exp.rating_id = %(rating_id)s;

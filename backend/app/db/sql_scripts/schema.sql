@@ -1,6 +1,7 @@
 DROP TABLE IF EXISTS processed_heaps;
 DROP TABLE IF EXISTS players_similarity;
 DROP TABLE IF EXISTS players_run_value;
+DROP TABLE IF EXISTS players_pitching_run_value;
 DROP TABLE IF EXISTS players_fielding_expected;
 DROP TABLE IF EXISTS players_fielding_position_talent;
 DROP TABLE IF EXISTS players_fielding_position;
@@ -10,8 +11,13 @@ DROP TABLE IF EXISTS players_basepath;
 DROP TABLE IF EXISTS players_batting_expected;
 DROP TABLE IF EXISTS players_batting_talent;
 DROP TABLE IF EXISTS players_batting;
+DROP TABLE IF EXISTS players_pitching_expected;
+DROP TABLE IF EXISTS players_pitching_talent;
+DROP TABLE IF EXISTS players_pitch_repertoire;
+DROP TABLE IF EXISTS players_pitching;
 DROP TABLE IF EXISTS players_rating;
 DROP TABLE IF EXISTS players_career_batting_stats;
+DROP TABLE IF EXISTS players_career_pitching_stats;
 DROP TABLE IF EXISTS players;
 DROP TABLE IF EXISTS teams;
 
@@ -102,6 +108,71 @@ CREATE TABLE players_career_batting_stats (
   -- FOREIGN KEY (league_id) REFERENCES leagues(league_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Player Career Pitching --
+CREATE TABLE players_career_pitching_stats (
+  player_id INT,
+  year SMALLINT,
+  team_id INT,
+  game_id INT,
+  league_id INT,
+  level_id SMALLINT,
+  split_id SMALLINT,
+  ip SMALLINT,
+  ab SMALLINT,
+  tb SMALLINT,
+  ha SMALLINT,
+  k SMALLINT,
+  bf SMALLINT,
+  rs SMALLINT,
+  bb SMALLINT,
+  r SMALLINT,
+  er SMALLINT,
+  gb SMALLINT,
+  fb SMALLINT,
+  pi SMALLINT,
+  ipf SMALLINT,
+  g SMALLINT,
+  gs SMALLINT,
+  w SMALLINT,
+  l SMALLINT,
+  s SMALLINT,
+  sa SMALLINT,
+  da SMALLINT,
+  sh SMALLINT,
+  sf SMALLINT,
+  ta SMALLINT,
+  hra SMALLINT,
+  bk SMALLINT,
+  ci SMALLINT,
+  iw SMALLINT,
+  wp SMALLINT,
+  hp SMALLINT,
+  gf SMALLINT,
+  dp SMALLINT,
+  qs SMALLINT,
+  svo SMALLINT,
+  bs SMALLINT,
+  ra SMALLINT,
+  cg SMALLINT,
+  sho SMALLINT,
+  sb SMALLINT,
+  cs SMALLINT,
+  hld SMALLINT,
+  ir DOUBLE,
+  irs DOUBLE,
+  wpa DOUBLE,
+  li DOUBLE,
+  stint SMALLINT,
+  outs SMALLINT,
+  sd SMALLINT,
+  md SMALLINT,
+  war DOUBLE,
+  ra9war DOUBLE,
+  PRIMARY KEY (player_id, year, team_id),
+  FOREIGN KEY (player_id) REFERENCES players(player_id),
+  FOREIGN KEY (team_id) REFERENCES teams(team_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- Player Rating --
 CREATE TABLE players_rating (
   rating_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -158,7 +229,74 @@ CREATE TABLE players_batting_talent (
   FOREIGN KEY (rating_id) REFERENCES players_rating(rating_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Player Basepath -- 
+-- Player Pitching --
+CREATE TABLE players_pitching (
+  rating_id INT PRIMARY KEY,
+  role SMALLINT,
+  stuff INT,
+  movement INT,
+  hra INT,
+  pbabip INT,
+  control INT,
+  balk INT,
+  hp INT,
+  wild_pitch INT,
+  velocity INT,
+  arm_slot INT,
+  stamina INT,
+  ground_fly INT,
+  hold INT,
+  FOREIGN KEY (rating_id) REFERENCES players_rating(rating_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Player Pitching Expected --
+CREATE TABLE players_pitching_expected (
+  rating_id INT PRIMARY KEY,
+  PA INT,
+  AB INT,
+  H INT,
+  HR INT,
+  BB INT,
+  HBP INT,
+  K INT,
+  BA FLOAT,
+  OBP FLOAT,
+  wOBA FLOAT,
+  IP FLOAT,
+  GS INT,
+  G INT,
+  RA9 FLOAT,
+  ERA FLOAT,
+  FOREIGN KEY (rating_id) REFERENCES players_pitching(rating_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Player Pitching Talent --
+CREATE TABLE players_pitching_talent (
+  rating_id INT PRIMARY KEY,
+  stuff INT,
+  movement INT,
+  hra INT,
+  pbabip INT,
+  control INT,
+  balk INT,
+  hp INT,
+  wild_pitch INT,
+  FOREIGN KEY (rating_id) REFERENCES players_rating(rating_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Player Pitch Repertoire --
+-- One row per pitch type a player actually throws (grade > 0 in the
+-- source export), not a fixed 12-column-wide row -- see ticket 0029/0031.
+CREATE TABLE players_pitch_repertoire (
+  rating_id INT NOT NULL,
+  pitch_type VARCHAR(20) NOT NULL,
+  grade INT,
+  talent_grade INT,
+  PRIMARY KEY (rating_id, pitch_type),
+  FOREIGN KEY (rating_id) REFERENCES players_rating(rating_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Player Basepath --
 CREATE TABLE players_basepath (
   rating_id INT PRIMARY KEY,
   speed INT,
@@ -243,6 +381,23 @@ CREATE TABLE players_run_value (
   batting_runs FLOAT,
   basepath_runs FLOAT,
   fielding_runs FLOAT,
+  total_runs FLOAT,
+  WAR FLOAT,
+  FOREIGN KEY (rating_id) REFERENCES players_rating(rating_id)
+);
+
+-- Player Pitching Run Value --
+-- No defense_runs column: the source spreadsheet's pitcher defense-runs
+-- curve ('Projection Constants'!V7:V23 and V4) is 0 at every rating step
+-- (verified directly), and there's no pitcher fielding rating in the OOTP
+-- export to drive it anyway (see ticket 0028). pitching_runs is the
+-- wRAA-against equivalent (PitcherProjection.runs_prevented), baserunning_runs
+-- is the Hold-based runs-allowed term. No leverage adjustment on WAR for
+-- relievers -- see ticket 0028's Design choices.
+CREATE TABLE players_pitching_run_value (
+  rating_id INT PRIMARY KEY,
+  pitching_runs FLOAT,
+  baserunning_runs FLOAT,
   total_runs FLOAT,
   WAR FLOAT,
   FOREIGN KEY (rating_id) REFERENCES players_rating(rating_id)

@@ -13,6 +13,7 @@ export interface Job {
   result: UpdateResult | null
   error: string | null
   started_at: string
+  logs: string[]
 }
 
 export class AdminApiError extends Error {

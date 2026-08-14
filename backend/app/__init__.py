@@ -4,6 +4,10 @@ import logging
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
+# Shared with app/db/jobs.py's per-job log capture, which formats captured
+# records the same way so a job's log tail matches the server console.
+LOG_FORMAT = "[%(asctime)s] %(levelname)s in %(module)s: %(message)s"
+
 
 def create_app():
     is_production = os.environ.get("APP_ENV") == "production"
@@ -18,7 +22,7 @@ def create_app():
 
     logging.basicConfig(
         level=logging.INFO,
-        format="[%(asctime)s] %(levelname)s in %(module)s: %(message)s",
+        format=LOG_FORMAT,
     )
     # ensure the instance folder exists
     try:

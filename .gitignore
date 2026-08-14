@@ -74,3 +74,5 @@ Thumbs.db
 # Gunicorn log files (optional)
 gunicorn-error.log
 gunicorn-access.log
+
+docs/resources

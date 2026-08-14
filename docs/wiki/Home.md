@@ -26,7 +26,10 @@ goes deep on backend internals for contributors. For repo-wide conventions
    test coverage status. Pairs with
    [docs/improvements](../improvements/README.md), a list of concrete
    improvement recommendations from a full pipeline review.
-7. [Troubleshooting](Troubleshooting.md) — fixes for the most common setup
+7. [Projections](Projections.md) — developer reference: how ratings become
+   expected stats, for both the implemented batter methodology and the
+   spreadsheet-only (not yet implemented) pitcher methodology.
+8. [Troubleshooting](Troubleshooting.md) — fixes for the most common setup
    problems.
 
 ## Quick start

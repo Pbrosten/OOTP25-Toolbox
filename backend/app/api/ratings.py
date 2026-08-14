@@ -242,3 +242,55 @@ def get_position_rating_by_id(rating_id):
                 return jsonify({"error": "Rating not found"}), 404
     finally:
         close_db()
+
+
+############################### PITCH REPERTOIRE ############################
+@bp.route("/pitch_repertoire", methods=["GET"])
+def get_pitch_repertoire():
+    """
+    Retrieve all pitch repertoire entries (one row per pitch type a player
+    throws).
+
+    Returns:
+        JSON response:
+            - A list of all pitch repertoire entries in the database.
+    """
+    con = get_db()
+    try:
+        with con.cursor() as cursor:
+            cursor.execute("SELECT * FROM players_pitch_repertoire")
+            rows = cursor.fetchall()
+            return jsonify(rows)
+    finally:
+        close_db()
+
+
+@bp.route("/<int:rating_id>/pitch_repertoire", methods=["GET"])
+def get_pitch_repertoire_by_id(rating_id):
+    """
+    Retrieve the pitch repertoire for a specific rating ID.
+
+    Unlike the other `/<rating_id>/...` routes in this file, `rating_id` is
+    not unique in `players_pitch_repertoire` (one row per pitch thrown), so
+    this always returns a list -- possibly empty if the rating has no
+    repertoire rows (e.g. a batter's rating_id, or a heap predating 0032) --
+    never a single object or a 404.
+
+    Args:
+        rating_id (int): The unique ID of the rating entry.
+
+    Returns:
+        JSON response:
+            - A list of pitch repertoire entries for the given rating ID.
+    """
+    con = get_db()
+    try:
+        with con.cursor() as cursor:
+            cursor.execute(
+                "SELECT * FROM players_pitch_repertoire WHERE rating_id = %s",
+                (rating_id,),
+            )
+            rows = cursor.fetchall()
+            return jsonify(rows)
+    finally:
+        close_db()

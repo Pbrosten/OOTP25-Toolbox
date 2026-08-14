@@ -254,6 +254,92 @@ def get_expected_fielding_percentiles(rating_id):
         close_db()
 
 
+@bp.route("/expected/pitching", methods=["GET"])
+def get_expected_pitching_stats():
+    """
+    Retrieve all player expected pitching stat entries.
+
+    Returns:
+        JSON response:
+            - A list of all player expected pitching stats in the database.
+    """
+    con = get_db()
+    try:
+        with con.cursor() as cursor:
+            cursor.execute("SELECT * FROM players_pitching_expected")
+            rows = cursor.fetchall()
+            return jsonify(rows)
+    finally:
+        close_db()
+
+
+@bp.route("/<int:rating_id>/expected/pitching", methods=["GET"])
+def get_expected_pitching_stats_by_id(rating_id):
+    """
+    Retrieve a single player pitching projected stats by their unique ID.
+
+    Args:
+        player_id (int): The ID of the player to retrieve.
+
+    Returns:
+        JSON response:
+            - Player projection record if found.
+            - 404 error if not found.
+    """
+    con = get_db()
+    try:
+        with con.cursor() as cursor:
+            cursor.execute(
+                "SELECT * FROM players_pitching_expected WHERE rating_id = %s",
+                (rating_id,),
+            )
+            row = cursor.fetchone()
+            if row:
+                return jsonify(row)
+            else:
+                return jsonify({"error": "Player projection not found"}), 404
+    finally:
+        close_db()
+
+
+@bp.route("/<int:rating_id>/expected/pitching/percentiles", methods=["GET"])
+def get_expected_pitching_percentiles(rating_id):
+    """
+    Retrieve a single player's pitching production and value projected
+    percentiles by their unique ID (players_pitching_expected +
+    players_pitching_run_value, ticket 0027).
+
+    Returns:
+        JSON response:
+            - Player projection record if found.
+            - 404 error if not found.
+    """
+    con = get_db()
+    try:
+        is_milb = 1 if request.args.get("milb", "false").lower() == "true" else 0
+        with current_app.open_resource(
+            os.path.join(
+                "db",
+                "sql_scripts",
+                "api",
+                "get_player_expected_pitching_percentiles.sql",
+            ),
+            "r",
+        ) as f:
+            sql = f.read()
+
+        with con.cursor() as cursor:
+            cursor.execute(sql, {"rating_id": rating_id, "is_milb": is_milb})
+            row = cursor.fetchone()
+        if row:
+            return jsonify(row)
+        else:
+            return jsonify({"error": "Player projection not found"}), 404
+
+    finally:
+        close_db()
+
+
 @bp.route("/<int:rating_id>/expected/value/percentiles", methods=["GET"])
 def get_expected_value_percentiles(rating_id):
     """

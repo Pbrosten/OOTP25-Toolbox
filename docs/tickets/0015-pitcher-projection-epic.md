@@ -1,9 +1,19 @@
 # 0015 — Pitcher projections: schema, migration, and projection pipeline
 
 - **Tag:** feat
-- **Status:** Open
+- **Status:** Closed
 - **Depends on:** —
 - **Blocks:** —
+- **Broken down into:** [0024](0024-pitcher-schema-ratings-tables.md) (schema)
+  → [0025](0025-pitcher-migration-ingestion.md) (migration) →
+  [0026](0026-pitcher-projection-methodology.md) (projection methodology) →
+  [0028](0028-pitcher-run-value-war.md) (run-value/WAR) →
+  [0027](0027-pitcher-api-frontend-wiring.md) (API/frontend). This ticket
+  stays open as the epic tracker; implementation happens in the sub-tickets.
+  **Forks after 0025** into a second, independent line:
+  [0029](0029-pitcher-pitch-repertoire.md) (pitch repertoire/per-pitch
+  quality — epic outline, for an analytics report and long-term projection
+  refinement; doesn't feed into or depend on 0026/0028/0027).
 
 ## 1. Problem
 

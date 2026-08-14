@@ -1,6 +1,6 @@
 import logging
 
-from app.player_projection import BatterProjection
+from app.player_projection import BatterProjection, PitcherProjection
 
 logger = logging.getLogger("app.db.projection")
 
@@ -26,6 +26,19 @@ proj_scripts = {
     """,
 }
 
+pitching_proj_scripts = {
+    "pitching": """
+        INSERT IGNORE INTO players_pitching_expected
+        (rating_id, PA, AB, H, HR, BB, HBP, K, BA, OBP, wOBA, IP, GS, G, RA9, ERA)
+        VALUES (%(rating_id)s, %(PA)s, %(AB)s, %(H)s, %(HR)s, %(BB)s, %(HBP)s, %(K)s, %(BA)s, %(OBP)s, %(wOBA)s, %(IP)s, %(GS)s, %(G)s, %(RA9)s, %(ERA)s)
+    """,
+    "pitching_value": """
+        INSERT IGNORE INTO players_pitching_run_value
+        (rating_id, pitching_runs, baserunning_runs, total_runs, WAR)
+        VALUES (%(rating_id)s, %(pitching_runs)s, %(baserunning_runs)s, %(total_runs)s, %(WAR)s)
+    """,
+}
+
 
 def process_player(player):
     try:
@@ -36,6 +49,18 @@ def process_player(player):
         return result
     except Exception as e:
         logger.warning(f"Error processing player {player.get('rating_id')}: {e}")
+        return None
+
+
+def process_pitcher(pitcher):
+    try:
+        projector = PitcherProjection(pitcher)
+        result = projector.calc_expected_stats()
+        if result is None:
+            logger.warning(f"No result for pitcher: {pitcher.get('rating_id')}")
+        return result
+    except Exception as e:
+        logger.warning(f"Error processing pitcher {pitcher.get('rating_id')}: {e}")
         return None
 
 
@@ -71,6 +96,41 @@ def update_projection_batches(
             if batches[key]:
                 with db.cursor() as cursor:
                     cursor.executemany(proj_scripts[key], batches[key])
+                    rows_written += cursor.rowcount
+        db.commit()
+
+        if inject:
+            return {k: [] for k in batches}, rows_written
+
+        return None, rows_written
+
+    return batches
+
+
+def update_pitching_projection_batches(
+    batches, projections=None, db=None, inject=False, final=False
+):
+    """Pitcher equivalent of update_projection_batches() -- kept as a
+    separate function rather than parameterizing the batter one, since
+    batters and pitchers have different input/output shapes (one projection
+    key here vs. four for batters) and ticket 0026 treats this as a parallel
+    code path, not a shared one.
+
+    See update_projection_batches() for the batches/inject/final contract.
+    """
+    if projections:
+        for projection in projections:
+            for key in batches:
+                value = projection.get(key)
+                if value is not None:
+                    batches[key].append(value)
+
+    if inject or final:
+        rows_written = 0
+        for key in batches:
+            if batches[key]:
+                with db.cursor() as cursor:
+                    cursor.executemany(pitching_proj_scripts[key], batches[key])
                     rows_written += cursor.rowcount
         db.commit()
 

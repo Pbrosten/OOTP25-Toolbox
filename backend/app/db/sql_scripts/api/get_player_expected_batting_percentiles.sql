@@ -124,11 +124,22 @@ SELECT
       SELECT COUNT(*) * 1.0
       FROM ratings_filtered
       WHERE strikeouts < target_rate.strikeouts AND strikeouts IS NOT NULL
-    ) * 100 / 
+    ) * 100 /
     (
       SELECT COUNT(*) FROM ratings_filtered WHERE strikeouts IS NOT NULL
     )
-   ) AS whiff_rate
+   ) AS whiff_rate,
+
+  -- Raw values alongside each percentile above -- only for genuine
+  -- projected statistics (players_batting_expected), not the raw game
+  -- ratings above (babip/gap/power/eye/strikeouts) that borrow outcome-stat
+  -- names in the frontend (see BatterPercentiles.vue's statLabelMap):
+  -- showing their raw 20-80 grade next to that name would misrepresent it
+  -- as a real rate stat -- same reasoning as the pitching percentiles
+  -- query.
+  target_exp.AVG AS xba_value,
+  target_exp.SLG AS xslg_value,
+  target_exp.wOBA AS xwoba_value
 
 FROM players_batting_expected AS target_exp
 JOIN players_batting AS target_rate ON target_exp.rating_id = target_rate.rating_id

@@ -52,7 +52,7 @@ def get_job(job_id):
 
     Returns:
         JSON response:
-            - The job's current status/result/error.
+            - The job's current status/result/error/logs.
             - 404 if no job exists with that id.
     """
     job = jobs.get_job(job_id)
