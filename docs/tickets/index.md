@@ -81,6 +81,7 @@ alternatives, not a sequence; 0021 folds into 0022).
 | [0021](0021-fetch-projection-inputs-cursor-scope.md) | Fetch projection inputs inside the cursor's with block | refactor | Closed | — |
 | [0022](0022-consolidate-run-script-boilerplate.md) | Consolidate repeated run-script/rollback/commit boilerplate | refactor | Closed | — |
 | [0030](0030-exclude-pitchers-from-batting-projection.md) | Exclude pitchers from the batting projection workflow (pending a future TWP tag) | fix | Open | — |
+| [0046](0046-prune-inactive-players.md) | Prune players inactive before 2024; filter them at ingestion | chore | In-Progress | — |
 
 ## Epic: Pitcher projections
 
@@ -156,8 +157,90 @@ built, not a new data source.
 | [0036](0036-fastball-velocity-display.md) | Fastball velocity display on pitcher player pages | feat | Closed | — |
 | [0037](0037-split-sp-rp-percentile-cohorts.md) | Split SP/RP percentile cohorts (stop comparing starters to relievers) | fix | Closed | 0027 |
 
+## Epic: GM Command Center
+
+Sourced from [docs/improvements/expanded-functionality.md](../improvements/expanded-functionality.md)
+Tier 1 #1, tagged `stagged` there. Filed as a single epic-tracker ticket, in
+the style of [0015](0015-pitcher-projection-epic.md) — it's a landing
+dashboard that aggregates output from several of the epics below (roster
+weaknesses from Roster Optimization, promotion readiness from Prospect
+Pipeline, contract decisions from Contract & Arbitration Analyzer), so
+whether it's built first as a shell or last once its dependencies exist is
+itself an open question — see 0038's own Design choices.
+
+| # | Title | Tag | Status | Depends on |
+|---|-------|-----|--------|------------|
+| [0038](0038-gm-command-center.md) | GM Command Center (epic tracker) | feat | Open | — |
+
+## Epic: Roster & Defensive Optimization
+
+Sourced from [docs/improvements/expanded-functionality.md](../improvements/expanded-functionality.md)
+Tier 1 #2 and Tier 2 #12, both tagged `stagged`. Filed as sibling
+epic-tracker tickets rather than a dependency chain — either could be scoped
+first, and whichever lands first builds the shared "WAR by player by
+eligible position" query layer the other also needs. Both are blocked on the
+same missing minor-league level/affiliate data for their organizational-depth
+scope; see each ticket's Design choices.
+
+| # | Title | Tag | Status | Depends on |
+|---|-------|-----|--------|------------|
+| [0039](0039-roster-optimization-org-depth.md) | Roster Optimization & Organizational Depth (epic tracker) | feat | Open | — |
+| [0040](0040-defensive-optimization.md) | Defensive Optimization (epic tracker) | feat | Open | — |
+
+## Epic: Transactions — Trade Targets & Contract Valuation
+
+Sourced from [docs/improvements/expanded-functionality.md](../improvements/expanded-functionality.md)
+Tier 1 #3 and #5, both tagged `stagged`. Filed as sibling epic-tracker
+tickets — both are blocked (fully, in 0042's case) on contract/salary data
+that isn't currently ingested anywhere in `staging`/`ootp`; see each ticket's
+Design choices for the specifics. That ingestion isn't scoped as its own
+ticket yet — it needs a real dump export inspected first to know what OOTP
+actually exports for contracts/arbitration.
+
+| # | Title | Tag | Status | Depends on |
+|---|-------|-----|--------|------------|
+| [0041](0041-trade-target-finder.md) | Trade Target Finder (epic tracker) | feat | Open | — |
+| [0042](0042-contract-arbitration-analyzer.md) | Contract & Arbitration Analyzer (epic tracker) | feat | Open | — |
+
+## Epic: Prospect Pipeline
+
+Sourced from [docs/improvements/expanded-functionality.md](../improvements/expanded-functionality.md)
+Tier 1 #6, tagged `stagged`. Filed as a single epic-tracker ticket. Shares
+the minor-league level/affiliate data gap with the Roster & Defensive
+Optimization epic above, and its "development trajectory" scope is intended
+to build on the Player Development Monitor epic below rather than duplicate
+it — see 0043's Design choices.
+
+| # | Title | Tag | Status | Depends on |
+|---|-------|-----|--------|------------|
+| [0043](0043-prospect-pipeline.md) | Prospect Pipeline (epic tracker) | feat | Open | — |
+
+## Epic: Player Development Monitor
+
+Sourced from [docs/improvements/expanded-functionality.md](../improvements/expanded-functionality.md)
+Tier 1 #7, tagged `stagged`. Filed as a single epic-tracker ticket. Unlike
+the other epics sourced from that document, its core scope (tracking rating
+changes across existing per-heap snapshots) needs no new data ingestion —
+see 0044's Design choices for why it's a reasonable candidate to prioritize
+first among this batch.
+
+| # | Title | Tag | Status | Depends on |
+|---|-------|-----|--------|------------|
+| [0044](0044-player-development-monitor.md) | Player Development Monitor (epic tracker) | feat | Open | — |
+
 ## Frontend / stats display fixes
 
 | # | Title | Tag | Status | Depends on |
 |---|-------|-----|--------|------------|
 | [0023](0023-fix-career-batting-rate-stats-display.md) | Fix OBP/SLG/OPS in the career batting stats table | fix | Closed | — |
+| [0048](0048-batting-career-totals-seasons-label.md) | Replace "Total" with a season count in the batting career stats table | fix | Open | — |
+
+## Search & display refinements
+
+Small, independent frontend/API-behavior tickets — not tied to a specific
+epic above.
+
+| # | Title | Tag | Status | Depends on |
+|---|-------|-----|--------|------------|
+| [0045](0045-remove-mlb-percentile-toggle.md) | Remove the MLB percentile toggle; don't render percentiles for non-MLB players | fix | Open | — |
+| [0047](0047-search-order-by-career-war.md) | Order player search results by career WAR | feat | Open | — |

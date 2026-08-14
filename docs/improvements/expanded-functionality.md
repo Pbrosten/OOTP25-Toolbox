@@ -70,6 +70,7 @@ A clear picture of:
 - Best platoon configuration
 - Positions with insufficient depth
 - Positions with excess talent
+- Projected roster in 1, 3, and 5 years based on organizational depth
 
 ---
 
@@ -152,6 +153,8 @@ Recommendations such as:
 
 Include estimated fair-value ranges and projected surplus.
 
+Root system in similar system to Fangraph's Surplus Value.
+
 ---
 
 ## 6. Prospect Pipeline
@@ -181,6 +184,7 @@ Identify:
 - Positions lacking future talent
 - Players whose value makes them viable trade assets
 
+Root system in similar system to Fangraph's Surplus Value.
 ---
 
 ## 7. Player Development Monitor
@@ -241,7 +245,7 @@ Identify:
 ---
 
 ## 9. Free Agent Market Dashboard
-status: stagged
+status: draft
 ### Core concept
 Evaluate the free-agent market according to **projected value and organizational need**.
 
