@@ -43,16 +43,22 @@ def calculate_surplus_value(base_war, current_age, mlb_service_years, contract):
     nothing to project (e.g. already past free-agency service with no
     contract), otherwise a dict with a year-by-year breakdown and totals.
     """
+    # current_year is 0-indexed into salary0..salary14 (confirmed against
+    # real players_contract data: a years=N contract's active salary slots
+    # are exactly salary0..salary(N-1), and current_year ranges 0..N-1 --
+    # NOT a 1-indexed "year number", which silently off-by-one'd both the
+    # remaining-years count and the salary lookup (wrapped to salary[-1]
+    # for current_year=0) until caught on a real 1-year, current_year=0
+    # contract.
     remaining_contract_years = 0
     salaries = []
     if contract is not None:
-        remaining_contract_years = max(
-            0, contract["years"] - contract["current_year"] + 1
-        )
+        remaining_contract_years = max(0, contract["years"] - contract["current_year"])
         salaries = [contract[f"salary{i}"] for i in range(15)]
 
     years = []
     y = 0
+    previous_cost = None  # real-MLB arbitration never awards a pay cut
     while y < MAX_PROJECTION_YEARS:
         projected_service = mlb_service_years + y
         under_contract = y < remaining_contract_years
@@ -64,14 +70,21 @@ def calculate_surplus_value(base_war, current_age, mlb_service_years, contract):
         year_value = year_war * WAR_DOLLAR_VALUE
 
         if under_contract:
-            year_cost = salaries[contract["current_year"] - 1 + y]
+            year_cost = salaries[contract["current_year"] + y]
         elif projected_service < ARB_ELIGIBLE_SERVICE_YEARS:
             year_cost = MIN_SALARY
         else:
             arb_year = projected_service - ARB_ELIGIBLE_SERVICE_YEARS
             pct = ARB_PCT_OF_MARKET[min(arb_year, len(ARB_PCT_OF_MARKET) - 1)]
             year_cost = max(MIN_SALARY, pct * year_value)
+            # Arbitration salaries only go up (or stay flat), never down --
+            # carries forward from the player's actual prior-year salary
+            # (signed-contract or a previous arb projection alike), not
+            # just this year's own WAR-driven estimate.
+            if previous_cost is not None:
+                year_cost = max(year_cost, previous_cost)
 
+        previous_cost = year_cost
         years.append(
             {
                 "year_offset": y,

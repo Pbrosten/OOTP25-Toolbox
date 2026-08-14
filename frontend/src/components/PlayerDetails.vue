@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, defineExpose } from 'vue'
 import DevelopmentTrends from '@/components/DevelopmentTrends.vue'
+import SurplusValue from '@/components/SurplusValue.vue'
 
 const props = defineProps<{ playerId: number }>()
 
@@ -387,5 +388,14 @@ defineExpose({
     <div v-if="error" class="text-red-500 text-sm mt-2">{{ error }}</div>
 
     <DevelopmentTrends v-if="playerDetails" :playerId="playerId" class="mt-4" />
+    <!-- team_id 999 is the synthetic "Free Agents" team migration_long.sql
+         remaps unrostered players onto -- surplus value assumes team
+         control (years-of-control/arbitration projection), which is
+         meaningless for a player no team currently controls. -->
+    <SurplusValue
+      v-if="playerDetails && playerDetails.team_id !== 999"
+      :playerId="playerId"
+      class="mt-4"
+    />
   </div>
 </template>

@@ -69,7 +69,8 @@ a design discussion that settled four open questions:
   - `ARB_ELIGIBLE_SERVICE_YEARS = 3` — service years at which arbitration
     eligibility begins.
   - For years covered by the signed contract: use its actual scheduled
-    salary (`salary[current_year - 1 + y]`).
+    salary (`salary[current_year + y]` — see the post-close correction
+    below on why this isn't `current_year - 1 + y`).
   - For years beyond the contract but still under control: if projected
     service < 3, assume `MIN_SALARY`; if ≥ 3, assume an arbitration
     estimate = `ARB_PCT_OF_MARKET[arb_year] * (year_WAR * WAR_DOLLAR_VALUE)`,
@@ -104,6 +105,58 @@ a design discussion that settled four open questions:
   current-heap WAR at all → "not available", not an error. Matches
   `DevelopmentTrends`' precedent (0052) of representing "nothing to show
   yet" as a valid empty/unavailable response rather than a 4xx.
+- **Post-close correction: `current_year` is 0-indexed, not 1-indexed.**
+  Found via a user report after this ticket closed — Cole Young (player
+  41335, a real 1-year/$11.4M contract, `years=1, current_year=0`) showed
+  `cost: 0` for his only contracted season. The original code assumed
+  `current_year` was a 1-indexed "year number" (`remaining_contract_years =
+  years - current_year + 1`, `salary[current_year - 1 + y]`) — for
+  `current_year=0` that's `salaries[-1]`, which Python silently wraps to
+  `salary14` (0, unused). Checked real `players_contract` data broadly: a
+  `years=N` contract's active salary slots are always exactly
+  `salary0..salary(N-1)`, and `current_year` ranges `0..N-1` — i.e. it's
+  the array index of the current season, not a 1-indexed count. This bug
+  had been invisible in this ticket's own verification because player 5
+  (the spot-check used) happens to have four consecutive equal-salary
+  years, so an off-by-one produced the same-looking total by coincidence.
+  **Fixed:** `remaining_contract_years = years - current_year` (no `+1`),
+  `salary[current_year + y]` (no `-1`). Re-verified: player 5's real
+  contract has since expired in the live save (unrelated to this fix,
+  confirmed against `players_contract` directly — now `years=0`, correctly
+  "not available"); player 810 (`years=4, current_year=2`,
+  escalating salary) now correctly costs `salary2` in year 0, `salary3` in
+  year 1. Re-swept player IDs 1-3000 against the real DB: identical
+  387/2613/0 available/not-available/error counts as before the fix (the
+  bug changed *values* for already-available players, not availability
+  itself). Added a regression test
+  (`test_one_year_contract_in_its_only_season_uses_salary0`) and corrected
+  the existing tests, which had themselves encoded the wrong (1-indexed)
+  assumption.
+- **Third post-close correction: arbitration salaries must never decrease
+  year-over-year.** Also from a user report — player 49952 (Jarlin Susana,
+  a real arb-1 pitcher on an actual $1,680,000 salary, 0.11 WAR) showed
+  both projected arbitration years falling to `MIN_SALARY` ($740,000) — a
+  pay cut below his real current salary, which can't happen in actual MLB
+  arbitration (raises only, never a cut, regardless of performance). The
+  original arb branch computed each year's cost independently from that
+  year's own WAR (`pct * year_value`, floored only at `MIN_SALARY`) with
+  no memory of the player's actual prior salary — for a low-WAR player,
+  `pct * year_value` can easily compute below `MIN_SALARY` (0.11 WAR at
+  even an 0.80 arb percentage is worth far less than $740k), and the
+  `MIN_SALARY` floor masked how far the estimate had actually fallen below
+  his real $1.68M. **Fixed:** track `previous_cost` across the
+  year-by-year loop (seeded by whatever the prior year's actual cost was —
+  real signed-contract salary or a previous arb projection alike) and
+  floor every arbitration-branch year at
+  `max(computed_estimate, MIN_SALARY, previous_cost)`. Re-verified: player
+  49952 now shows a flat $1,680,000 across all three years (never below
+  his real current salary); Cole Young (41335) unaffected — his projected
+  arb estimate already exceeds his prior salary, so the new floor never
+  engages; re-swept player IDs 1-3000 against the real DB again: identical
+  387/2613/0 counts. Added two regression tests
+  (`test_arbitration_cost_never_decreases_from_prior_actual_salary`,
+  `test_arbitration_cost_can_still_rise_above_prior_salary` — confirming
+  the floor doesn't become an artificial cap).
 
 ## 3. Approach
 
@@ -146,14 +199,17 @@ def calculate_surplus_value(base_war, current_age, mlb_service_years, contract):
     nothing usable to project (e.g. already at/past free agency with no
     contract).
     """
+    # current_year is 0-indexed into salary0..salary14 -- see the
+    # post-close correction note above.
     remaining_contract_years = 0
     salaries = []
     if contract is not None:
-        remaining_contract_years = max(0, contract["years"] - contract["current_year"] + 1)
+        remaining_contract_years = max(0, contract["years"] - contract["current_year"])
         salaries = [contract[f"salary{i}"] for i in range(15)]
 
     years = []
     y = 0
+    previous_cost = None  # real-MLB arbitration never awards a pay cut
     while y < MAX_PROJECTION_YEARS:
         projected_service = mlb_service_years + y
         under_contract = y < remaining_contract_years
@@ -165,14 +221,17 @@ def calculate_surplus_value(base_war, current_age, mlb_service_years, contract):
         year_value = year_war * WAR_DOLLAR_VALUE
 
         if under_contract:
-            year_cost = salaries[contract["current_year"] - 1 + y]
+            year_cost = salaries[contract["current_year"] + y]
         elif projected_service < ARB_ELIGIBLE_SERVICE_YEARS:
             year_cost = MIN_SALARY
         else:
             arb_year = projected_service - ARB_ELIGIBLE_SERVICE_YEARS
             pct = ARB_PCT_OF_MARKET[min(arb_year, len(ARB_PCT_OF_MARKET) - 1)]
             year_cost = max(MIN_SALARY, pct * year_value)
+            if previous_cost is not None:
+                year_cost = max(year_cost, previous_cost)
 
+        previous_cost = year_cost
         years.append({
             "year_offset": y, "age": projected_age, "war": year_war,
             "value": year_value, "cost": year_cost, "surplus": year_value - year_cost,
