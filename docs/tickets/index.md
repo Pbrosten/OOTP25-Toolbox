@@ -206,7 +206,7 @@ below; the unticketed step-5 data prerequisite that partially gates
 build-order list above for that nuance):
 
 ```
-[~] 0044 Player Development Monitor
+[x] 0044 Player Development Monitor
       |
       v
 [ ] 0043 Prospect Pipeline ----------------------+
@@ -231,7 +231,7 @@ build-order list above for that nuance):
 
 | # | Title | Tag | Status | Depends on |
 |---|-------|-----|--------|------------|
-| [0044](0044-player-development-monitor.md) | Player Development Monitor (epic tracker) | feat | In-Progress | — |
+| [0044](0044-player-development-monitor.md) | Player Development Monitor (epic tracker) | feat | Closed | — |
 | [0041](0041-trade-target-finder.md) | Trade Target Finder (epic tracker) | feat | Open | — |
 | [0039](0039-roster-optimization-org-depth.md) | Roster Optimization & Organizational Depth (epic tracker) | feat | Open | — |
 | [0040](0040-defensive-optimization.md) | Defensive Optimization (epic tracker) | feat | Open | 0039 |

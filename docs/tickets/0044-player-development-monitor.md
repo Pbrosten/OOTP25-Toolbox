@@ -1,7 +1,7 @@
 # 0044 — Player Development Monitor
 
 - **Tag:** feat
-- **Status:** In-Progress
+- **Status:** Closed
 - **Depends on:** —
 - **Blocks:** —
 
