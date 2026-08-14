@@ -28,18 +28,17 @@ dependency chain.
 
 ## 2. Design choices
 
-- **Outstanding — no contract/salary data ingested.** Checked
-  `backend/app/db/sql_scripts/schema.sql` and
-  `backend/app/db/staging.py`'s `DUMP_INCLUSION_LIST`: there is no
-  contract/salary/years-of-control table anywhere in `ootp` or `staging`
-  today. `players.free_agent` (boolean) is the only contract-adjacent field
-  that exists. Salary, contract status, and years-of-control — three of the
-  source doc's listed filter criteria — can't be built without a new
-  ingestion ticket (schema + migration for whatever contract table(s) the
-  OOTP dump exposes — needs inspecting a real dump export to know the raw
-  table/column names, same gap [0042](0042-contract-arbitration-analyzer.md)
-  hits). Not resolved here; likely a shared prerequisite for both tickets in
-  this epic.
+- **No contract/salary data ingested.** Checked `backend/app/db/sql_scripts/schema.sql`
+  and `backend/app/db/staging.py`'s `DUMP_INCLUSION_LIST`: there was no
+  contract/salary/years-of-control table anywhere in `ootp` or `staging` —
+  `players.free_agent` (boolean) was the only contract-adjacent field that
+  existed. **Resolved:** filed the shared prerequisite
+  [0053](0053-contract-service-time-schema.md) (schema) +
+  [0054](0054-contract-service-time-migration.md) (migration), covering
+  salary schedule, contract status (option/no-trade/opt-out flags), and
+  years-of-control (`players_service_time`'s `mlb_service_years`) — the
+  three filter criteria this bullet flagged as missing. This ticket's full
+  scope now depends on those two.
 - **Outstanding — injury risk.** No injury-history or current-injury-status
   table exists either. `players.prone_overall` is a durability *rating*
   input already consumed by `player_projection`'s constants

@@ -183,10 +183,14 @@ data readiness, not by the epic's original grouping:
    org-depth slice waits on level/affiliate data (step 6).
 4. **Defensive Optimization** (0040) — follows 0039, reuses its shared
    query layer with a defense-weighted variant.
-5. *(prerequisite, not yet its own ticket)* — inspect a real dump export for
-   minor-league level/affiliate fields and contract/salary/arbitration
-   tables; file schema + migration tickets mirroring
+5. *(prerequisite)* — inspect a real dump export for minor-league
+   level/affiliate fields and contract/salary/arbitration tables; file
+   schema + migration tickets mirroring
    [0024](0024-pitcher-schema-ratings-tables.md)/[0025](0025-pitcher-migration-ingestion.md).
+   Contract/salary/service-time half is now filed as
+   [0053](0053-contract-service-time-schema.md)/
+   [0054](0054-contract-service-time-migration.md); minor-league
+   level/affiliate half (needed for steps 6, 8) is still unticketed.
    Unblocks steps 6–8.
 6. **Prospect Pipeline** (0043) — needs level/affiliate data from step 5,
    plus reuses 0044's trend layer from step 1.
@@ -201,8 +205,9 @@ data readiness, not by the epic's original grouping:
    anywhere in the app today) — see 0038's Design choices.
 
 Ticket-level dependency graph (matches the table's "Depends on" column
-below; the unticketed step-5 data prerequisite that partially gates
-0039/0041/0042/0043 isn't a ticket so it isn't drawn here — see the
+below; step-5's contract/salary/service-time half is now filed as
+0053/0054, drawn below — the minor-league level/affiliate half that
+partially gates 0039/0041/0043 is still unticketed and not drawn; see the
 build-order list above for that nuance):
 
 ```
@@ -216,7 +221,13 @@ build-order list above for that nuance):
       v                                          |
 [ ] 0040 Defensive Optimization                  |
                                                   |
-[ ] 0042 Contract & Arbitration Analyzer --------+
+[x] 0053 Contract/service-time schema             |
+      |                                          |
+      v                                          |
+[ ] 0054 Contract/service-time migration          |
+      |                                          |
+      v                                          |
+[~] 0042 Contract & Arbitration Analyzer --------+
                                                   |
                                                   v
                                        [ ] 0038 GM Command Center
@@ -236,7 +247,7 @@ build-order list above for that nuance):
 | [0039](0039-roster-optimization-org-depth.md) | Roster Optimization & Organizational Depth (epic tracker) | feat | Open | — |
 | [0040](0040-defensive-optimization.md) | Defensive Optimization (epic tracker) | feat | Open | 0039 |
 | [0043](0043-prospect-pipeline.md) | Prospect Pipeline (epic tracker) | feat | Open | 0044 |
-| [0042](0042-contract-arbitration-analyzer.md) | Contract & Arbitration Analyzer (epic tracker) | feat | Open | — |
+| [0042](0042-contract-arbitration-analyzer.md) | Contract & Arbitration Analyzer (epic tracker) | feat | In-Progress | 0053, 0054 |
 | [0038](0038-gm-command-center.md) | GM Command Center (epic tracker) | feat | Open | 0039, 0042, 0043 |
 
 ### Tool: Player Development Monitor
@@ -296,8 +307,15 @@ snapshot-diffing. Sequenced after both.
 
 [0042](0042-contract-arbitration-analyzer.md) — the one tool with no
 reduced-scope fallback: "should we pay this player" is meaningless without
-knowing what he's currently owed. Cannot start until the contract/salary
-ingestion prerequisite lands.
+knowing what he's currently owed. Its contract/salary/service-time ingestion
+prerequisite (shared with [0041](0041-trade-target-finder.md)'s full scope)
+is now filed as [0053](0053-contract-service-time-schema.md)/
+[0054](0054-contract-service-time-migration.md).
+
+| # | Title | Tag | Status | Depends on |
+|---|-------|-----|--------|------------|
+| [0053](0053-contract-service-time-schema.md) | Contract/salary/service-time schema | feat | Closed | — |
+| [0054](0054-contract-service-time-migration.md) | Ingest contract/salary/service-time: `migration_long.sql` | feat | Open | 0053 |
 
 ### Tool: GM Command Center
 
