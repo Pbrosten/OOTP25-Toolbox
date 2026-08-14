@@ -83,6 +83,7 @@ alternatives, not a sequence; 0021 folds into 0022).
 | [0030](0030-exclude-pitchers-from-batting-projection.md) | Exclude pitchers from the batting projection workflow (pending a future TWP tag) | fix | Closed | — |
 | [0046](0046-prune-inactive-players.md) | Prune players inactive before 2024; filter them at ingestion | chore | Closed | — |
 | [0049](0049-fix-test-players-mock-pattern.md) | Fix broken DB-connection mocks in `tests/api/test_players.py` | chore | Closed | — |
+| [0055](0055-fix-semicolon-in-comment-breaks-migration-short.md) | Fix semicolon inside a comment breaking `migration_short.sql` | fix | Closed | — |
 
 ## Epic: Pitcher projections
 

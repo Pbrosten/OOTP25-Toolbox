@@ -12,7 +12,7 @@ WHERE p.retired = 0;
 -- Excludes pitchers (ticket 0030) -- staging.players_batting has a row for
 -- every player in the league, not just hitters, and carries the same
 -- role code as staging.players_pitching (11/12/13 = SP/RP/Closer, 0 =
--- non-pitcher; confirmed against a real dump export: position=1/Pitcher
+-- non-pitcher -- confirmed against a real dump export: position=1/Pitcher
 -- pairs with role 11/12/13 in 63,160 of 63,163 such rows). Filtering here
 -- on staging's role -- not ootp.players.position -- deliberately avoids
 -- the position-normalization timing gap noted in 0030's Design choices
