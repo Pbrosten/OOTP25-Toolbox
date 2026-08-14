@@ -105,7 +105,10 @@ per-season box-score counting stats (W/L/ERA/G/GS/SV/IP/SO/WHIP), independent
 of the ratings/projection pipeline (0025–0028) and of pitch repertoire (0029).
 [0036](0036-fastball-velocity-display.md) is likewise independent — it reads
 the existing `players_pitching.velocity` column (already ingested by 0025)
-and surfaces it as a display-only MPH band on the player-info bio line.
+and surfaces it as a display-only MPH band next to the Fastball Velo
+percentile bar. [0037](0037-split-sp-rp-percentile-cohorts.md) depends on
+0027 directly — it's a cohort-scoping fix to the same percentile query 0027
+built, not a new data source.
 
 ```
 [~] 0015 Epic tracker
@@ -151,6 +154,7 @@ and surfaces it as a display-only MPH band on the player-info bio line.
 | [0034](0034-pitch-type-run-value-percentiles.md) | Per-pitch-category run-value percentiles: Fastball / Breaking / Offspeed | feat | Closed | 0029 |
 | [0035](0035-pitcher-career-stats-page.md) | Pitcher career stats table (mirror batter career stats) | feat | Closed | — |
 | [0036](0036-fastball-velocity-display.md) | Fastball velocity display on pitcher player pages | feat | Closed | — |
+| [0037](0037-split-sp-rp-percentile-cohorts.md) | Split SP/RP percentile cohorts (stop comparing starters to relievers) | fix | Closed | 0027 |
 
 ## Frontend / stats display fixes
 

@@ -1,6 +1,8 @@
 WITH target_player AS (
-  SELECT r.rating_id, r.rating_date, r.league_id
+  SELECT r.rating_id, r.rating_date, r.league_id,
+    CASE WHEN pp.role = 11 THEN 'SP' ELSE 'RP' END AS role_group
   FROM players_rating r
+  JOIN players_pitching pp ON pp.rating_id = r.rating_id
   WHERE r.rating_id = %(rating_id)s
 ),
 
@@ -10,11 +12,13 @@ expected_filtered AS (
   FROM players_pitching_expected AS pe
   JOIN players_rating AS r ON pe.rating_id = r.rating_id
   JOIN players AS p ON r.player_id = p.player_id
+  JOIN players_pitching AS pp ON pe.rating_id = pp.rating_id
   JOIN target_player AS t ON r.rating_date = t.rating_date
   WHERE
     p.position = 'P'
     AND p.team_id != 999
     AND r.league_id = t.league_id
+    AND (CASE WHEN pp.role = 11 THEN 'SP' ELSE 'RP' END) = t.role_group
     AND (
       (t.league_id = 203 AND p.age >= 22)
       OR (t.league_id <> 203)
@@ -32,6 +36,7 @@ ratings_filtered AS (
     p.position = 'P'
     AND p.team_id != 999
     AND r.league_id = t.league_id
+    AND (CASE WHEN pp.role = 11 THEN 'SP' ELSE 'RP' END) = t.role_group
     AND (
       (t.league_id = 203 AND p.age >= 22)
       OR (t.league_id <> 203)
@@ -44,11 +49,13 @@ value_filtered AS (
   FROM players_pitching_run_value AS pv
   JOIN players_rating AS r ON pv.rating_id = r.rating_id
   JOIN players AS p ON r.player_id = p.player_id
+  JOIN players_pitching AS pp ON pv.rating_id = pp.rating_id
   JOIN target_player AS t ON r.rating_date = t.rating_date
   WHERE
     p.position = 'P'
     AND p.team_id != 999
     AND r.league_id = t.league_id
+    AND (CASE WHEN pp.role = 11 THEN 'SP' ELSE 'RP' END) = t.role_group
     AND (
       (t.league_id = 203 AND p.age >= 22)
       OR (t.league_id <> 203)
@@ -70,11 +77,13 @@ pitch_category_filtered AS (
   FROM players_pitch_repertoire AS pr
   JOIN players_rating AS r ON pr.rating_id = r.rating_id
   JOIN players AS p ON r.player_id = p.player_id
+  JOIN players_pitching AS pp ON pr.rating_id = pp.rating_id
   JOIN target_player AS t ON r.rating_date = t.rating_date
   WHERE
     p.position = 'P'
     AND p.team_id != 999
     AND r.league_id = t.league_id
+    AND (CASE WHEN pp.role = 11 THEN 'SP' ELSE 'RP' END) = t.role_group
     AND (
       (t.league_id = 203 AND p.age >= 22)
       OR (t.league_id <> 203)
