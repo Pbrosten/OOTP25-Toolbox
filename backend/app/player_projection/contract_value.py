@@ -1,0 +1,95 @@
+# === Constants (ticket 0056) ===
+# WAR_DOLLAR_VALUE: derived from real TEST.lg data -- median implied $/WAR
+# across market-rate contracts (salary >= $15M, WAR >= 1.5, n=54). Swap once
+# real in-save free-agent-market signings are ingested (see 0042/0041).
+WAR_DOLLAR_VALUE = 8_300_000
+
+# Age-decline curve: scoped to this forward-looking calculation only, not
+# to BatterProjection/PitcherProjection's own rating projections (0026 left
+# those without an age blend). Coefficients are placeholders -- tune against
+# real generated data.
+AGE_DECLINE_SLOW_START = 32  # inclusive
+AGE_DECLINE_HARSH_START = 36  # inclusive
+AGE_DECLINE_SLOW_PER_YEAR = 0.25
+AGE_DECLINE_HARSH_PER_YEAR = 0.75
+
+# Years-of-control window: real-MLB convention, unverified against OOTP's
+# own (unmodeled) free-agency/arbitration rules.
+FA_SERVICE_YEARS = 6
+ARB_ELIGIBLE_SERVICE_YEARS = 3
+ARB_PCT_OF_MARKET = [0.40, 0.60, 0.80]  # arb year 1 / 2 / 3+
+
+# Modal salary floor actually observed in players_contract.salary0 (TEST.lg).
+MIN_SALARY = 740_000
+
+MAX_PROJECTION_YEARS = 15  # matches salary0..salary14's width, safety cap
+
+
+def _age_decline(from_age: int, to_age: int) -> float:
+    """Cumulative WAR deduction from from_age (exclusive) to to_age (inclusive)."""
+    total = 0.0
+    for age in range(from_age + 1, to_age + 1):
+        if age >= AGE_DECLINE_HARSH_START:
+            total += AGE_DECLINE_HARSH_PER_YEAR
+        elif age >= AGE_DECLINE_SLOW_START:
+            total += AGE_DECLINE_SLOW_PER_YEAR
+    return total
+
+
+def calculate_surplus_value(base_war, current_age, mlb_service_years, contract):
+    """
+    contract: dict with current_year/years/salary0..salary14, or None if
+    the player has no signed contract on file. Returns None if there's
+    nothing to project (e.g. already past free-agency service with no
+    contract), otherwise a dict with a year-by-year breakdown and totals.
+    """
+    remaining_contract_years = 0
+    salaries = []
+    if contract is not None:
+        remaining_contract_years = max(
+            0, contract["years"] - contract["current_year"] + 1
+        )
+        salaries = [contract[f"salary{i}"] for i in range(15)]
+
+    years = []
+    y = 0
+    while y < MAX_PROJECTION_YEARS:
+        projected_service = mlb_service_years + y
+        under_contract = y < remaining_contract_years
+        if not under_contract and projected_service >= FA_SERVICE_YEARS:
+            break
+
+        projected_age = current_age + y
+        year_war = base_war - _age_decline(current_age, projected_age)
+        year_value = year_war * WAR_DOLLAR_VALUE
+
+        if under_contract:
+            year_cost = salaries[contract["current_year"] - 1 + y]
+        elif projected_service < ARB_ELIGIBLE_SERVICE_YEARS:
+            year_cost = MIN_SALARY
+        else:
+            arb_year = projected_service - ARB_ELIGIBLE_SERVICE_YEARS
+            pct = ARB_PCT_OF_MARKET[min(arb_year, len(ARB_PCT_OF_MARKET) - 1)]
+            year_cost = max(MIN_SALARY, pct * year_value)
+
+        years.append(
+            {
+                "year_offset": y,
+                "age": projected_age,
+                "war": year_war,
+                "value": year_value,
+                "cost": year_cost,
+                "surplus": year_value - year_cost,
+            }
+        )
+        y += 1
+
+    if not years:
+        return None
+
+    return {
+        "years": years,
+        "total_value": sum(yr["value"] for yr in years),
+        "total_cost": sum(yr["cost"] for yr in years),
+        "total_surplus": sum(yr["surplus"] for yr in years),
+    }

@@ -228,7 +228,7 @@ build-order list above for that nuance):
 [x] 0054 Contract/service-time migration          |
       |                                          |
       v                                          |
-[ ] 0056 Surplus-value calculation                |
+[x] 0056 Surplus-value calculation                |
       |                                          |
       v                                          |
 [ ] 0057 Surplus-value frontend display           |
@@ -329,7 +329,7 @@ itself remains deferred, unticketed — see 0042's Design choices.
 |---|-------|-----|--------|------------|
 | [0053](0053-contract-service-time-schema.md) | Contract/salary/service-time schema | feat | Closed | — |
 | [0054](0054-contract-service-time-migration.md) | Ingest contract/salary/service-time: `migration_long.sql` | feat | Closed | 0053 |
-| [0056](0056-surplus-value-calculation.md) | Surplus-value calculation module + API route | feat | Open | 0053, 0054 |
+| [0056](0056-surplus-value-calculation.md) | Surplus-value calculation module + API route | feat | Closed | 0053, 0054 |
 | [0057](0057-surplus-value-frontend-display.md) | Surplus-value frontend display | feat | Open | 0056 |
 
 ### Tool: GM Command Center

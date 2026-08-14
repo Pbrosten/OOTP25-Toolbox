@@ -1,7 +1,7 @@
 # 0056 — Surplus-value calculation module + API route
 
 - **Tag:** feat
-- **Status:** Open
+- **Status:** Closed
 - **Depends on:** [0053](0053-contract-service-time-schema.md), [0054](0054-contract-service-time-migration.md)
 - **Blocks:** [0057](0057-surplus-value-frontend-display.md)
 
@@ -211,14 +211,38 @@ def get_player_surplus_value(player_id):
     return jsonify({"available": True, **result})
 ```
 
-Verify against the real `TEST.lg` save on a throwaway DB (established
-pattern from 0053-0055): spot-check a handful of well-known contract rows
-(e.g. the $46M/3.64 WAR player from the $/WAR derivation sample above)
-produce sane, explainable surplus numbers.
+Verified against the real `TEST.lg` save on a throwaway DB + throwaway
+Flask dev server (established pattern from 0053-0055):
+- Player 33695 ($46M salary, 3.64 WAR — the top of the $/WAR derivation
+  sample) produces a 9-year projection with the expected age-decline
+  shape: flat WAR through age 31, slow decline 32-35, harsher after 36.
+- Player 5 (Carlos Rodón, real $27M/yr pitching contract) produces a
+  correctly negative surplus given his projected WAR.
+- Swept `/surplus-value` across the first 1000 player IDs plus a
+  nonexistent ID (999999): zero server errors, zero un-parseable
+  responses, 151 available / 849 not-available.
+- **Bug found and fixed by this sweep:** OOTP writes a
+  `years=0, current_year=0`, all-zero-salary `players_contract` row for
+  *every* unsigned player — not "no row at all". The initial `has_contract
+  = row["years"] is not None` check treated that placeholder as a real
+  signed deal, and `current_year=0` fed into `salaries[current_year - 1 +
+  y]` as `salaries[-1]`, Python-wrapping to `salary14`. For player 12 (10
+  years of MLB service, no real contract, `salary14` happening to be 0)
+  this silently produced a plausible-looking `{"available": true, "cost":
+  0, "surplus": $18.4M}` — the right shape, entirely the wrong reason, and
+  actively misleading (a free agent isn't a $0-cost asset). Fixed by
+  requiring `years > 0` for `has_contract`; re-verified player 12 now
+  correctly returns `{"available": false}` and players 5/33695 are
+  unaffected. Added a regression test
+  (`test_get_player_surplus_value_unsigned_placeholder_contract_not_available`
+  in `tests/api/test_players.py`) covering this exact case.
+- Backend test suite: 97 passed (7 new pure-calculation tests in
+  `tests/player_projection/test_contract_value.py`, 4 new route tests in
+  `tests/api/test_players.py`).
 
 **Files involved:**
 - `backend/app/player_projection/contract_value.py` (new)
 - `backend/app/api/players.py` (modified — new route)
-- `backend/app/db/sql_scripts/api/get_player_contract_inputs.sql` (new, if
-  the query is non-trivial enough to warrant its own file per existing
-  convention)
+- `backend/app/db/sql_scripts/api/get_player_contract_inputs.sql` (new)
+- `backend/tests/player_projection/test_contract_value.py` (new)
+- `backend/tests/api/test_players.py` (modified — new route tests)

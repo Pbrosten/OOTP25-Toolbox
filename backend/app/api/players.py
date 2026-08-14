@@ -4,6 +4,7 @@ import pandas as pd
 
 from flask import Blueprint, jsonify, current_app, request
 from app.db.connection import get_db, close_db
+from app.player_projection.contract_value import calculate_surplus_value
 
 bp = Blueprint("players", __name__, url_prefix="/api/players")
 
@@ -293,3 +294,68 @@ def get_player_ratings(player_id):
 
     finally:
         close_db(con)
+
+
+@bp.route("/<int:player_id>/surplus-value", methods=["GET"])
+def get_player_surplus_value(player_id):
+    """
+    Retrieve a player's projected surplus value (ticket 0056): fair value
+    over their years of control minus what they're actually owed.
+
+    Returns:
+        JSON response:
+            - {"available": False} if the player is two-way (0028's
+              never-net-batting/pitching-WAR precedent), has no current
+              WAR projection, or has neither a contract nor a service-time
+              record on file.
+            - {"available": True, "years": [...], "total_value": ...,
+              "total_cost": ..., "total_surplus": ...} otherwise.
+    """
+    con = get_db()
+    try:
+        sql_path = os.path.join(
+            "db", "sql_scripts", "api", "get_player_contract_inputs.sql"
+        )
+        with current_app.open_resource(sql_path, "r") as f:
+            sql = f.read()
+
+        with con.cursor() as cursor:
+            cursor.execute(sql, {"player_id": player_id})
+            row = cursor.fetchone()
+
+        if row is None:
+            return jsonify({"available": False})
+
+        batting_war = row["batting_war"]
+        pitching_war = row["pitching_war"]
+        two_way = batting_war is not None and pitching_war is not None
+        base_war = batting_war if batting_war is not None else pitching_war
+
+        # years=0/current_year=0 is a real row OOTP writes for every
+        # unsigned player (a placeholder, not a 1-year $0 contract) --
+        # current_year=0 would also wrap Python's salaries[-1] indexing in
+        # calculate_surplus_value, so this must be filtered here, not just
+        # treated as "no row".
+        has_contract = row["years"] is not None and row["years"] > 0
+        has_service_time = row["mlb_service_years"] is not None
+
+        if (
+            two_way
+            or base_war is None
+            or row["age"] is None
+            or not (has_contract or has_service_time)
+        ):
+            return jsonify({"available": False})
+
+        result = calculate_surplus_value(
+            base_war=base_war,
+            current_age=row["age"],
+            mlb_service_years=row["mlb_service_years"] or 0,
+            contract=row if has_contract else None,
+        )
+        if result is None:
+            return jsonify({"available": False})
+
+        return jsonify({"available": True, **result})
+    finally:
+        close_db()
