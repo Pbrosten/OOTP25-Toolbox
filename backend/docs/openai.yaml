@@ -542,6 +542,45 @@ paths:
                   error:
                     type: string
 
+  /api/players/ratings/{player_id}/trends/alerts:
+    get:
+      summary: Get a player's narrative development alerts
+      description: |
+        Returns the subset of `/trends` rows that exceeded 0050's threshold,
+        turned into short human-readable text (ticket 0051), e.g. "Stuff
+        has improved." or "Scouts have revised power potential downward."
+        Talent-table rows use distinct wording from overall-table rows to
+        signal a scouting-ceiling revision rather than actual current-
+        ability change. No claim about age-relative pace or whether
+        production followed is made — both are out of scope for v1 (see
+        0044/0051's Design choices).
+      tags: [Ratings, Development]
+      parameters:
+        - in: path
+          name: player_id
+          required: true
+          description: The ID of the player to compute development alerts for
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Development alerts for the player (empty if nothing exceeded threshold)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DevelopmentAlert'
+        '404':
+          description: Player has no players_rating rows at all
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+
   /api/admin/init-db:
     post:
       summary: Initialize the database schema
@@ -790,6 +829,25 @@ components:
         exceeded:
           type: boolean
           description: True if abs(delta) >= threshold
+
+    DevelopmentAlert:
+      type: object
+      description: A narrative alert built from one exceeded RatingTrendEntry (ticket 0051).
+      properties:
+        table:
+          type: string
+          description: Source rating table, e.g. players_batting or players_batting_talent
+        column:
+          type: string
+          description: Rating column within table, e.g. contact
+        direction:
+          type: string
+          enum: [improved, declined]
+        delta:
+          type: integer
+        message:
+          type: string
+          description: Human-readable alert text, e.g. "Stuff has improved." or "Scouts have revised power potential downward."
 
     BattingRating:
       type: object

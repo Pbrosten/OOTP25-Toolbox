@@ -251,7 +251,7 @@ below.
 | # | Title | Tag | Status | Depends on |
 |---|-------|-----|--------|------------|
 | [0050](0050-rating-trend-query-layer.md) | Rating delta/trend query layer + API route | feat | Closed | — |
-| [0051](0051-development-alert-generation.md) | Development alert generation (narrative rule layer) | feat | Open | 0050 |
+| [0051](0051-development-alert-generation.md) | Development alert generation (narrative rule layer) | feat | Closed | 0050 |
 | [0052](0052-development-monitor-frontend.md) | Frontend trend/alert display (PlayerDetails.vue) | feat | Open | 0050, 0051 |
 
 ### Tool: Trade Target Finder

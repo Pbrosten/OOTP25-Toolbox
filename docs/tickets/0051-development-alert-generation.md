@@ -1,7 +1,7 @@
 # 0051 — Development alert generation (narrative rule layer)
 
 - **Tag:** feat
-- **Status:** Open
+- **Status:** Closed
 - **Depends on:** [0050](0050-rating-trend-query-layer.md)
 - **Blocks:** [0052](0052-development-monitor-frontend.md)
 
@@ -58,6 +58,29 @@ strings.
   rather than embedding alerts in 0050's response, so 0050's route stays a
   pure data query unaffected by wording changes here.
 - `backend/docs/openai.yaml`: document the new route/response shape.
+
+**Deviation from the Approach sketch:** alert objects don't carry
+`player_id` — since `/trends/alerts` is already scoped to one player via
+the path parameter, repeating it on every object would be redundant (0052
+already has `playerId` from its own props). Also, message text never
+embeds the player's name (e.g. "Stuff has improved." not "{Player}'s stuff
+has improved.") — the Design choices section's `{player}` placeholders were
+illustrating the wording *difference* between overall/talent alerts, not a
+literal requirement; since every alert renders on that player's own detail
+page (0052), naming them again would be redundant with page context, same
+as how `PercentileBar.vue`/`BatterPercentiles.vue` never re-state the
+player's name next to a stat.
+
+**Verified:** full pytest suite (86 passed, no regressions); hit the live
+route end-to-end after restarting the backend container — spot-checked
+players 5/6/9/10 (overall-table alerts, both improved/declined directions,
+multiple alerts for one player) and player 25549 (talent-table alerts,
+confirmed the "Scouts have revised ... potential downward" wording fires
+correctly alongside a same-heap overall-table alert), and player 12
+(fewer/no exceeded rows → empty list, not an error) and a nonexistent
+player_id (404 "Player not found", reusing 0050's existence check via a
+shared `_fetch_rating_trends` helper so both routes agree on 404 vs. empty
+list).
 
 **Files involved:**
 - `backend/app/player_projection/development_alerts.py` (new)

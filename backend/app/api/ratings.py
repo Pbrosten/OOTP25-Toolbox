@@ -2,6 +2,7 @@ import os
 
 from flask import Blueprint, jsonify, current_app
 from app.db.connection import get_db, close_db
+from app.player_projection.development_alerts import get_development_alerts
 
 bp = Blueprint("ratings", __name__, url_prefix="/api/players/ratings")
 
@@ -299,6 +300,30 @@ def get_pitch_repertoire_by_id(rating_id):
 
 
 ########################### DEVELOPMENT TRENDS (0050) #######################
+def _fetch_rating_trends(cursor, player_id):
+    """
+    Shared by both routes below. Returns None if the player has no
+    `players_rating` rows at all (caller 404s); otherwise the row list from
+    `get_player_rating_trends.sql` (possibly empty, if the player has fewer
+    than 4 recorded heaps).
+    """
+    cursor.execute(
+        "SELECT 1 FROM players_rating WHERE player_id = %s LIMIT 1",
+        (player_id,),
+    )
+    if cursor.fetchone() is None:
+        return None
+
+    with current_app.open_resource(
+        os.path.join("db", "sql_scripts", "api", "get_player_rating_trends.sql"),
+        "r",
+    ) as f:
+        sql = f.read()
+
+    cursor.execute(sql, {"player_id": player_id})
+    return cursor.fetchall()
+
+
 @bp.route("/<int:player_id>/trends", methods=["GET"])
 def get_player_rating_trends(player_id):
     """
@@ -320,23 +345,37 @@ def get_player_rating_trends(player_id):
     con = get_db()
     try:
         with con.cursor() as cursor:
-            cursor.execute(
-                "SELECT 1 FROM players_rating WHERE player_id = %s LIMIT 1",
-                (player_id,),
-            )
-            if cursor.fetchone() is None:
+            rows = _fetch_rating_trends(cursor, player_id)
+            if rows is None:
                 return jsonify({"error": "Player not found"}), 404
-
-            with current_app.open_resource(
-                os.path.join(
-                    "db", "sql_scripts", "api", "get_player_rating_trends.sql"
-                ),
-                "r",
-            ) as f:
-                sql = f.read()
-
-            cursor.execute(sql, {"player_id": player_id})
-            rows = cursor.fetchall()
             return jsonify(rows)
+    finally:
+        close_db()
+
+
+@bp.route("/<int:player_id>/trends/alerts", methods=["GET"])
+def get_player_development_alerts(player_id):
+    """
+    Retrieve narrative development alerts for a player -- the subset of
+    `/trends` rows that exceeded 0050's threshold, turned into short
+    human-readable text (ticket 0051).
+
+    Args:
+        player_id (int): The unique ID of the player.
+
+    Returns:
+        JSON response:
+            - A list of `{table, column, direction, delta, message}`
+              objects. Empty if nothing exceeded threshold (including if
+              the player has fewer than 4 recorded heaps).
+            - 404 error if the player has no `players_rating` rows at all.
+    """
+    con = get_db()
+    try:
+        with con.cursor() as cursor:
+            rows = _fetch_rating_trends(cursor, player_id)
+            if rows is None:
+                return jsonify({"error": "Player not found"}), 404
+            return jsonify(get_development_alerts(rows))
     finally:
         close_db()
