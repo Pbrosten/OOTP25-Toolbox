@@ -196,3 +196,64 @@ ON DUPLICATE KEY UPDATE
     md = VALUES(md),
     war = VALUES(war),
     ra9war = VALUES(ra9war);
+
+-- Contract / salary / service-time: see ticket 0054. Current-state upserts,
+-- not dated snapshots -- these staging tables only ever appear in yearly
+-- heaps (confirmed against a real dump export), matching players/teams'
+-- own upsert cadence above rather than players_rating's append-only one.
+INSERT INTO players_contract (
+    player_id, team_id, season_year, years, current_year,
+    salary0, salary1, salary2, salary3, salary4,
+    salary5, salary6, salary7, salary8, salary9,
+    salary10, salary11, salary12, salary13, salary14,
+    no_trade, last_year_team_option, last_year_player_option,
+    last_year_vesting_option, opt_out
+)
+SELECT
+    s.player_id, s.team_id, s.season_year, s.years, s.current_year,
+    s.salary0, s.salary1, s.salary2, s.salary3, s.salary4,
+    s.salary5, s.salary6, s.salary7, s.salary8, s.salary9,
+    s.salary10, s.salary11, s.salary12, s.salary13, s.salary14,
+    s.no_trade, s.last_year_team_option, s.last_year_player_option,
+    s.last_year_vesting_option, s.opt_out
+FROM staging.players_contract s
+INNER JOIN players p ON s.player_id = p.player_id
+ON DUPLICATE KEY UPDATE
+    team_id = VALUES(team_id), season_year = VALUES(season_year),
+    years = VALUES(years), current_year = VALUES(current_year),
+    salary0 = VALUES(salary0), salary1 = VALUES(salary1),
+    salary2 = VALUES(salary2), salary3 = VALUES(salary3),
+    salary4 = VALUES(salary4), salary5 = VALUES(salary5),
+    salary6 = VALUES(salary6), salary7 = VALUES(salary7),
+    salary8 = VALUES(salary8), salary9 = VALUES(salary9),
+    salary10 = VALUES(salary10), salary11 = VALUES(salary11),
+    salary12 = VALUES(salary12), salary13 = VALUES(salary13),
+    salary14 = VALUES(salary14), no_trade = VALUES(no_trade),
+    last_year_team_option = VALUES(last_year_team_option),
+    last_year_player_option = VALUES(last_year_player_option),
+    last_year_vesting_option = VALUES(last_year_vesting_option),
+    opt_out = VALUES(opt_out);
+
+-- Placeholder year=0/salary=0 rows (present for most players) are excluded
+-- -- see ticket 0054's Design choices. Append-only ledger, like
+-- players_rating, so INSERT IGNORE rather than an upsert.
+INSERT IGNORE INTO players_salary_history (player_id, team_id, year, salary)
+SELECT s.player_id, s.team_id, s.year, s.salary
+FROM staging.players_salary_history s
+INNER JOIN players p ON s.player_id = p.player_id
+WHERE s.year != 0;
+
+INSERT INTO players_service_time (
+    player_id, mlb_service_years, mlb_service_days,
+    pro_service_years, has_received_arbitration
+)
+SELECT
+    s.player_id, s.mlb_service_years, s.mlb_service_days,
+    s.pro_service_years, s.has_received_arbitration
+FROM staging.players_roster_status s
+INNER JOIN players p ON s.player_id = p.player_id
+ON DUPLICATE KEY UPDATE
+    mlb_service_years = VALUES(mlb_service_years),
+    mlb_service_days = VALUES(mlb_service_days),
+    pro_service_years = VALUES(pro_service_years),
+    has_received_arbitration = VALUES(has_received_arbitration);

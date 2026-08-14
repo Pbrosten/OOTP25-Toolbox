@@ -18,8 +18,7 @@ way [0024](0024-pitcher-schema-ratings-tables.md) did for pitcher ratings.
 
 ## 2. Design choices
 
-- **What does staging actually contain?** Four relevant tables, confirmed
-  against the real dump:
+- **What does staging actually contain?** Confirmed against the real dump:
   - `players_contract` (44 columns, 1775 rows in the sample heap) — the
     active contract: `player_id`, `team_id`, `contract_team_id`,
     `season_year`, a 15-year salary schedule (`salary0`..`salary14`),
@@ -30,12 +29,8 @@ way [0024](0024-pitcher-schema-ratings-tables.md) did for pitcher ratings.
     `mvp_bonus`, `cyyoung_bonus`, `allstar_bonus`, etc.). Real sample row:
     player 5, team 18, `salary0..salary5` = 22M/27M/27M/27M/27M/27M,
     `years`=6, `current_year`=3.
-  - `players_contract_extension` — identical 44-column shape. In the sample
-    heap all 1856 rows have `salary0..salary14` = 0 despite non-zero
-    `player_id`/`team_id`/`season_year` fields. Unclear from this single
-    save snapshot whether OOTP ever populates real extension-offer salary
-    figures here or this table only fills in during an active
-    extension-negotiation window this save wasn't in. **Outstanding** — see
+  - `players_contract_extension` also exists in staging (identical
+    44-column shape) but is **not ingested** — see "Extension table dropped"
     below.
   - `players_salary_history` (`player_id`, `team_id`, `year`, `salary`,
     `uniform`) — historical actual salary paid. Most players have a
@@ -49,23 +44,35 @@ way [0024](0024-pitcher-schema-ratings-tables.md) did for pitcher ratings.
     `has_received_arbitration` (boolean-ish TINYINT). Real sample row:
     player 5 has `mlb_service_years`=10, `has_received_arbitration`=0.
   - Confirmed via `ls` across `dump_2025_01/06/12` and `dump_2026_02`: none
-    of these four files appear in monthly ("short") heaps, only in yearly
-    ones — same cadence as `players`/`teams` themselves.
-- **Full mirror vs. trimmed set?** Same question 0024 faced. `players_contract`
-  and `players_contract_extension`'s incentive-bonus columns
-  (`minimum_pa`/`minimum_pa_bonus`/`minimum_ip`/`minimum_ip_bonus`/
-  `mvp_bonus`/`cyyoung_bonus`/`allstar_bonus`/`*_option_buyout`), `position`,
-  `role`, `is_major`, `league_id`, `contract_league_id`, `retained`, and
-  `opt_out_relegation` have no consumer in either 0041's filter/rank scope
-  or 0042's surplus-value scope. `players_roster_status`'s waiver/DL/trade
-  columns are entirely unrelated to contracts. **Chosen:** trim to what
-  0041/0042 actually need — salary schedule, years/current_year, no-trade
-  and option flags, opt-out, and the service-time/arbitration fields.
-  Consistent with 0024's precedent and this project's stated aversion to
-  speculative unused columns. `contract_team_id` (the paying team, which can
-  differ from the roster team_id under salary retention) is also trimmed for
-  now — retained-salary trade scenarios are out of either ticket's stated
-  scope.
+    of these files appear in monthly ("short") heaps, only in yearly ones —
+    same cadence as `players`/`teams` themselves.
+- **Full mirror vs. trimmed set?** Same question 0024 faced. `players_contract`'s
+  incentive-bonus columns (`minimum_pa`/`minimum_pa_bonus`/`minimum_ip`/
+  `minimum_ip_bonus`/`mvp_bonus`/`cyyoung_bonus`/`allstar_bonus`/
+  `*_option_buyout`), `position`, `role`, `is_major`, `league_id`,
+  `contract_league_id`, `retained`, and `opt_out_relegation` have no
+  consumer in either 0041's filter/rank scope or 0042's surplus-value
+  scope. `players_roster_status`'s waiver/DL/trade columns are entirely
+  unrelated to contracts. **Chosen:** trim to what 0041/0042 actually
+  need — salary schedule, years/current_year, no-trade and option flags,
+  opt-out, and the service-time/arbitration fields. Consistent with 0024's
+  precedent and this project's stated aversion to speculative unused
+  columns. `contract_team_id` (the paying team, which can differ from the
+  roster team_id under salary retention) is also trimmed for now —
+  retained-salary trade scenarios are out of either ticket's stated scope.
+- **Extension table dropped.** `players_contract_extension` was initially
+  scoped for ingestion (see this ticket's original Approach), but this
+  pipeline only ever takes one snapshot a year, at the yearly heap. Any
+  extension visible in a given year's snapshot will, by construction, have
+  already either been folded into `players_contract` or been superseded by
+  the time the *next* yearly heap is captured a year later — there's no
+  refresh cadence at which the app could ever show a pending extension that
+  isn't already stale or already the active contract. Ingesting it would
+  add a column set with no window in which it's actionable. **Chosen: drop
+  `players_contract_extension` entirely** — not scoped in schema, staging,
+  or migration. If OOTP's short (monthly) heaps ever start exporting this
+  file too, that would remove the reasoning above and it'd be worth
+  revisiting.
 - **Current-state table vs. dated snapshot (like `players_rating`)?**
   **Chosen: current-state**, upserted on each yearly-heap run — matching how
   `players`/`teams` themselves are handled in `migration_long.sql` (`INSERT
@@ -76,22 +83,13 @@ way [0024](0024-pitcher-schema-ratings-tables.md) did for pitcher ratings.
   self-describing forward schedule, and `players_salary_history` is already
   a historical ledger keyed by `(player_id, year)` — neither needs a second
   layer of per-heap dating on top.
-- **Table names.** `players_contract`, `players_contract_extension`, and
-  `players_salary_history` reuse the staging names directly (matches
-  existing convention, e.g. `players_batting`/`players_pitching`). The
-  service-time subset gets a new, narrower name — `players_service_time` —
-  rather than `players_roster_status`, since only ~5 of that table's 38
-  columns are being ingested and the full name would misrepresent the
-  table's actual (trimmed) contents.
-- **Outstanding — `players_contract_extension` semantics unverified.**
-  Ingesting it now (same trimmed shape as `players_contract`) is cheap and
-  matches 0042's Approach, which explicitly wants extension-scenario
-  modeling. But since every sampled row has a zero salary schedule, its
-  actual populated shape (what a real pending extension offer looks like)
-  isn't confirmed. If [0054](0054-contract-service-time-migration.md)'s
-  migration also finds zero non-zero rows across all available yearly
-  heaps, flag it back here rather than silently shipping an always-empty
-  table.
+- **Table names.** `players_contract` and `players_salary_history` reuse
+  the staging names directly (matches existing convention, e.g.
+  `players_batting`/`players_pitching`). The service-time subset gets a
+  new, narrower name — `players_service_time` — rather than
+  `players_roster_status`, since only ~5 of that table's 38 columns are
+  being ingested and the full name would misrepresent the table's actual
+  (trimmed) contents.
 
 ## 3. Approach
 
@@ -99,23 +97,6 @@ Add to `schema.sql`, alongside the existing ratings tables:
 
 ```sql
 CREATE TABLE players_contract (
-  player_id INT PRIMARY KEY,
-  team_id INT,
-  season_year INT,
-  years SMALLINT,
-  current_year SMALLINT,
-  salary0 INT, salary1 INT, salary2 INT, salary3 INT, salary4 INT,
-  salary5 INT, salary6 INT, salary7 INT, salary8 INT, salary9 INT,
-  salary10 INT, salary11 INT, salary12 INT, salary13 INT, salary14 INT,
-  no_trade BOOLEAN,
-  last_year_team_option BOOLEAN,
-  last_year_player_option BOOLEAN,
-  last_year_vesting_option BOOLEAN,
-  opt_out SMALLINT,
-  FOREIGN KEY (player_id) REFERENCES players(player_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-CREATE TABLE players_contract_extension (
   player_id INT PRIMARY KEY,
   team_id INT,
   season_year INT,
@@ -159,4 +140,5 @@ Migration ingestion (staging → ootp) is scoped separately in
 [0054](0054-contract-service-time-migration.md).
 
 **Files involved:**
-- `backend/app/db/sql_scripts/schema.sql` (modified — add 4 tables + drops)
+- `backend/app/db/sql_scripts/schema.sql` (modified — add 3 tables + drops:
+  `players_contract`, `players_salary_history`, `players_service_time`)

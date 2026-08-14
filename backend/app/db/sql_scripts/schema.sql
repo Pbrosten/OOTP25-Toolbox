@@ -17,7 +17,6 @@ DROP TABLE IF EXISTS players_pitch_repertoire;
 DROP TABLE IF EXISTS players_pitching;
 DROP TABLE IF EXISTS players_rating;
 DROP TABLE IF EXISTS players_contract;
-DROP TABLE IF EXISTS players_contract_extension;
 DROP TABLE IF EXISTS players_salary_history;
 DROP TABLE IF EXISTS players_service_time;
 DROP TABLE IF EXISTS players_career_batting_stats;
@@ -420,23 +419,6 @@ CREATE TABLE players_similarity (
 -- appear in yearly dump heaps, and salary0..salary14 already self-describes
 -- the forward schedule.
 CREATE TABLE players_contract (
-  player_id INT PRIMARY KEY,
-  team_id INT,
-  season_year INT,
-  years SMALLINT,
-  current_year SMALLINT,
-  salary0 INT, salary1 INT, salary2 INT, salary3 INT, salary4 INT,
-  salary5 INT, salary6 INT, salary7 INT, salary8 INT, salary9 INT,
-  salary10 INT, salary11 INT, salary12 INT, salary13 INT, salary14 INT,
-  no_trade BOOLEAN,
-  last_year_team_option BOOLEAN,
-  last_year_player_option BOOLEAN,
-  last_year_vesting_option BOOLEAN,
-  opt_out SMALLINT,
-  FOREIGN KEY (player_id) REFERENCES players(player_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-CREATE TABLE players_contract_extension (
   player_id INT PRIMARY KEY,
   team_id INT,
   season_year INT,

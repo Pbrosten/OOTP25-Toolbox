@@ -224,7 +224,7 @@ build-order list above for that nuance):
 [x] 0053 Contract/service-time schema             |
       |                                          |
       v                                          |
-[ ] 0054 Contract/service-time migration          |
+[x] 0054 Contract/service-time migration          |
       |                                          |
       v                                          |
 [~] 0042 Contract & Arbitration Analyzer --------+
@@ -315,7 +315,7 @@ is now filed as [0053](0053-contract-service-time-schema.md)/
 | # | Title | Tag | Status | Depends on |
 |---|-------|-----|--------|------------|
 | [0053](0053-contract-service-time-schema.md) | Contract/salary/service-time schema | feat | Closed | — |
-| [0054](0054-contract-service-time-migration.md) | Ingest contract/salary/service-time: `migration_long.sql` | feat | Open | 0053 |
+| [0054](0054-contract-service-time-migration.md) | Ingest contract/salary/service-time: `migration_long.sql` | feat | Closed | 0053 |
 
 ### Tool: GM Command Center
 

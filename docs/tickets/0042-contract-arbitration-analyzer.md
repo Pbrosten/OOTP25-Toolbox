@@ -29,13 +29,18 @@ a dependency chain despite sharing a data gap.
 - **No contract/salary/arbitration data ingested (blocking).** Same gap as
   [0041](0041-trade-target-finder.md). **Resolved:** inspected a real dump
   export (`TEST.lg` save) and found `players_contract`,
-  `players_contract_extension`, `players_salary_history`, and the
-  service-time/arbitration fields on `players_roster_status` all exist in
-  the raw OOTP export. Filed as the shared prerequisite
-  [0053](0053-contract-service-time-schema.md) (schema) and
-  [0054](0054-contract-service-time-migration.md) (migration ingestion),
-  mirroring the 0024/0025 pattern; both block this ticket and 0041's
-  full-scope pass.
+  `players_salary_history`, and the service-time/arbitration fields on
+  `players_roster_status` all exist in the raw OOTP export. Filed as the
+  shared prerequisite [0053](0053-contract-service-time-schema.md) (schema)
+  and [0054](0054-contract-service-time-migration.md) (migration
+  ingestion), mirroring the 0024/0025 pattern; both block this ticket and
+  0041's full-scope pass. (A `players_contract_extension` table also
+  exists in the raw export but was deliberately left uningested — 0053
+  found this pipeline's yearly-only refresh cadence means any extension
+  it captures is already stale or already folded into `players_contract`
+  by the next snapshot, so "extend" scenario modeling for this ticket
+  works off `players_contract`'s own option/opt-out fields, not a separate
+  pending-extension record.)
 - **Surplus-value $/WAR market rate.** FanGraphs' public methodology derives
   its $/WAR rate from real free-agent signings — OOTP's in-save equivalent
   needs the free-agent-market data 0041 also flagged as missing, which is

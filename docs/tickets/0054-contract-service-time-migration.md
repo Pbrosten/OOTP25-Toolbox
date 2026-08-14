@@ -1,42 +1,47 @@
 # 0054 — Ingest contract/salary/service-time: `migration_long.sql`
 
 - **Tag:** feat
-- **Status:** Open
+- **Status:** Closed
 - **Depends on:** [0053](0053-contract-service-time-schema.md)
 - **Blocks:** —
 
 ## 1. Problem
 
 [0053](0053-contract-service-time-schema.md) adds `players_contract`,
-`players_contract_extension`, `players_salary_history`, and
-`players_service_time` to `ootp`'s schema. Nothing populates them yet —
-`staging.py`'s `DUMP_INCLUSION_LIST` doesn't load the source
-`players_contract`/`players_contract_extension`/`players_salary_history`/
-`players_roster_status` dump files into `staging`, and no migration SQL
-copies staging → ootp for them. This is the shared prerequisite
-[0041](0041-trade-target-finder.md) and
+`players_salary_history`, and `players_service_time` to `ootp`'s schema
+(and considered, then deliberately dropped, a `players_contract_extension`
+table — see 0053's Design choices). Nothing populates the three real tables
+yet — `staging.py`'s `DUMP_INCLUSION_LIST` doesn't load the source
+`players_contract`/`players_salary_history`/`players_roster_status` dump
+files into `staging`, and no migration SQL copies staging → ootp for them.
+This is the shared prerequisite [0041](0041-trade-target-finder.md) and
 [0042](0042-contract-arbitration-analyzer.md) both need before either can
 build contract-dependent scope.
 
 ## 2. Design choices
 
 - **Long heap, not short.** Confirmed in 0053: `players_contract`,
-  `players_contract_extension`, `players_salary_history`, and
-  `players_roster_status` dump files only appear in yearly heap
-  directories, never monthly ones. Ingestion belongs in
-  `migration_long.sql`, alongside the existing `players`/`teams` upserts —
-  not `migration_short.sql`, which only ever adds dated rating snapshots.
+  `players_salary_history`, and `players_roster_status` dump files only
+  appear in yearly heap directories, never monthly ones. Ingestion belongs
+  in `migration_long.sql`, alongside the existing `players`/`teams`
+  upserts — not `migration_short.sql`, which only ever adds dated rating
+  snapshots.
+- **`players_contract_extension` not ingested.** Per 0053's Design
+  choices — this pipeline only snapshots contract data once a year, so any
+  extension visible in one yearly heap has already been folded into
+  `players_contract` (or superseded) by the next one. No `staging.py`
+  entry, no migration insert, no schema table.
 - **`team_id = 0` remap.** `migration_long.sql`'s existing `players`/
   `players_career_*_stats` inserts already handle staging's `team_id = 0`
   (meaning unrostered/free agent) by remapping to the synthetic `999` "Free
   Agents" team via `CASE WHEN team_id = 0 THEN 999 ELSE team_id END`,
   because `teams` has no `team_id = 0` row to satisfy the FK. Every new
-  table here carries a `team_id` FK to `players`, and `players_contract`/
-  `players_contract_extension` FK to `players` (not `teams` directly per
-  0053's schema — no FK on `team_id` itself was added there), so this only
-  matters if a `team_id` FK to `teams` gets added later. Not needed for the
-  FKs 0053 actually created. **Resolved: no remap needed** given 0053's
-  chosen FK shape (`player_id` only).
+  table here carries a `team_id` FK to `players`, and `players_contract`
+  FKs to `players` (not `teams` directly per 0053's schema — no FK on
+  `team_id` itself was added there), so this only matters if a `team_id`
+  FK to `teams` gets added later. Not needed for the FKs 0053 actually
+  created. **Resolved: no remap needed** given 0053's chosen FK shape
+  (`player_id` only).
 - **`players_salary_history` placeholder rows.** Most players carry a
   `year = 0, salary = 0` row alongside real dated ones (confirmed in 0053's
   sample — e.g. `(1, 0, 0, 0, 33)`). Inserting these would waste a
@@ -51,14 +56,19 @@ build contract-dependent scope.
   revised after the fact), so `INSERT IGNORE` there matches how
   `players_rating`'s append-only inserts already work elsewhere in this
   pipeline.
-- **Outstanding — carried from 0053.** If this migration's real-heap run
-  confirms `players_contract_extension` never has a non-zero salary
-  schedule across all available yearly heaps in the `TEST.lg` save, flag it
-  back on 0053/0042 rather than treating the table as validated.
+- **Note — `players_contract_extension` data quality, for the record.** An
+  earlier draft of this ticket ingested `players_contract_extension` before
+  0053 reversed that decision. While it was still wired up, a real-dump run
+  found 11 of 15884 rows had a genuine non-zero salary schedule — so the
+  table isn't universally empty, it's just useless given the yearly-only
+  refresh cadence (see 0053). Recorded here in case the cadence assumption
+  ever changes.
 
 ## 3. Approach
 
-- `staging.py`: add `"players_contract"`, `"players_contract_extension"`,
+- `staging.py`: add `"players_contract.mysql"` (the `.mysql` suffix keeps
+  the prefix match from also sweeping in
+  `players_contract_extension.mysql.sql`, which isn't ingested),
   `"players_salary_history"`, `"players_roster_status"` to
   `DUMP_INCLUSION_LIST`.
 - `migration_long.sql`: add, after the existing `players` upsert (these all
@@ -98,14 +108,11 @@ build contract-dependent scope.
       last_year_vesting_option = VALUES(last_year_vesting_option),
       opt_out = VALUES(opt_out);
 
-  -- players_contract_extension: identical shape, from staging.players_contract_extension
-
-  INSERT INTO players_salary_history (player_id, team_id, year, salary)
+  INSERT IGNORE INTO players_salary_history (player_id, team_id, year, salary)
   SELECT s.player_id, s.team_id, s.year, s.salary
   FROM staging.players_salary_history s
   INNER JOIN players p ON s.player_id = p.player_id
-  WHERE s.year != 0
-  ON DUPLICATE KEY UPDATE salary = VALUES(salary), team_id = VALUES(team_id);
+  WHERE s.year != 0;
 
   INSERT INTO players_service_time (
       player_id, mlb_service_years, mlb_service_days,
@@ -123,10 +130,15 @@ build contract-dependent scope.
       has_received_arbitration = VALUES(has_received_arbitration);
   ```
 
-- Verify against a real dump (`flask --app app update-db` against the
-  `TEST.lg` save's yearly heap) that row counts land as expected and the
-  `players_contract_extension` outstanding question gets resolved one way
-  or the other.
+- Verified against a real dump: ran `flask --app app update-db` against
+  `dump_2025_yearly` from the `TEST.lg` save, on a throwaway MariaDB
+  container (not the persistent `mariadb_data` volume). Result: 15884 rows
+  each in `players_contract`/`players_service_time` (1088 with a real
+  active salary), 3833 dated rows in `players_salary_history`. No errors;
+  row counts consistent with 0053's sampling. Re-verified again after
+  dropping `players_contract_extension` — identical row counts for the
+  three remaining tables, extension table absent from the schema
+  entirely.
 
 **Files involved:**
 - `backend/app/db/staging.py` (modified — `DUMP_INCLUSION_LIST`)

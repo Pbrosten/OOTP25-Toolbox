@@ -13,6 +13,9 @@ DUMP_INCLUSION_LIST = [
     "players_pitching",
     "players_career_batting_stats",
     "players_career_pitching_stats",
+    "players_contract.mysql",
+    "players_salary_history",
+    "players_roster_status",
     "teams.mysql",
 ]
 
