@@ -28,18 +28,54 @@ ON DUPLICATE KEY UPDATE
     background_color = VALUES(background_color),
     text_color = VALUES(text_color);
 
+-- Excludes players who are both retired and inactive since before 2024 --
+-- ootp.players carries a save's entire player history otherwise (see
+-- ticket 0046), most of which is irrelevant to current-day GM
+-- decision-making. "Active" is judged from staging's raw career stats
+-- (not ootp's, since this filter has to decide inclusion before those
+-- rows exist in ootp) rather than a single year/debut field, because
+-- staging.players has no such field (confirmed against a real dump
+-- export). retired=0 players are always kept regardless of recent stat
+-- history -- e.g. a not-yet-debuted prospect has zero career-stat rows
+-- but is very much in scope, and an unsigned-but-not-retired free agent
+-- who last played a year or two ago may still be a live asset.
+--
+-- Materialized into an indexed temp table rather than inlined as
+-- correlated EXISTS subqueries against staging.players_career_batting_stats/
+-- _pitching_stats directly in the INSERT...SELECT below. Those staging
+-- tables are freshly loaded raw dump copies with zero indexes
+-- (confirmed -- SHOW INDEX returns nothing) at real-save scale (670k+/
+-- 370k+ rows), and against a real dump this app's own transaction settings
+-- (autocommit=0, REPEATABLE READ -- see connection.py) made InnoDB take a
+-- shared lock on every row scanned while evaluating the correlated
+-- subqueries inline (over 1,000,000 row locks observed, "Sending data" for
+-- 5+ minutes on a single heap). Precomputing the small (~15k-row) active-id
+-- set here, once, keeps the actual players INSERT's WHERE clause an
+-- indexed membership check instead -- same real dump went from not
+-- completing in 5 minutes to well under a second.
+DROP TEMPORARY TABLE IF EXISTS recently_active_player_ids;
+CREATE TEMPORARY TABLE recently_active_player_ids (
+    player_id INT PRIMARY KEY
+);
+INSERT INTO recently_active_player_ids
+SELECT player_id FROM staging.players_career_batting_stats WHERE year >= 2024
+UNION
+SELECT player_id FROM staging.players_career_pitching_stats WHERE year >= 2024;
+
 INSERT INTO players (
     player_id, first_name, last_name, birth_date,
     position, height, weight, bats, throws,
     free_agent, team_id, prone_overall, retired
 )
 SELECT
-    player_id, first_name, last_name, date_of_birth,
-    position, height, weight, bats, throws,
-    free_agent,
-    CASE WHEN team_id = 0 THEN 999 ELSE team_id END,
-    prone_overall, retired
-FROM staging.players
+    s.player_id, s.first_name, s.last_name, s.date_of_birth,
+    s.position, s.height, s.weight, s.bats, s.throws,
+    s.free_agent,
+    CASE WHEN s.team_id = 0 THEN 999 ELSE s.team_id END,
+    s.prone_overall, s.retired
+FROM staging.players s
+WHERE s.retired = 0
+   OR s.player_id IN (SELECT player_id FROM recently_active_player_ids)
 ON DUPLICATE KEY UPDATE
     team_id = VALUES(team_id),
     prone_overall = VALUES(prone_overall),
