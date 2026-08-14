@@ -82,7 +82,7 @@ alternatives, not a sequence; 0021 folds into 0022).
 | [0022](0022-consolidate-run-script-boilerplate.md) | Consolidate repeated run-script/rollback/commit boilerplate | refactor | Closed | — |
 | [0030](0030-exclude-pitchers-from-batting-projection.md) | Exclude pitchers from the batting projection workflow (pending a future TWP tag) | fix | Closed | — |
 | [0046](0046-prune-inactive-players.md) | Prune players inactive before 2024; filter them at ingestion | chore | Closed | — |
-| [0049](0049-fix-test-players-mock-pattern.md) | Fix broken DB-connection mocks in `tests/api/test_players.py` | chore | Open | — |
+| [0049](0049-fix-test-players-mock-pattern.md) | Fix broken DB-connection mocks in `tests/api/test_players.py` | chore | Closed | — |
 
 ## Epic: Pitcher projections
 

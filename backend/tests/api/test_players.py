@@ -12,7 +12,7 @@ def test_get_players(mock_close_db, mock_get_db, client):
         {"player_id": 1, "name": "Alice"},
         {"player_id": 2, "name": "Bob"},
     ]
-    mock_con.execute.return_value = mock_cursor
+    mock_con.cursor.return_value.__enter__.return_value = mock_cursor
     mock_get_db.return_value = mock_con
 
     response = client.get("/api/players")
@@ -33,7 +33,7 @@ def test_get_player_by_id_found(mock_close_db, mock_get_db, client):
     mock_con = MagicMock()
     mock_cursor = MagicMock()
     mock_cursor.fetchone.return_value = {"player_id": 1, "name": "Alice"}
-    mock_con.execute.return_value = mock_cursor
+    mock_con.cursor.return_value.__enter__.return_value = mock_cursor
     mock_get_db.return_value = mock_con
 
     response = client.get("/api/players/1")
@@ -51,7 +51,7 @@ def test_get_player_by_id_not_found(mock_close_db, mock_get_db, client):
     mock_con = MagicMock()
     mock_cursor = MagicMock()
     mock_cursor.fetchone.return_value = None
-    mock_con.execute.return_value = mock_cursor
+    mock_con.cursor.return_value.__enter__.return_value = mock_cursor
     mock_get_db.return_value = mock_con
 
     response = client.get("/api/players/999")
@@ -72,7 +72,7 @@ def test_search_players(mock_close_db, mock_get_db, client):
         {"player_id": 1, "first_name": "Alice", "last_name": "Smith", "position": "C", "team_abbr": "NY"},
         {"player_id": 2, "first_name": "Alicia", "last_name": "Jones", "position": "SS", "team_abbr": "LA"},
     ]
-    mock_con.execute.return_value = mock_cursor
+    mock_con.cursor.return_value.__enter__.return_value = mock_cursor
     mock_get_db.return_value = mock_con
 
     response = client.get("/api/players/search?q=Ali")
@@ -90,7 +90,7 @@ def test_get_player_details_by_id_found(mock_open_resource, mock_close_db, mock_
     mock_con = MagicMock()
     mock_cursor = MagicMock()
     mock_cursor.fetchone.return_value = {"player_id": 1, "name": "Alice", "position": "C"}
-    mock_con.execute.return_value = mock_cursor
+    mock_con.cursor.return_value.__enter__.return_value = mock_cursor
     mock_get_db.return_value = mock_con
 
     mock_open_resource.return_value.__enter__.return_value.read.return_value = "SELECT * FROM details WHERE player_id = ?"
@@ -111,7 +111,7 @@ def test_get_player_details_by_id_not_found(mock_open_resource, mock_close_db, m
     mock_con = MagicMock()
     mock_cursor = MagicMock()
     mock_cursor.fetchone.return_value = None
-    mock_con.execute.return_value = mock_cursor
+    mock_con.cursor.return_value.__enter__.return_value = mock_cursor
     mock_get_db.return_value = mock_con
 
     mock_open_resource.return_value.__enter__.return_value.read.return_value = "SELECT * FROM details WHERE player_id = ?"
@@ -130,14 +130,11 @@ def test_get_player_details_by_id_not_found(mock_open_resource, mock_close_db, m
 @patch("app.api.players.current_app.open_resource")
 def test_get_player_career_batting_mlb(mock_open_resource, mock_close_db, mock_get_db, client):
     mock_con = MagicMock()
-    
-    # First query to check for MLB stats
-    check_cursor = MagicMock()
-    check_cursor.fetchone.return_value = (1,)  # Player has MLB stats
-    mock_con.execute.side_effect = [
-        check_cursor,  # for MLB check
-        MagicMock(fetchall=MagicMock(return_value=[{"season": "2021", "avg": .300}]))  # actual data
-    ]
+
+    mock_cursor = MagicMock()
+    mock_cursor.fetchone.return_value = (1,)  # Player has MLB stats
+    mock_cursor.fetchall.return_value = [{"season": "2021", "avg": .300}]  # actual data
+    mock_con.cursor.return_value.__enter__.return_value = mock_cursor
     mock_get_db.return_value = mock_con
 
     mock_open_resource.return_value.__enter__.return_value.read.return_value = "SELECT * FROM mlb_stats WHERE player_id = :player_id"
@@ -157,15 +154,13 @@ def test_get_player_career_batting_mlb(mock_open_resource, mock_close_db, mock_g
 @patch("app.api.players.current_app.open_resource")
 def test_get_player_career_batting_not_found(mock_open_resource, mock_close_db, mock_get_db, client):
     mock_con = MagicMock()
-    
-    # No MLB stats
-    check_cursor = MagicMock()
-    check_cursor.fetchone.return_value = None
-    # No MiLB stats found
-    stats_cursor = MagicMock()
-    stats_cursor.fetchall.return_value = []
 
-    mock_con.execute.side_effect = [check_cursor, stats_cursor]
+    # No MLB stats, no MiLB stats found
+    mock_cursor = MagicMock()
+    mock_cursor.fetchone.return_value = None
+    mock_cursor.fetchall.return_value = []
+
+    mock_con.cursor.return_value.__enter__.return_value = mock_cursor
     mock_get_db.return_value = mock_con
 
     mock_open_resource.return_value.__enter__.return_value.read.return_value = "SELECT * FROM milb_stats WHERE player_id = :player_id"
@@ -189,7 +184,7 @@ def test_get_player_ratings_all(mock_open_resource, mock_close_db, mock_get_db, 
         {"rating_id": 1, "overall": 50},
         {"rating_id": 2, "overall": 55},
     ]
-    mock_con.execute.return_value = mock_cursor
+    mock_con.cursor.return_value.__enter__.return_value = mock_cursor
     mock_get_db.return_value = mock_con
 
     mock_open_resource.return_value.__enter__.return_value.read.return_value = "SELECT * FROM ratings WHERE player_id = ?"
@@ -206,7 +201,7 @@ def test_get_player_ratings_latest(mock_open_resource, mock_close_db, mock_get_d
     mock_con = MagicMock()
     mock_cursor = MagicMock()
     mock_cursor.fetchall.return_value = [{"rating_id": 2, "overall": 55}]
-    mock_con.execute.return_value = mock_cursor
+    mock_con.cursor.return_value.__enter__.return_value = mock_cursor
     mock_get_db.return_value = mock_con
 
     mock_open_resource.return_value.__enter__.return_value.read.return_value = "SELECT * FROM ratings WHERE player_id = ?"
@@ -224,7 +219,7 @@ def test_get_player_ratings_not_found(mock_open_resource, mock_close_db, mock_ge
     mock_con = MagicMock()
     mock_cursor = MagicMock()
     mock_cursor.fetchall.return_value = []
-    mock_con.execute.return_value = mock_cursor
+    mock_con.cursor.return_value.__enter__.return_value = mock_cursor
     mock_get_db.return_value = mock_con
 
     mock_open_resource.return_value.__enter__.return_value.read.return_value = "SELECT * FROM ratings WHERE player_id = ?"

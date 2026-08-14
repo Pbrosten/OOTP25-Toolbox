@@ -1,7 +1,7 @@
 # 0049 — Fix broken DB-connection mocks in `tests/api/test_players.py`
 
 - **Tag:** chore
-- **Status:** Open
+- **Status:** Closed
 - **Depends on:** —
 - **Blocks:** —
 
