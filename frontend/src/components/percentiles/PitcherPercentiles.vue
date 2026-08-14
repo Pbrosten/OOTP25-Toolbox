@@ -1,7 +1,6 @@
 <script setup lang='ts'>
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import {
-  Switch,
   Listbox,
   ListboxLabel,
   ListboxButton,
@@ -101,23 +100,22 @@ const xStatsPitch = ref<any>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
 
-const mlbComp = ref<boolean>(leagueId == 203)
-const mlbLock = computed(() => leagueId === 203)
+const isMlb = leagueId === 203
 
 const years = ref<any>(null)
 const selectedYear = ref(null)
 
 onMounted(() => {
-  fetchPercentiles()
+  if (isMlb) {
+    fetchPercentiles()
+  } else {
+    loading.value = false
+  }
   getYears()
 })
 
-watch(mlbComp, () => {
-  fetchPercentiles()
-})
-
 watch(selectedYear, async (newYear) => {
-  if (newYear) {
+  if (newYear && isMlb) {
     await fetchPercentiles(newYear.rating_id)
   }
 })
@@ -200,7 +198,7 @@ async function fetchPercentiles(ratingId?: number) {
       }
     }
 
-    const pitchRes = await fetch(`/api/players/ratings/${ratingId}/expected/pitching/percentiles?mlb=${mlbComp.value}`)
+    const pitchRes = await fetch(`/api/players/ratings/${ratingId}/expected/pitching/percentiles`)
     xStatsPitch.value = pitchRes.ok ? await pitchRes.json() : null
     if (!pitchRes.ok) throw new Error('Failed to load expected pitching stats.')
 
@@ -225,18 +223,6 @@ function isValidPercentile(value: any): boolean {
     <div v-else>
       <div class="flex items-center space-x-4">
         <h2 class="text-lg font-semibold">Percentiles</h2>
-        <span v-if="leagueId !== 203" class="text-sm font-medium text-gray-700">Current</span>
-        <Switch v-model="mlbComp" :class="[
-          'relative inline-flex h-6 w-11 items-center rounded-full',
-          mlbComp ? 'bg-teal-800' : 'bg-gray-200',
-          mlbLock ? 'cursor-not-allowed opacity-60' : ''
-        ]" :disabled="mlbLock">
-          <span :class="[
-            'inline-block h-4 w-4 transform rounded-full bg-white transition',
-            mlbComp ? 'translate-x-6' : 'translate-x-1'
-          ]" />
-        </Switch>
-        <span class="text-sm font-medium text-gray-700">MLB</span>
         <Listbox v-model="selectedYear">
           <div class="relative mt-1">
             <ListboxButton
@@ -273,7 +259,11 @@ function isValidPercentile(value: any): boolean {
         </Listbox>
       </div>
 
-      <div v-if='xStatsPitch'>
+      <p v-if="!isMlb" class="text-sm text-gray-600">
+        Percentile comparisons are only available for MLB players.
+      </p>
+
+      <div v-if='isMlb && xStatsPitch'>
         <div class="relative w-full h-10">
           <div class="absolute inset-x-0 bottom-1.25 h-0.5 bg-teal-600"></div>
 
@@ -296,7 +286,7 @@ function isValidPercentile(value: any): boolean {
         </template>
       </div>
 
-      <div v-if='xStatsPitch'>
+      <div v-if='isMlb && xStatsPitch'>
         <div class="relative w-full h-10">
           <div class="absolute inset-x-0 bottom-1.25 h-0.5 bg-teal-600"></div>
 

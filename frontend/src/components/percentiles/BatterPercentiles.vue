@@ -1,7 +1,6 @@
 <script setup lang='ts'>
 import { ref, onMounted, computed, watch } from 'vue'
 import {
-  Switch,
   Listbox,
   ListboxLabel,
   ListboxButton,
@@ -96,23 +95,22 @@ const xStatsField = ref<any>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
 
-const mlbComp = ref<boolean>(leagueId == 203)
-const mlbLock = computed(() => leagueId === 203)
+const isMlb = leagueId === 203
 
 const years = ref<any>(null)
 const selectedYear = ref(null)
 
 onMounted(() => {
-  fetchPercentiles()
+  if (isMlb) {
+    fetchPercentiles()
+  } else {
+    loading.value = false
+  }
   getYears()
 })
 
-watch(mlbComp, () => {
-  fetchPercentiles()
-})
-
 watch(selectedYear, async (newYear) => {
-  if (newYear) {
+  if (newYear && isMlb) {
     await fetchPercentiles(newYear.rating_id)
   }
 })
@@ -194,19 +192,19 @@ async function fetchPercentiles(ratingId?: number) {
       }
     }
 
-    const valueRes = await fetch(`/api/players/ratings/${ratingId}/expected/value/percentiles?mlb=${mlbComp.value}`)
+    const valueRes = await fetch(`/api/players/ratings/${ratingId}/expected/value/percentiles`)
     xStatsValue.value = valueRes.ok ? await valueRes.json() : null
     if (!valueRes.ok) throw new Error('Failed to load expected value stats.')
 
-    const batRes = await fetch(`/api/players/ratings/${ratingId}/expected/batting/percentiles?mlb=${mlbComp.value}`)
+    const batRes = await fetch(`/api/players/ratings/${ratingId}/expected/batting/percentiles`)
     xStatsBat.value = batRes.ok ? await batRes.json() : null
     if (!batRes.ok) throw new Error('Failed to load expected batting stats.')
 
-    const runRes = await fetch(`/api/players/ratings/${ratingId}/expected/basepath/percentiles?mlb=${mlbComp.value}`)
+    const runRes = await fetch(`/api/players/ratings/${ratingId}/expected/basepath/percentiles`)
     xStatsRun.value = runRes.ok ? await runRes.json() : null
     if (!runRes.ok) throw new Error('Failed to load expected basepath stats.')
 
-    const fieldRes = await fetch(`/api/players/ratings/${ratingId}/expected/fielding/percentiles?mlb=${mlbComp.value}`)
+    const fieldRes = await fetch(`/api/players/ratings/${ratingId}/expected/fielding/percentiles`)
     xStatsField.value = fieldRes.ok ? await fieldRes.json() : null
     if (!fieldRes.ok) throw new Error('Failed to load expected fielding stats.')
 
@@ -255,18 +253,6 @@ const filteredFieldingPercentiles = computed(() => {
     <div v-else>
       <div class="flex items-center space-x-4">
         <h2 class="text-lg font-semibold">Percentiles</h2>
-        <span v-if="leagueId !== 203" class="text-sm font-medium text-gray-700">Current</span>
-        <Switch v-model="mlbComp" :class="[
-          'relative inline-flex h-6 w-11 items-center rounded-full',
-          mlbComp ? 'bg-teal-800' : 'bg-gray-200',
-          mlbLock ? 'cursor-not-allowed opacity-60' : ''
-        ]" :disabled="mlbLock">
-          <span :class="[
-            'inline-block h-4 w-4 transform rounded-full bg-white transition',
-            mlbComp ? 'translate-x-6' : 'translate-x-1'
-          ]" />
-        </Switch>
-        <span class="text-sm font-medium text-gray-700">MLB</span>
         <Listbox v-model="selectedYear">
           <div class="relative mt-1">
             <ListboxButton
@@ -302,7 +288,12 @@ const filteredFieldingPercentiles = computed(() => {
           </div>
         </Listbox>
       </div>
-      <div v-if='xStatsBat'>
+
+      <p v-if="!isMlb" class="text-sm text-gray-600">
+        Percentile comparisons are only available for MLB players.
+      </p>
+
+      <div v-if='isMlb && xStatsBat'>
         <div class="relative w-full h-10">
           <div class="absolute inset-x-0 bottom-1.25 h-0.5 bg-teal-600"></div>
 
@@ -325,7 +316,7 @@ const filteredFieldingPercentiles = computed(() => {
         </template>
       </div>
 
-      <div v-if='xStatsBat'>
+      <div v-if='isMlb && xStatsBat'>
         <div class="relative w-full h-10">
           <div class="absolute inset-x-0 bottom-1.25 h-0.5 bg-teal-600"></div>
 
@@ -348,7 +339,7 @@ const filteredFieldingPercentiles = computed(() => {
         </template>
       </div>
 
-      <div v-if='filteredFieldingPercentiles'>
+      <div v-if='isMlb && filteredFieldingPercentiles'>
         <div class="relative w-full h-10">
           <div class="absolute inset-x-0 bottom-1.25 h-0.5 bg-teal-600"></div>
 
@@ -371,7 +362,7 @@ const filteredFieldingPercentiles = computed(() => {
         </template>
       </div>
 
-      <div v-if='xStatsRun'>
+      <div v-if='isMlb && xStatsRun'>
         <div class="relative w-full h-10">
           <div class="absolute inset-x-0 bottom-1.25 h-0.5 bg-teal-600"></div>
 

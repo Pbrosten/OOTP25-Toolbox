@@ -242,5 +242,5 @@ epic above.
 
 | # | Title | Tag | Status | Depends on |
 |---|-------|-----|--------|------------|
-| [0045](0045-remove-mlb-percentile-toggle.md) | Remove the MLB percentile toggle; don't render percentiles for non-MLB players | fix | Open | — |
+| [0045](0045-remove-mlb-percentile-toggle.md) | Remove the MLB percentile toggle; don't render percentiles for non-MLB players | fix | Closed | — |
 | [0047](0047-search-order-by-career-war.md) | Order player search results by career WAR | feat | Open | — |

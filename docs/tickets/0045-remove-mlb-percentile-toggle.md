@@ -1,7 +1,7 @@
 # 0045 — Remove the MLB percentile toggle; don't render percentiles for non-MLB players
 
 - **Tag:** fix
-- **Status:** Open
+- **Status:** Closed
 - **Depends on:** —
 - **Blocks:** —
 
@@ -43,26 +43,43 @@ comparison as part of its scope.
   this cohort-scoping logic (with the param-name bug fixed) if it ends up
   wanting a real non-MLB comparison later. Leaving it is a smaller diff than
   removing and possibly re-adding it.
-- **Outstanding — what renders in place of the percentiles section for a
-  non-MLB player.** Options: omit the section entirely (page just has less
-  content), or show a placeholder message (e.g. "Percentile comparisons are
-  only available for MLB players"). Not decided; doesn't block scoping the
-  removal itself.
+- **Resolved (user decision) — placeholder message, not silent omission.**
+  Asked directly rather than picked unilaterally. Shows "Percentile
+  comparisons are only available for MLB players." in place of the stat
+  sections for a non-MLB player. The year selector stays regardless (it's
+  about which rating snapshot is being viewed, orthogonal to the
+  MLB-cohort-comparison question this ticket is about) — but
+  `fetchPercentiles()` is skipped entirely for non-MLB players (on mount
+  and on year change), not just hidden after fetching, so the misleading
+  MLB-cohort comparison call described in the Problem section is never made
+  in the first place.
 
 ## 3. Approach
 
-- `BatterPercentiles.vue`: remove the `Switch`/`mlbComp`/`mlbLock` state
-  (lines 99-100), the `watch(mlbComp, ...)` (lines 110-112), the `Switch`
-  template markup (lines 259-269) and its `Switch` import, and stop
-  interpolating `mlb=${mlbComp.value}` into the four fetch URLs (lines
-  197-209) — MLB is now the only supported comparison, so the param can be
-  dropped or hardcoded. Wrap the percentiles-rendering block in
-  `v-if="leagueId === 203"`, with a fallback per the Outstanding note above
-  for the `else` case.
-- `PitcherPercentiles.vue`: identical treatment — same `Switch`/`mlbComp`/
-  `mlbLock` pattern at lines 4, 104-105, 115, 229-238, same single fetch at
-  line 203.
-- No backend changes required (see Design choices).
+- `BatterPercentiles.vue`: removed the `Switch`/`mlbComp`/`mlbLock` state,
+  the `watch(mlbComp, ...)`, the `Switch` template markup (and its now-
+  orphaned "Current"/"MLB" labels), the `Switch` import, and the `?mlb=...`
+  query param on all four fetch URLs — replaced with a plain `const isMlb =
+  leagueId === 203`. `fetchPercentiles()` is now only called (on mount and
+  on year change) when `isMlb` is true; the four stat-section `v-if`s are
+  gated on `isMlb &&` their existing condition, with a `v-if="!isMlb"`
+  placeholder paragraph ("Percentile comparisons are only available for MLB
+  players.") in the gap. The year `Listbox` is untouched — stays available
+  either way.
+- `PitcherPercentiles.vue`: identical treatment (same `Switch`/`mlbComp`/
+  `mlbLock` pattern, same single fetch, same two stat sections).
+- No backend changes (see Design choices).
+- **Verified:** Vite HMR picked up both files with no compile errors;
+  `vue-tsc -b` (run inside the frontend container) shows the same
+  pre-existing baseline errors in both files before and after this change,
+  none introduced by it. Cross-checked `isMlb`'s condition against a real
+  non-MLB player in the dev database populated by
+  [0046](0046-prune-inactive-players.md)'s update-db run:
+  `GET /api/players/48372/details` returns `league_id: 234` (Ruben
+  Velazquez, a 21-year-old DSL prospect on Cleveland's academy roster) —
+  confirms `leagueId !== 203` is a real, reachable case, not just a
+  hypothetical. No browser available in this session to visually confirm
+  the rendered placeholder.
 
 **Files involved:**
 - `frontend/src/components/percentiles/BatterPercentiles.vue` (modified)
