@@ -72,18 +72,41 @@ def search_players():
     con = get_db()
     try:
         with con.cursor() as cursor:
+            # Ranked by career WAR (batting vs. pitching, whichever half of
+            # a player's career carries their value) as a "fame weight",
+            # so an established player outranks an obscure one sharing a
+            # name -- see ticket 0047. Missing WAR (no career-stat rows at
+            # all) sorts last via the 0 fallback, not first/erroring.
             cursor.execute(
                 """
                 SELECT p.player_id, p.first_name, p.last_name, p.position, p.retired, t.abbr AS team_abbr
                 FROM players AS p
                 LEFT JOIN teams AS t ON p.team_id = t.team_id
+                LEFT JOIN (
+                    SELECT player_id, SUM(war) AS total_war
+                    FROM players_career_batting_stats
+                    GROUP BY player_id
+                ) AS bw ON bw.player_id = p.player_id
+                LEFT JOIN (
+                    SELECT player_id, SUM(war) AS total_war
+                    FROM players_career_pitching_stats
+                    GROUP BY player_id
+                ) AS pw ON pw.player_id = p.player_id
                 WHERE CONCAT(p.first_name, ' ', p.last_name) LIKE %s
+                ORDER BY
+                    CASE
+                        WHEN bw.total_war IS NULL AND pw.total_war IS NULL THEN 0
+                        WHEN bw.total_war IS NULL THEN pw.total_war
+                        WHEN pw.total_war IS NULL THEN bw.total_war
+                        ELSE GREATEST(bw.total_war, pw.total_war)
+                    END DESC
+                LIMIT 10
             """,
                 ("%" + query + "%",),
             )
             rows = cursor.fetchall()
             players = [dict(row) for row in rows]
-            return jsonify(players[:10])
+            return jsonify(players)
     finally:
         close_db()
 
