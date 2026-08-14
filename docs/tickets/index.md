@@ -228,6 +228,12 @@ build-order list above for that nuance):
 [x] 0054 Contract/service-time migration          |
       |                                          |
       v                                          |
+[ ] 0056 Surplus-value calculation                |
+      |                                          |
+      v                                          |
+[ ] 0057 Surplus-value frontend display           |
+      |                                          |
+      v                                          |
 [~] 0042 Contract & Arbitration Analyzer --------+
                                                   |
                                                   v
@@ -310,13 +316,21 @@ snapshot-diffing. Sequenced after both.
 reduced-scope fallback: "should we pay this player" is meaningless without
 knowing what he's currently owed. Its contract/salary/service-time ingestion
 prerequisite (shared with [0041](0041-trade-target-finder.md)'s full scope)
-is now filed as [0053](0053-contract-service-time-schema.md)/
-[0054](0054-contract-service-time-migration.md).
+is filed as [0053](0053-contract-service-time-schema.md)/
+[0054](0054-contract-service-time-migration.md), both closed. The
+surplus-value calculation itself is broken into
+[0056](0056-surplus-value-calculation.md) (calc module + API,
+age-decline/years-of-control model, $/WAR constant derived from real
+`TEST.lg` contract data) and [0057](0057-surplus-value-frontend-display.md)
+(display). The Extend/Keep/Let-walk/Non-tender/Trade recommendation label
+itself remains deferred, unticketed — see 0042's Design choices.
 
 | # | Title | Tag | Status | Depends on |
 |---|-------|-----|--------|------------|
 | [0053](0053-contract-service-time-schema.md) | Contract/salary/service-time schema | feat | Closed | — |
 | [0054](0054-contract-service-time-migration.md) | Ingest contract/salary/service-time: `migration_long.sql` | feat | Closed | 0053 |
+| [0056](0056-surplus-value-calculation.md) | Surplus-value calculation module + API route | feat | Open | 0053, 0054 |
+| [0057](0057-surplus-value-frontend-display.md) | Surplus-value frontend display | feat | Open | 0056 |
 
 ### Tool: GM Command Center
 
