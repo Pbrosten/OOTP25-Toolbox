@@ -230,7 +230,7 @@ its minor-league level/affiliate half as 0062, both drawn below):
 [x] 0064 Roster depth-chart frontend              |
       |                                          |
       v                                          |
-[~] 0039 Roster Optimization & Org Depth --------+
+[x] 0039 Roster Optimization & Org Depth --------+
       |                                          |
       v                                          |
 [ ] 0040 Defensive Optimization                  |
@@ -275,7 +275,7 @@ its minor-league level/affiliate half as 0062, both drawn below):
 |---|-------|-----|--------|------------|
 | [0044](0044-player-development-monitor.md) | Player Development Monitor (epic tracker) | feat | Closed | — |
 | [0041](0041-trade-target-finder.md) | Trade Target Finder (epic tracker) | feat | Open | — |
-| [0039](0039-roster-optimization-org-depth.md) | Roster Optimization & Organizational Depth (epic tracker) | feat | In-Progress | 0062 |
+| [0039](0039-roster-optimization-org-depth.md) | Roster Optimization & Organizational Depth (epic tracker) | feat | Closed | 0062 |
 | [0040](0040-defensive-optimization.md) | Defensive Optimization (epic tracker) | feat | Open | 0039 |
 | [0043](0043-prospect-pipeline.md) | Prospect Pipeline (epic tracker) | feat | Open | 0044 |
 | [0042](0042-contract-arbitration-analyzer.md) | Contract & Arbitration Analyzer (epic tracker) | feat | Closed | 0053, 0054 |

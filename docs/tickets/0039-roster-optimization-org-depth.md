@@ -1,7 +1,7 @@
 # 0039 — Roster Optimization & Organizational Depth
 
 - **Tag:** feat
-- **Status:** In-Progress
+- **Status:** Closed
 - **Depends on:** [0062](0062-team-level-affiliate-schema-migration.md)
 - **Blocks:** [0063](0063-roster-depth-chart-query-api.md), [0064](0064-roster-depth-chart-frontend.md)
 
