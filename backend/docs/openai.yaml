@@ -759,6 +759,71 @@ paths:
                   error:
                     type: string
 
+  /api/teams/{team_id}/depth-chart:
+    get:
+      summary: Retrieve an org's full depth chart
+      description: |
+        Returns the given MLB team's roster plus its AAA/AA/A/Rookie
+        affiliates (teams.parent_team_id/level, ticket 0062), grouped by
+        level and position (pitchers split into SP/RP), each group sorted
+        by projected WAR descending. team_id must be a level-1 (MLB) team.
+      tags: [Teams]
+      parameters:
+        - in: path
+          name: team_id
+          required: true
+          schema:
+            type: integer
+          description: The MLB team's id (must be a level-1 team)
+      responses:
+        '200':
+          description: The org's depth chart
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  team_id:
+                    type: integer
+                  levels:
+                    type: object
+                    description: |
+                      Keyed by teams.level (as a string key: "1" = MLB,
+                      "2" = AAA, "3" = AA, "4" = A/High-A, "6" =
+                      Rookie/Complex -- "5" never appears, see ticket
+                      0062). Each level maps to an object keyed by
+                      position (e.g. "1B", "SS") or "SP"/"RP" for
+                      pitchers, each holding a WAR-descending array of
+                      players.
+                    additionalProperties:
+                      type: object
+                      additionalProperties:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            player_id:
+                              type: integer
+                            first_name:
+                              type: string
+                            last_name:
+                              type: string
+                            team_id:
+                              type: integer
+                            war:
+                              type: number
+                              nullable: true
+                              description: Null for a two-way player (never-net-batting/pitching-WAR precedent, ticket 0056) or a player with no current rating.
+        '404':
+          description: team_id isn't a real level-1 MLB team
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+
 components:
   securitySchemes:
     AdminToken:

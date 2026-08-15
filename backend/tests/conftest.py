@@ -1,11 +1,13 @@
 import pytest
 from flask import Flask
 from app.api.players import bp as players_bp
+from app.api.teams import bp as teams_bp
 
 @pytest.fixture
 def app():
     app = Flask(__name__)
     app.register_blueprint(players_bp)
+    app.register_blueprint(teams_bp)
     app.config['DATABASE'] = ':memory:'
     app.config['STAGGING'] = ':memory'
     app.config['DUMP_PATH'] = "/fake/dump/path"

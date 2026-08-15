@@ -1,7 +1,7 @@
 # 0063 — Roster depth-chart query layer + API route
 
 - **Tag:** feat
-- **Status:** Open
+- **Status:** Closed
 - **Depends on:** [0062](0062-team-level-affiliate-schema-migration.md)
 - **Blocks:** [0064](0064-roster-depth-chart-frontend.md)
 
@@ -107,3 +107,40 @@ weighting, no platoon splits.
 - `backend/app/__init__.py` (modified — register the new blueprint)
 - `backend/docs/openai.yaml` (modified — document the new route, per
   CLAUDE.md)
+- `backend/tests/conftest.py` (modified — register the new blueprint on
+  the shared test `app` fixture)
+- `backend/tests/api/test_teams.py` (new)
+
+**Verified** against the real `TEST.lg` save on the live dev DB
+(established pattern; the persistent dev DB already had 0062's
+`level`/`parent_team_id` data ingested via the admin UI before this ticket
+started, and required a backend container restart to pick up this
+ticket's own code — the dev container doesn't run Flask in debug/reload
+mode):
+- SQL run directly for `team_id = 1` (Arizona): `org_teams` correctly
+  resolved to the MLB team plus exactly its 7 real affiliates (59/85/137/
+  163/177/222/247), matching `team_affiliations.mysql.sql`'s flattened
+  list for team 1 from the original dump investigation — confirms
+  `parent_team_id` alone is sufficient, no `team_affiliations` needed.
+  `level = 5` correctly never appears.
+- `GET /api/teams/1/depth-chart`: all of levels 1/2/3/4/6 present (5
+  absent), players correctly grouped by position (`1B`, `2B`, ... `SS`)
+  and, for pitchers, by `SP`/`RP` role group instead of a raw `P` bucket;
+  each group sorted WAR-descending (spot-checked the SP group: Mena
+  2.576 → Caminiti 1.781 → Knack 1.670 → ...).
+  `GET /api/teams/59/depth-chart` (a real AAA team, not MLB) → 404.
+  `GET /api/teams/99999/depth-chart` (unknown team) → 404.
+- No real two-way player (both batting and pitching WAR on the same
+  `rating_id`) exists in the current `TEST.lg` save to exercise the
+  never-net-WAR branch against live data — verified via a direct query
+  joining `players_run_value`/`players_pitching_run_value` on the same
+  `rating_id` (0 rows) — so this path is covered by
+  `test_teams.py::test_get_team_depth_chart_null_war_sorts_last` instead
+  (a `war: null` row sorts last, not dropped), matching 0056's precedent
+  by code review rather than live data.
+- Backend suite: 124 passed (118 pre-existing + 6 new
+  `tests/api/test_teams.py` tests covering the 404 cases, position
+  grouping, WAR sort, SP/RP role grouping, null-WAR sort-last, and
+  multi-level separation).
+- `openai.yaml` validated with `yaml.safe_load` after adding the new
+  route's documentation.
