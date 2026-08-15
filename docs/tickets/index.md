@@ -365,6 +365,8 @@ specific GM's roster.
 |---|-------|-----|--------|------------|
 | [0023](0023-fix-career-batting-rate-stats-display.md) | Fix OBP/SLG/OPS in the career batting stats table | fix | Closed | — |
 | [0048](0048-batting-career-totals-seasons-label.md) | Replace "Total" with a season count in the batting career stats table | fix | Closed | — |
+| [0060](0060-exclude-dh-from-fielding-percentiles.md) | Exclude DH players from fielding percentiles | fix | Closed | — |
+| [0061](0061-refetch-player-data-on-route-param-change.md) | Refetch player data when navigating between player pages | fix | Open | — |
 
 ## Search & display refinements
 

@@ -133,16 +133,19 @@ SELECT
   t.rating_id,
   t.position,
   t.position_group,
-  t.fielding_value,
+  -- DH has no real fielding grade -- players_fielding_expected.DH is a
+  -- placeholder OOTP exports, not a genuine fielding value, so comparing
+  -- DH against other DH on it is meaningless (ticket 0060).
+  CASE WHEN t.position_group = 'dh' THEN NULL ELSE t.fielding_value END AS fielding_value,
 
-  ROUND(
+  CASE WHEN t.position_group = 'dh' THEN NULL ELSE ROUND(
     100.0 * (
       SELECT COUNT(*) FROM cohort c
       WHERE c.fielding_value < t.fielding_value
     ) / (
       SELECT COUNT(*) FROM cohort
     )
-  ) AS fielding_value_percentile,
+  ) END AS fielding_value_percentile,
 
   CASE
     WHEN t.position_group = 'catcher' THEN ROUND(

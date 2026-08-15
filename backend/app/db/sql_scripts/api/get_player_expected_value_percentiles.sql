@@ -1,18 +1,21 @@
 WITH target_player AS (
-  SELECT r.rating_id, r.rating_date, r.league_id
+  SELECT r.rating_id, r.rating_date, r.league_id, p.position
   FROM players_rating r
+  JOIN players p ON p.player_id = r.player_id
   WHERE r.rating_id = %(rating_id)s
 ),
 
--- Expected Stats Comparison Group
+-- Expected Stats Comparison Group. DH is excluded alongside pitchers -- DH
+-- has no real fielding value, so pooling it into the fielding_runs
+-- comparison pool is meaningless (ticket 0060).
 expected_filtered AS (
   SELECT rv.*
   FROM players_run_value AS rv
   JOIN players_rating AS r ON rv.rating_id = r.rating_id
   JOIN players AS p ON r.player_id = p.player_id
   JOIN target_player AS t ON r.rating_date = t.rating_date
-  WHERE 
-    p.position != 'P'
+  WHERE
+    p.position NOT IN ('P', 'DH')
     AND p.team_id != 999
     AND r.league_id = t.league_id
     AND (
@@ -46,7 +49,7 @@ SELECT
     )
    ) AS basepath_runs_percentile,
 
-   ROUND(
+   CASE WHEN target_player.position = 'DH' THEN NULL ELSE ROUND(
     (
       SELECT COUNT(*) * 1.0
       FROM expected_filtered
@@ -55,7 +58,7 @@ SELECT
     (
       SELECT COUNT(*) FROM expected_filtered WHERE fielding_runs IS NOT NULL
     )
-   ) AS fielding_runs_percentile,
+   ) END AS fielding_runs_percentile,
 
    ROUND(
     (
@@ -74,8 +77,9 @@ SELECT
   -- outcome-stat names for raw scouting grades).
   target_exp.batting_runs AS batting_runs_value,
   target_exp.basepath_runs AS basepath_runs_value,
-  target_exp.fielding_runs AS fielding_runs_value,
+  CASE WHEN target_player.position = 'DH' THEN NULL ELSE target_exp.fielding_runs END AS fielding_runs_value,
   target_exp.total_runs AS total_runs_value
 
 FROM players_run_value AS target_exp
+JOIN target_player ON target_player.rating_id = target_exp.rating_id
 WHERE target_exp.rating_id = %(rating_id)s;

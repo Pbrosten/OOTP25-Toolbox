@@ -216,8 +216,12 @@ async function fetchPercentiles(ratingId?: number) {
 }
 
 
-// Helper: Check if value is a valid percentile (0–100)
+// Helper: Check if value is a valid percentile (0–100). Explicitly rejects
+// null/undefined (e.g. fielding_runs_percentile/fielding_value_percentile
+// for a DH, ticket 0060) rather than relying on Number(null) === 0, which
+// would otherwise pass this check and render a bogus 0th-percentile bar.
 function isValidPercentile(value: any): boolean {
+  if (value === null || value === undefined) return false
   const num = Number(value)
   return !isNaN(num) && num >= 0 && num <= 100
 }
@@ -339,7 +343,7 @@ const filteredFieldingPercentiles = computed(() => {
         </template>
       </div>
 
-      <div v-if='isMlb && filteredFieldingPercentiles'>
+      <div v-if='isMlb && Object.keys(filteredFieldingPercentiles).length > 0'>
         <div class="relative w-full h-10">
           <div class="absolute inset-x-0 bottom-1.25 h-0.5 bg-teal-600"></div>
 
