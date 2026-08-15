@@ -28,7 +28,7 @@ DROP TABLE IF EXISTS teams;
 -- ingested, so check_new_heaps() only returns what's actually new.
 -- `month` mirrors the raw directory-name segment used by
 -- extract_heap_date_from_path() ("05", "yearly", ...) so both sides of the
--- identity check use the exact same string, with no int/13 translation.
+-- identity check use the exact same stringq, with no int/13 translation.
 CREATE TABLE processed_heaps (
   year VARCHAR(4) NOT NULL,
   month VARCHAR(10) NOT NULL,
@@ -48,13 +48,21 @@ CREATE TABLE teams (
   human_team TINYINT,
   background_color VARCHAR(8),
   text_color VARCHAR(8),
-  -- parent_team_id/level (ticket 0062): raw OOTP org-affiliate fields --
+  -- parent_team_id/level (ticket 0062): raw OOTP org-affiliate fields.
   -- level 1 = MLB, 2 = AAA, 3 = AA, 4 = A/High-A, 6 = Rookie/Complex.
   -- level 5 is a save-specific anomaly (exhibition "All-Star" teams, not a
-  -- real minor-league tier) -- excluded at query time, not ingestion, same
+  -- real minor-league tier), excluded at query time, not ingestion, same
   -- convention as team_id = 999 (Free Agents).
   parent_team_id INT,
-  level INT
+  level INT,
+  -- city_id (ticket 0064 post-close correction to 0062): level = 1 alone
+  -- doesn't mean "real MLB team", this save also has 4 exhibition teams
+  -- (AL/NL All-Stars, AL/NL Future Stars) tagged level = 1 with no real
+  -- city (city_id = 0 in the raw export, vs. a real nonzero id for every
+  -- actual franchise) and never rostering real players. city_id != 0 is
+  -- the reliable "is this a real team" signal, division_id/league_id
+  -- alone aren't (real teams share division_id = 0 too).
+  city_id INT
   -- FOREIGN KEY (division_id) REFERENCES divisions(division_id),
   -- FOREIGN KEY (league_id) REFERENCES leagues(league_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -296,7 +304,7 @@ CREATE TABLE players_pitching_talent (
 
 -- Player Pitch Repertoire --
 -- One row per pitch type a player actually throws (grade > 0 in the
--- source export), not a fixed 12-column-wide row -- see ticket 0029/0031.
+-- source export), not a fixed 12-column-wide row, see ticket 0029/0031.
 CREATE TABLE players_pitch_repertoire (
   rating_id INT NOT NULL,
   pitch_type VARCHAR(20) NOT NULL,
@@ -451,11 +459,37 @@ CREATE TABLE players_salary_history (
   FOREIGN KEY (player_id) REFERENCES players(player_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- is_active/is_on_secondary (ticket 0064 post-close correction to 0063's
+-- depth chart): two more columns pulled from the same staging.players_
+-- roster_status row this table already sources mlb_service_years/etc.
+-- from (see migration_long.sql) -- the raw export has 37 columns total
+-- (waivers, DFA, options, service days), but only these two are ingested,
+-- the minimum needed to fix a real bug (see below). The rest clearly
+-- matter for future tools (Trade Target Finder, Roster Optimization) but
+-- are deliberately left uningested until a ticket actually needs them,
+-- matching this project's established minimal-ingestion pattern (e.g.
+-- ticket 0053).
+--
+-- Bug this fixes: players.team_id alone can't tell a real 40-man/active
+-- MLB player from a player merely administratively parked under the
+-- parent org's team_id with no real minor-league assignment (confirmed:
+-- 16-18-year-old international-complex signees, since this save has no
+-- real "International Complex" team for them to be assigned to). Both
+-- get teams.level = 1 via players.team_id, but only the former has
+-- is_active = 1 or is_on_secondary = 1 -- confirmed by real data: team 1
+-- (Arizona)'s roster splits cleanly into 37 players with is_active = 1 /
+-- is_on_secondary = 1 (the real 40-man) vs. 16 with both = 0 (parked
+-- prospects, including the reported international-complex signees). A
+-- real minor-league affiliate player (teams.level != 1) legitimately has
+-- is_active = 0 too -- this flag only means "on the MLB active roster",
+-- so it's only meaningful as a filter at level = 1, not more broadly.
 CREATE TABLE players_service_time (
   player_id INT PRIMARY KEY,
   mlb_service_years SMALLINT,
   mlb_service_days SMALLINT,
   pro_service_years SMALLINT,
   has_received_arbitration BOOLEAN,
+  is_active BOOLEAN,
+  is_on_secondary BOOLEAN,
   FOREIGN KEY (player_id) REFERENCES players(player_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

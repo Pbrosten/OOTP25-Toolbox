@@ -117,3 +117,28 @@ Did **not** apply to the persistent dev-stack `ootp` database — per user
 request, held off for now. 0063/0064 will need this run against the real
 dev DB before they can build/verify against live `level`/`parent_team_id`
 data; ask before running `update-db` against it.
+
+## Post-implementation correction (found during 0064)
+
+`level = 1` alone turned out **not** to mean "real MLB team" — this save
+also tags 4 exhibition teams (AL/NL All-Stars: 31/32, AL/NL Future Stars:
+184/185) as `level = 1`. They have no real city (`city_id = 0` in the raw
+export, vs. every real franchise's nonzero id) and never roster real
+players (`SELECT COUNT(*) FROM players WHERE team_id IN (31,32,184,185)` →
+0 for all four, live-verified). `division_id`/`league_id` can't
+distinguish them either — real teams (e.g. Atlanta) legitimately share
+`division_id = 0` too.
+
+**Fixed:** added `city_id INT` to `teams` (same schema.sql/migration_
+long.sql pattern as `parent_team_id`/`level`), the reliable "is this a
+real team" signal — `city_id != 0` now gates both the team-listing and
+depth-chart-lookup queries added in
+[0064](0064-roster-depth-chart-frontend.md). Verified on a throwaway DB
+the same way as this ticket's original change: teams 31/32/184/185 get
+`city_id = 0`, every real MLB team (spot-checked Arizona, Atlanta) gets
+its real nonzero `city_id`.
+
+**Files involved (addendum):**
+- `backend/app/db/sql_scripts/schema.sql` (modified again — `city_id`)
+- `backend/app/db/sql_scripts/migration/migration_long.sql` (modified
+  again — `city_id`)

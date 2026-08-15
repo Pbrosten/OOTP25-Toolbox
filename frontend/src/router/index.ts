@@ -3,12 +3,16 @@ import LandingPage from '@/views/LandingPage.vue'
 import PlayerSearch from '@/views/PlayerSearch.vue'
 import PlayerProfile from '../views/PlayerProfile.vue'
 import AdminPanel from '@/views/AdminPanel.vue'
+import TeamPicker from '@/views/TeamPicker.vue'
+import TeamDepthChart from '@/views/TeamDepthChart.vue'
 
 const routes = [
   { path: '/', component: LandingPage },
   { path: '/search', component: PlayerSearch },
   { path: '/players/:id', component: PlayerProfile, props: true },
   { path: '/admin', component: AdminPanel },
+  { path: '/teams', component: TeamPicker },
+  { path: '/teams/:id/depth-chart', component: TeamDepthChart, props: true },
 ]
 
 const router = createRouter({

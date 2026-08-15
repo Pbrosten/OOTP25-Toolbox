@@ -10,6 +10,11 @@ const tools = [
     title: 'Player Search',
     description: 'Find a player',
     route: '/search'
+  },
+  {
+    title: 'Roster Depth Chart',
+    description: 'Browse an org\'s rosters',
+    route: '/teams'
   }
 ]
 

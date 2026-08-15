@@ -144,3 +144,13 @@ mode):
   multi-level separation).
 - `openai.yaml` validated with `yaml.safe_load` after adding the new
   route's documentation.
+
+## Post-implementation correction (found during 0064)
+
+`team_row["level"] != 1` turned out to be an insufficient MLB-team check
+— see [0062](0062-team-level-affiliate-schema-migration.md)'s addendum:
+this save also tags 4 exhibition teams as `level = 1` with no real city
+and no real roster. **Fixed:** the depth-chart route's validity check now
+also requires `city_id != 0` (ingested in 0062's addendum), so requesting
+one of those 4 teams' depth chart 404s instead of silently returning an
+always-empty roster. Added `test_get_team_depth_chart_exhibition_team_not_found`.

@@ -759,14 +759,45 @@ paths:
                   error:
                     type: string
 
+  /api/teams:
+    get:
+      summary: Retrieve every real MLB team
+      description: |
+        Returns every level-1 team that is also a real franchise (has a
+        real city -- excludes this save's 4 exhibition teams: AL/NL
+        All-Stars, AL/NL Future Stars, see ticket 0062/0064), sorted by
+        name. Used by the depth-chart team picker.
+      tags: [Teams]
+      responses:
+        '200':
+          description: List of real MLB teams
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    team_id:
+                      type: integer
+                    name:
+                      type: string
+                    abbr:
+                      type: string
+                    nickname:
+                      type: string
+
   /api/teams/{team_id}/depth-chart:
     get:
       summary: Retrieve an org's full depth chart
       description: |
         Returns the given MLB team's roster plus its AAA/AA/A/Rookie
         affiliates (teams.parent_team_id/level, ticket 0062), grouped by
-        level and position (pitchers split into SP/RP), each group sorted
-        by projected WAR descending. team_id must be a level-1 (MLB) team.
+        level and position (pitchers split into SP/RP). MLB/AAA/AA groups
+        are sorted by projected WAR descending; A/Rookie groups are plain
+        roster counts (ticket 0064 -- WAR isn't a meaningful ranking
+        signal that far from MLB-readiness). team_id must be a level-1
+        (MLB) team.
       tags: [Teams]
       parameters:
         - in: path
@@ -785,6 +816,13 @@ paths:
                 properties:
                   team_id:
                     type: integer
+                  team_name:
+                    type: string
+                  background_color:
+                    type: string
+                    description: The MLB team's real color (teams.background_color), for frontend theming.
+                  text_color:
+                    type: string
                   levels:
                     type: object
                     description: |
@@ -793,27 +831,38 @@ paths:
                       Rookie/Complex -- "5" never appears, see ticket
                       0062). Each level maps to an object keyed by
                       position (e.g. "1B", "SS") or "SP"/"RP" for
-                      pitchers, each holding a WAR-descending array of
-                      players.
+                      pitchers. For levels 1/2/3, each key holds a
+                      WAR-descending array of players; for levels 4/6,
+                      each key holds a plain roster-count integer instead
+                      (ticket 0064).
                     additionalProperties:
                       type: object
                       additionalProperties:
-                        type: array
-                        items:
-                          type: object
-                          properties:
-                            player_id:
-                              type: integer
-                            first_name:
-                              type: string
-                            last_name:
-                              type: string
-                            team_id:
-                              type: integer
-                            war:
-                              type: number
-                              nullable: true
-                              description: Null for a two-way player (never-net-batting/pitching-WAR precedent, ticket 0056) or a player with no current rating.
+                        oneOf:
+                          - type: integer
+                            description: Roster count (levels 4/6 only).
+                          - type: array
+                            items:
+                              type: object
+                              properties:
+                                player_id:
+                                  type: integer
+                                first_name:
+                                  type: string
+                                last_name:
+                                  type: string
+                                team_id:
+                                  type: integer
+                                team_abbr:
+                                  type: string
+                                  description: Distinguishes affiliate teams that share the same level.
+                                war:
+                                  type: number
+                                  nullable: true
+                                  description: Null for a two-way player (never-net-batting/pitching-WAR precedent, ticket 0056) or a player with no current rating.
+                                is_promotion_candidate:
+                                  type: boolean
+                                  description: Top 20% of WAR at this player's level, computed league-wide (all orgs), AAA/AA only -- always false at MLB (ticket 0064).
         '404':
           description: team_id isn't a real level-1 MLB team
           content:

@@ -142,3 +142,13 @@ Migration ingestion (staging → ootp) is scoped separately in
 **Files involved:**
 - `backend/app/db/sql_scripts/schema.sql` (modified — add 3 tables + drops:
   `players_contract`, `players_salary_history`, `players_service_time`)
+
+## Post-implementation correction (found during 0064)
+
+`players_service_time` gained two more columns, `is_active`/
+`is_on_secondary`, sourced from the same `staging.players_roster_status`
+row this table already draws `mlb_service_years`/etc. from. Needed to fix
+a real bug in [0064](0064-roster-depth-chart-frontend.md)'s depth chart
+(players merely administratively parked under an MLB team_id, e.g.
+16-18-year-old international-complex signees, were showing up as real
+MLB roster players) — see 0064 for the full investigation and fix.

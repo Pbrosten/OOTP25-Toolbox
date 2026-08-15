@@ -13,12 +13,12 @@ VALUES (
 INSERT INTO teams (
     team_id, name, abbr, nickname, division_id,
     league_id, human_team, background_color, text_color,
-    parent_team_id, level
+    parent_team_id, level, city_id
 )
 SELECT
     team_id, name, abbr, nickname, division_id,
     league_id, human_team, background_color_id, text_color_id,
-    parent_team_id, level
+    parent_team_id, level, city_id
 FROM staging.teams
 ON DUPLICATE KEY UPDATE
     name = VALUES(name),
@@ -30,7 +30,8 @@ ON DUPLICATE KEY UPDATE
     background_color = VALUES(background_color),
     text_color = VALUES(text_color),
     parent_team_id = VALUES(parent_team_id),
-    level = VALUES(level);
+    level = VALUES(level),
+    city_id = VALUES(city_id);
 
 -- Excludes players who are both retired and inactive since before 2024 --
 -- ootp.players carries a save's entire player history otherwise (see
@@ -249,15 +250,19 @@ WHERE s.year != 0;
 
 INSERT INTO players_service_time (
     player_id, mlb_service_years, mlb_service_days,
-    pro_service_years, has_received_arbitration
+    pro_service_years, has_received_arbitration,
+    is_active, is_on_secondary
 )
 SELECT
     s.player_id, s.mlb_service_years, s.mlb_service_days,
-    s.pro_service_years, s.has_received_arbitration
+    s.pro_service_years, s.has_received_arbitration,
+    s.is_active, s.is_on_secondary
 FROM staging.players_roster_status s
 INNER JOIN players p ON s.player_id = p.player_id
 ON DUPLICATE KEY UPDATE
     mlb_service_years = VALUES(mlb_service_years),
     mlb_service_days = VALUES(mlb_service_days),
     pro_service_years = VALUES(pro_service_years),
-    has_received_arbitration = VALUES(has_received_arbitration);
+    has_received_arbitration = VALUES(has_received_arbitration),
+    is_active = VALUES(is_active),
+    is_on_secondary = VALUES(is_on_secondary);

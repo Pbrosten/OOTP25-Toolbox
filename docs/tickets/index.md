@@ -84,6 +84,8 @@ alternatives, not a sequence; 0021 folds into 0022).
 | [0046](0046-prune-inactive-players.md) | Prune players inactive before 2024; filter them at ingestion | chore | Closed | — |
 | [0049](0049-fix-test-players-mock-pattern.md) | Fix broken DB-connection mocks in `tests/api/test_players.py` | chore | Closed | — |
 | [0055](0055-fix-semicolon-in-comment-breaks-migration-short.md) | Fix semicolon inside a comment breaking `migration_short.sql` | fix | Closed | — |
+| [0066](0066-recalibrate-run-value-constants-per-save.md) | Recalibrate run-value constants against this save's own league, not a fixed real-MLB baseline | fix | Open | — |
+| [0067](0067-two-way-player-detection.md) | Two-way player (TWP) detection and dual-sided pitching ingestion | feat | Open | — |
 
 ## Epic: Pitcher projections
 
@@ -225,7 +227,7 @@ its minor-league level/affiliate half as 0062, both drawn below):
 [x] 0063 Roster depth-chart query + API           |
       |                                          |
       v                                          |
-[ ] 0064 Roster depth-chart frontend              |
+[x] 0064 Roster depth-chart frontend              |
       |                                          |
       v                                          |
 [~] 0039 Roster Optimization & Org Depth --------+
@@ -261,6 +263,11 @@ its minor-league level/affiliate half as 0062, both drawn below):
     build-order list, not a hard ticket dependency — same convention as
     0035/0036/0037 being left out of the pitcher-projection epic's diagram).
 
+[ ] 0065 GM Org Selection + Theming — standalone, omitted above (resolves
+    the "current team" gap 0038/0039 both flagged, but scoped narrowly to
+    selection + theming, not the full Command Center dashboard; no ticket
+    depends on it yet).
+
 [x] = Closed   [ ] = Open   [~] = In-Progress
 ```
 
@@ -273,6 +280,7 @@ its minor-league level/affiliate half as 0062, both drawn below):
 | [0043](0043-prospect-pipeline.md) | Prospect Pipeline (epic tracker) | feat | Open | 0044 |
 | [0042](0042-contract-arbitration-analyzer.md) | Contract & Arbitration Analyzer (epic tracker) | feat | Closed | 0053, 0054 |
 | [0038](0038-gm-command-center.md) | GM Command Center (epic tracker) | feat | Open | 0039, 0042, 0043 |
+| [0065](0065-gm-org-selection-theming.md) | GM organization selection + app-wide color theming | feat | Open | — |
 
 ### Tool: Player Development Monitor
 
@@ -322,7 +330,7 @@ organizational-fit filter.
 |---|-------|-----|--------|------------|
 | [0062](0062-team-level-affiliate-schema-migration.md) | Ingest team level and parent-org data | feat | Closed | — |
 | [0063](0063-roster-depth-chart-query-api.md) | Roster depth-chart query layer + API route | feat | Closed | 0062 |
-| [0064](0064-roster-depth-chart-frontend.md) | Roster depth-chart frontend view | feat | Open | 0063 |
+| [0064](0064-roster-depth-chart-frontend.md) | Roster depth-chart frontend view | feat | Closed | 0063 |
 
 ### Tool: Defensive Optimization
 
