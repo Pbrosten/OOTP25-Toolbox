@@ -10,5 +10,5 @@ export default {
 
 <template>
   <Header />
-  <router-view />
+  <router-view :key="$route.fullPath" />
 </template>

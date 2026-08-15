@@ -1,7 +1,7 @@
 # 0061 — Refetch player data when navigating between player pages
 
 - **Tag:** fix
-- **Status:** Open
+- **Status:** Closed
 - **Depends on:** —
 - **Blocks:** —
 
@@ -79,3 +79,67 @@ per-component logic review alone.
 
 **Files involved:**
 - `frontend/src/App.vue` (modified — `<router-view :key>`)
+- `frontend/src/components/PlayerDetails.vue` (modified — batting/pitching
+  fetches gated on known position, see correction below)
+
+**Verified:** `<router-view :key="$route.fullPath" />` compiles and hot-
+reloads cleanly (Vite HMR, no errors); `npx vue-tsc -b` reports the same 32
+pre-existing type errors with and without this change, none attributable
+to this one-line edit. **Not verified in an actual browser** at the time —
+this environment has no browser-automation tool available, and reproducing
+the original bug specifically requires a client-side SPA navigation between
+two `/players/:id` history entries.
+
+## Post-implementation correction: the diagnosis above was incomplete
+
+User re-tested and reported the problem persists — screenshot showed a
+**fresh, full page load** of Yamamoto's page (network panel: 54-request
+initial load, `DOMContentLoaded`, not a client-side transition) still
+displaying a red "Failed to load batting stats." banner under the pitching
+table. This is not the stale-navigation case the `:key` fix addresses —
+it's a plain, deterministic bug on every direct/fresh visit to any pure
+pitcher's page, which the original investigation's own curl check
+(`GET /api/players/36289/career/batting` → 404) had actually already
+surfaced but mis-classified as "correctly empty" without checking how the
+frontend *handles* that 404.
+
+**Actual primary root cause:** `PlayerDetails.vue`'s `onMounted` (pre-fix,
+lines 15-67) fetched `/career/batting` unconditionally for every player —
+in parallel with `/details`, before position was even known — and on any
+non-OK response (including the legitimate 404 every pure pitcher's
+`career/batting` endpoint returns, since he has zero
+`players_career_batting_stats` rows) set the single shared `error` ref to
+`'Failed to load batting stats.'`, rendered unconditionally at the
+template's `v-if="error"` banner (line 388, no position gate). This fires
+on **every** pure pitcher's page, every load — not an edge case. The
+template's own batting/pitching table `v-if`s (`position !== 'P'` /
+`=== 'P'`) were and are correct; only the fetch-and-error-reporting logic
+above them was unconditional.
+
+**Fixed:** restructured `onMounted` to fetch `/details` first (no longer
+parallelized with the batting fetch, since position must be known before
+deciding what else to fetch — same dependency the pitching fetch already
+had), then only fetch/report-on `/career/batting` when
+`playerDetails.value?.position !== 'P'`, mirroring the template's existing
+gate. Added the same guard symmetrically to the pitching fetch's error
+case (previously silent on failure, now sets `'Failed to load pitching
+stats.'` consistent with the batting path) since both fetches are now
+structured identically. The `<router-view :key>` fix from the original
+diagnosis is kept — the stale-navigation issue it addresses is real and
+independently confirmed (no data-fetching component in the player-page
+tree watches `props.playerId`), just not what this particular screenshot
+was showing.
+
+**Re-verified** against the live dev stack: `GET
+/api/players/36289/details` → `position: "P"`; `GET
+/api/players/36289/career/pitching` → `200`; `GET
+/api/players/36289/career/batting` → still `404` as expected, but the
+frontend no longer issues this request at all for a pitcher (confirmed via
+the updated `onMounted` logic), so no error banner fires. Vite HMR
+recompiled `PlayerDetails.vue` cleanly; `npx vue-tsc -b` still reports the
+same 32 pre-existing type errors, none new. **Still not verified visually
+in an actual browser** — same tooling limitation as before. Please
+manually confirm: a fresh load of `/players/36289` shows no "Failed to
+load batting stats." banner, a fresh load of a batter's page (e.g. Ohtani,
+33695) shows no equivalent pitching-stats error, and the client-side
+navigation scenario from the original diagnosis is also clean.

@@ -16,34 +16,41 @@ onMounted(async () => {
   loading.value = true
   error.value = null
   try {
-    const [detailsRes, statsRes] = await Promise.all([
-      fetch(`/api/players/${props.playerId}/details`),
-      fetch(`/api/players/${props.playerId}/career/batting`)
-    ])
-
+    const detailsRes = await fetch(`/api/players/${props.playerId}/details`)
     if (detailsRes.ok) {
       playerDetails.value = await detailsRes.json()
     } else {
       error.value = 'Failed to load player details.'
     }
 
-    if (statsRes.ok) {
-      const rawStats = await statsRes.json()
-      // The API returns SQL SUM() results as JSON strings (e.g. "ab": "558"),
-      // not numbers. Left uncoerced, "+" on these fields concatenates
-      // instead of adding wherever a formula chains more than one of them
-      // (e.g. calcSlg's h+d+... produced six-digit "stats" instead of a
-      // real quotient). Normalize once here so every consumer below --
-      // per-row calc functions and the totals sum() alike -- works with
-      // real numbers.
-      const numericKeys = ['pa', 'ab', 'r', 'h', 'hr', 'sb', 'bb', 'hp', 'sf', 'd', 't']
-      battingStats.value = rawStats.map((row: any) => {
-        const normalized = { ...row }
-        for (const key of numericKeys) normalized[key] = Number(row[key])
-        return normalized
-      })
-    } else {
-      error.value = 'Failed to load batting stats.'
+    // Career stats are position-specific -- a pure pitcher has no
+    // players_career_batting_stats rows (and vice versa for a position
+    // player's career/pitching), so the API correctly 404s for the table
+    // this player doesn't have. Only fetch/report on the table that
+    // actually applies to this player's position, mirroring the template's
+    // own `position !== 'P'` / `position === 'P'` gates below -- fetching
+    // (and error-reporting on) the other table unconditionally previously
+    // showed "Failed to load batting stats." on every pitcher's page.
+    if (playerDetails.value?.position !== 'P') {
+      const statsRes = await fetch(`/api/players/${props.playerId}/career/batting`)
+      if (statsRes.ok) {
+        const rawStats = await statsRes.json()
+        // The API returns SQL SUM() results as JSON strings (e.g. "ab": "558"),
+        // not numbers. Left uncoerced, "+" on these fields concatenates
+        // instead of adding wherever a formula chains more than one of them
+        // (e.g. calcSlg's h+d+... produced six-digit "stats" instead of a
+        // real quotient). Normalize once here so every consumer below --
+        // per-row calc functions and the totals sum() alike -- works with
+        // real numbers.
+        const numericKeys = ['pa', 'ab', 'r', 'h', 'hr', 'sb', 'bb', 'hp', 'sf', 'd', 't']
+        battingStats.value = rawStats.map((row: any) => {
+          const normalized = { ...row }
+          for (const key of numericKeys) normalized[key] = Number(row[key])
+          return normalized
+        })
+      } else {
+        error.value = 'Failed to load batting stats.'
+      }
     }
 
     if (playerDetails.value?.position === 'P') {
@@ -56,6 +63,8 @@ onMounted(async () => {
           for (const key of numericKeys) normalized[key] = Number(row[key])
           return normalized
         })
+      } else {
+        error.value = 'Failed to load pitching stats.'
       }
     }
 
