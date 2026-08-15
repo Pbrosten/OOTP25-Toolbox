@@ -1,7 +1,7 @@
 # 0042 — Contract & Arbitration Analyzer
 
 - **Tag:** feat
-- **Status:** In-Progress
+- **Status:** Closed
 - **Depends on:** [0053](0053-contract-service-time-schema.md), [0054](0054-contract-service-time-migration.md)
 - **Blocks:** [0056](0056-surplus-value-calculation.md), [0057](0057-surplus-value-frontend-display.md), [0058](0058-contract-recommendation-thresholds.md), [0059](0059-wire-injury-risk-into-surplus-value.md)
 

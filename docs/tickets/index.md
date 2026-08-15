@@ -240,7 +240,7 @@ build-order list above for that nuance):
 [x] 0059 Wire injury risk into surplus value      |
       |                                          |
       v                                          |
-[~] 0042 Contract & Arbitration Analyzer --------+
+[x] 0042 Contract & Arbitration Analyzer --------+
                                                   |
                                                   v
                                        [ ] 0038 GM Command Center
@@ -260,7 +260,7 @@ build-order list above for that nuance):
 | [0039](0039-roster-optimization-org-depth.md) | Roster Optimization & Organizational Depth (epic tracker) | feat | Open | — |
 | [0040](0040-defensive-optimization.md) | Defensive Optimization (epic tracker) | feat | Open | 0039 |
 | [0043](0043-prospect-pipeline.md) | Prospect Pipeline (epic tracker) | feat | Open | 0044 |
-| [0042](0042-contract-arbitration-analyzer.md) | Contract & Arbitration Analyzer (epic tracker) | feat | In-Progress | 0053, 0054 |
+| [0042](0042-contract-arbitration-analyzer.md) | Contract & Arbitration Analyzer (epic tracker) | feat | Closed | 0053, 0054 |
 | [0038](0038-gm-command-center.md) | GM Command Center (epic tracker) | feat | Open | 0039, 0042, 0043 |
 
 ### Tool: Player Development Monitor
