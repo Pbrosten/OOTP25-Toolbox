@@ -361,11 +361,14 @@ def test_get_player_surplus_value_wrecked_durability_discounts_future_years(
     assert wrecked_body["years"][1]["value"] < normal_body["years"][1]["value"]
 
 
-# Test GET /api/players/<id>/surplus-value - two-way player skipped
+# Two-way player: base_war is batting_war + pitching_war summed, not
+# excluded (ticket 0067 post-close correction, per user request -- a
+# deliberate change from 0056's original "exclude two-way entirely"
+# precedent, scoped to this route only).
 @patch("app.api.players.get_db")
 @patch("app.api.players.close_db")
 @patch("app.api.players.current_app.open_resource")
-def test_get_player_surplus_value_two_way_not_available(mock_open_resource, mock_close_db, mock_get_db, client):
+def test_get_player_surplus_value_two_way_sums_war(mock_open_resource, mock_close_db, mock_get_db, client):
     mock_con = MagicMock()
     mock_cursor = MagicMock()
     mock_cursor.fetchone.return_value = _contract_row(batting_war=2.0, pitching_war=1.5)
@@ -375,7 +378,9 @@ def test_get_player_surplus_value_two_way_not_available(mock_open_resource, mock
 
     response = client.get("/api/players/1/surplus-value")
     assert response.status_code == 200
-    assert response.get_json() == {"available": False}
+    body = response.get_json()
+    assert body["available"] is True
+    assert body["years"][0]["war"] == pytest.approx(3.5)
 
 
 # Test GET /api/players/<id>/surplus-value - no row at all

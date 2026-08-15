@@ -1,13 +1,28 @@
 -- Org depth chart (ticket 0063): every player on the given MLB team's
 -- roster plus its AAA/AA/A/Rookie affiliates (teams.parent_team_id,
 -- ticket 0062), one row per player with their level, primary position,
--- pitching role group (SP/RP, NULL for position players), and current
--- projected WAR. Shaping into {level: {group: [players]}} happens in
+-- pitching role group (SP/RP/TWP -- meaningless, ignored downstream, for
+-- any row where position != 'P'), is_twp, and current projected WAR.
+-- Shaping into {level: {group: [players]}} happens in
 -- Python (app/api/teams.py), not here -- mirrors get_player_contract_
 -- inputs.sql staying a flat row-returning query. Excludes players merely
 -- administratively parked under the MLB team_id with no real roster
 -- assignment (players_service_time.is_active/is_on_secondary, ticket
 -- 0064 post-close correction) -- see the roster CTE below.
+--
+-- is_twp (ticket 0067 post-close correction): a real two-way player's
+-- players.position isn't always 'P' -- confirmed real case: Shohei
+-- Ohtani's position is 'DH', but he has a real players_pitching row
+-- (role = 11, Starting Pitcher) at his latest snapshot. role_group's
+-- SP/RP/TWP logic below only ever applies when position = 'P' (see
+-- app/api/teams.py's grouping), so a TWP whose listed position is a
+-- batting position was silently filed under that position with his
+-- pitching side completely invisible in the depth chart, even though
+-- get_player_details.sql's identical is_twp check already correctly
+-- flags him on his own player page. is_twp here uses the exact same
+-- "real PA and IP in the same year, per his own most recent recorded
+-- career-batting year" definition, so the depth chart and the player
+-- page always agree.
 --
 -- is_promotion_candidate (ticket 0064): WAR is computed from current
 -- ratings evaluated as if the player were already in MLB (see
@@ -70,12 +85,17 @@ rating AS (
       ON lr.player_id = pr.player_id AND lr.rating_date = pr.rating_date
 ),
 
+-- Depth-chart WAR sums batting + pitching for a two-way player (per the
+-- user's explicit request), unlike ticket 0056's surplus-value
+-- calculation and contract_value.py, which still exclude two-way players
+-- entirely (never-net precedent, unchanged there) -- this ticket only
+-- changes the depth chart's own display.
 roster_war AS (
     SELECT
         r.player_id,
         r.level,
         CASE
-            WHEN brv.WAR IS NOT NULL AND prv.WAR IS NOT NULL THEN NULL
+            WHEN brv.WAR IS NOT NULL AND prv.WAR IS NOT NULL THEN brv.WAR + prv.WAR
             ELSE COALESCE(brv.WAR, prv.WAR)
         END AS war
     FROM roster r
@@ -86,12 +106,14 @@ roster_war AS (
 
 -- Every player at AAA/AA (level 2 or 3) across the *whole league*, not
 -- just this org -- the comparison pool the promotion-candidate percentile
--- is computed against.
+-- is computed against. Sums two-way WAR the same way roster_war does, so
+-- a TWP in this pool (rare at AAA/AA but possible) is compared on the
+-- same basis as everyone else, not silently excluded.
 league_level_war AS (
     SELECT
         t.level,
         CASE
-            WHEN brv.WAR IS NOT NULL AND prv.WAR IS NOT NULL THEN NULL
+            WHEN brv.WAR IS NOT NULL AND prv.WAR IS NOT NULL THEN brv.WAR + prv.WAR
             ELSE COALESCE(brv.WAR, prv.WAR)
         END AS war
     FROM players p
@@ -115,15 +137,35 @@ SELECT
     r.team_abbr,
     r.level,
     r.position,
+    -- ELSE 'TWP' (ticket 0067), not NULL -- a position = 'P' player with
+    -- no recognized pitcher role is a two-way player whose role read 0
+    -- (non-pitcher) this heap, or (defensively) still has no matching
+    -- players_pitching row at all. Either way, a NULL role_group used as
+    -- a Python dict key crashed jsonify's default key-sorting (the
+    -- original 0064 bug) -- 'TWP' guarantees this never recurs, even for
+    -- an edge case this ticket's detection doesn't catch.
     CASE pp.role
         WHEN 11 THEN 'SP'
         WHEN 12 THEN 'RP'
         WHEN 13 THEN 'RP'
-        ELSE NULL
+        ELSE 'TWP'
     END AS role_group,
-    -- Two-way players (both batting and pitching WAR present) get NULL,
-    -- not a netted/summed figure -- same "never net batting/pitching WAR"
-    -- precedent as ticket 0056's surplus-value calculation.
+    EXISTS (
+        SELECT 1
+        FROM players_career_batting_stats cb
+        JOIN players_career_pitching_stats cp
+          ON cp.player_id = cb.player_id AND cp.year = cb.year
+        WHERE cb.player_id = r.player_id
+          AND cb.year = (
+              SELECT MAX(year) FROM players_career_batting_stats
+              WHERE player_id = r.player_id
+          )
+          AND cb.pa > 0 AND cp.ip > 0
+    ) AS is_twp,
+    -- Two-way players (both batting and pitching WAR present) get the sum
+    -- of both -- see roster_war above, deliberately different from ticket
+    -- 0056's surplus-value calculation, which still excludes two-way
+    -- players entirely.
     rw.war,
     CASE
         WHEN r.level NOT IN (2, 3) OR rw.war IS NULL THEN FALSE

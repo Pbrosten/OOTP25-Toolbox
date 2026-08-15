@@ -85,7 +85,7 @@ alternatives, not a sequence; 0021 folds into 0022).
 | [0049](0049-fix-test-players-mock-pattern.md) | Fix broken DB-connection mocks in `tests/api/test_players.py` | chore | Closed | — |
 | [0055](0055-fix-semicolon-in-comment-breaks-migration-short.md) | Fix semicolon inside a comment breaking `migration_short.sql` | fix | Closed | — |
 | [0066](0066-recalibrate-run-value-constants-per-save.md) | Recalibrate run-value constants against this save's own league, not a fixed real-MLB baseline | fix | Open | — |
-| [0067](0067-two-way-player-detection.md) | Two-way player (TWP) detection and dual-sided pitching ingestion | feat | Open | — |
+| [0067](0067-two-way-player-detection.md) | Two-way player (TWP) detection and dual-sided pitching ingestion | feat | Closed | — |
 
 ## Epic: Pitcher projections
 

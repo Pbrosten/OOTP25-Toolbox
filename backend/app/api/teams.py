@@ -74,8 +74,10 @@ def get_team_depth_chart(team_id):
               For levels 1/2/3 (MLB/AAA/AA), `group` maps to a WAR-sorted
               list of player entries: player_id, first_name, last_name,
               team_id, team_abbr (distinguishes affiliates sharing a
-              level), war (WAR, or null for a two-way player or a player
-              with no current rating), is_promotion_candidate (top 20% of
+              level), war (batting + pitching WAR summed for a two-way
+              player, per user request -- see get_org_depth_chart.sql;
+              null only for a player with no current rating at all),
+              is_promotion_candidate (top 20% of
               WAR at that level *league-wide*, AAA/AA only -- see
               get_org_depth_chart.sql; always false at MLB).
               For levels 4/6 (A/High-A, Rookie/Complex), `group` maps to a
@@ -116,7 +118,19 @@ def get_team_depth_chart(team_id):
         levels: dict = {}
         for row in rows:
             level = row["level"]
-            group = row["role_group"] if row["position"] == "P" else row["position"]
+            # is_twp takes priority over position (ticket 0067 post-close
+            # correction): a real two-way player's listed position isn't
+            # always 'P' (confirmed real case: Shohei Ohtani is 'DH' but
+            # has a real players_pitching row) -- checking is_twp first
+            # keeps the depth chart's grouping consistent with the player
+            # page's identical is_twp check, instead of only ever
+            # recognizing a TWP whose position happens to read 'P'.
+            if row["is_twp"]:
+                group = "TWP"
+            elif row["position"] == "P":
+                group = row["role_group"]
+            else:
+                group = row["position"]
             if level in COUNT_ONLY_LEVELS:
                 counts = levels.setdefault(level, {})
                 counts[group] = counts.get(group, 0) + 1

@@ -31,6 +31,7 @@ def _depth_chart_row(**overrides):
         "level": 1,
         "position": "SS",
         "role_group": None,
+        "is_twp": 0,
         "war": 2.5,
         "is_promotion_candidate": 0,
     }
@@ -268,3 +269,31 @@ def test_get_team_depth_chart_promotion_candidate_flag(
     players = {p["player_id"]: p for p in response.get_json()["levels"]["2"]["SS"]}
     assert players[13]["is_promotion_candidate"] is True
     assert players[14]["is_promotion_candidate"] is False
+
+
+# is_twp takes priority over position for grouping (ticket 0067 post-close
+# correction) -- a real TWP's listed position isn't always 'P' (confirmed
+# real case: Shohei Ohtani is 'DH' but has real players_pitching data), so
+# checking is_twp first keeps the depth chart consistent with the player
+# page's identical is_twp check.
+@patch("app.api.teams.get_db")
+@patch("app.api.teams.close_db")
+@patch("app.api.teams.current_app.open_resource")
+def test_get_team_depth_chart_twp_groups_by_twp_even_when_position_not_pitcher(
+    mock_open_resource, mock_close_db, mock_get_db, client
+):
+    mock_con = MagicMock()
+    mock_cursor = MagicMock()
+    mock_cursor.fetchone.return_value = _team_row()
+    mock_cursor.fetchall.return_value = [
+        _depth_chart_row(player_id=15, position="DH", role_group=None, is_twp=1),
+    ]
+    mock_con.cursor.return_value.__enter__.return_value = mock_cursor
+    mock_get_db.return_value = mock_con
+    mock_open_resource.return_value.__enter__.return_value.read.return_value = "SELECT ..."
+
+    response = client.get("/api/teams/1/depth-chart")
+    body = response.get_json()
+    assert "TWP" in body["levels"]["1"]
+    assert body["levels"]["1"]["TWP"][0]["player_id"] == 15
+    assert "DH" not in body["levels"]["1"]

@@ -31,7 +31,9 @@ onMounted(async () => {
     // own `position !== 'P'` / `position === 'P'` gates below -- fetching
     // (and error-reporting on) the other table unconditionally previously
     // showed "Failed to load batting stats." on every pitcher's page.
-    if (playerDetails.value?.position !== 'P') {
+    // A TWP (ticket 0067) has real batting stats despite position === 'P',
+    // so also fetch batting for them.
+    if (playerDetails.value?.position !== 'P' || playerDetails.value?.is_twp) {
       const statsRes = await fetch(`/api/players/${props.playerId}/career/batting`)
       if (statsRes.ok) {
         const rawStats = await statsRes.json()
@@ -53,7 +55,11 @@ onMounted(async () => {
       }
     }
 
-    if (playerDetails.value?.position === 'P') {
+    // A TWP's position isn't always 'P' (confirmed real case: Shohei
+    // Ohtani is 'DH' but has real career pitching stats) -- also fetch
+    // pitching for a detected TWP, same fix shape as the batting fetch
+    // above.
+    if (playerDetails.value?.position === 'P' || playerDetails.value?.is_twp) {
       const pitchingRes = await fetch(`/api/players/${props.playerId}/career/pitching`)
       if (pitchingRes.ok) {
         const rawPitching = await pitchingRes.json()
@@ -231,7 +237,7 @@ defineExpose({
     </h1>
     <h2 class="text-xl mb-2">
       <div v-if="playerDetails">
-        {{ playerDetails.position }}
+        {{ playerDetails.is_twp ? 'TWP' : playerDetails.position }}
         <span class="text-teal-800">|</span>
         {{ playerDetails.team_city }} {{ playerDetails.team_name }}
       </div>
@@ -251,7 +257,7 @@ defineExpose({
         <span class="text-lg text-teal-800">|</span>  Age: ##</div>
     </p>
 
-    <template v-if="playerDetails && playerDetails.position !== 'P'">
+    <template v-if="playerDetails && (playerDetails.position !== 'P' || playerDetails.is_twp)">
       <h2 class="text-2xl font-semibold mb-4">
         Career Batting Stats
         <span v-if="playerDetails">
@@ -326,7 +332,7 @@ defineExpose({
       </table>
     </template>
 
-    <template v-if="playerDetails && playerDetails.position === 'P'">
+    <template v-if="playerDetails && (playerDetails.position === 'P' || playerDetails.is_twp)">
       <h2 class="text-2xl font-semibold mb-4">
         Career Pitching Stats
         <span v-if="playerDetails">

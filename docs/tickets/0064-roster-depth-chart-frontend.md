@@ -395,12 +395,15 @@ deferred ("a future TWP tag... belongs entirely to that future ticket")
 — filed as [0067](0067-two-way-player-detection.md), which also captures
 new evidence that changes 0030's original assumption about how TWP
 detection would need to work (the `role` field itself already signals
-it, no threshold-derivation needed). 0067 needs its own design-question
-round before implementation (detection rule, ingestion-filter shape,
-`role_group` fallback, and whether the existing "never net batting/
-pitching WAR" exclusion elsewhere in the app still holds once TWP data
-is reliable) — not resolved here. The 11 orgs' depth charts remain
-broken until 0067 (or a narrower stopgap) ships.
+it, no threshold-derivation needed).
 
-**Files involved:** none yet — diagnosis only, fix deferred to
-[0067](0067-two-way-player-detection.md).
+**Update:** [0067](0067-two-way-player-detection.md) is now implemented
+and verified on a throwaway DB (see that ticket for the fix and
+verification details). Not yet applied to the persistent dev-stack `ootp`
+database — the user will run it manually, and it needs the affected heap
+forced to reprocess (`update-db` alone won't touch an already-ingested
+heap, per ticket 0007's `processed_heaps` tracking). The 11 orgs' depth
+charts remain broken on the live dev DB until that reprocessing happens.
+
+**Files involved:** none in this ticket — diagnosis only, fix implemented
+in [0067](0067-two-way-player-detection.md).

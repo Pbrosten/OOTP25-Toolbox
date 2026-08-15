@@ -24,9 +24,11 @@ const LEVEL_ORDER = [1, 2, 3, 4, 6]
 // returns a roster count per position instead of a ranked player list.
 const COUNT_ONLY_LEVELS = new Set([4, 6])
 
-// Standard defensive-spectrum display order, plus SP/RP for pitchers.
-const GROUP_ORDER = ['C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF', 'DH', 'SP', 'RP']
-const PITCHER_GROUPS = new Set(['SP', 'RP'])
+// Standard defensive-spectrum display order, plus SP/RP for pitchers and
+// TWP (two-way players, ticket 0067) last -- players.position = 'P' with
+// no recognized pitcher role that heap.
+const GROUP_ORDER = ['C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF', 'DH', 'SP', 'RP', 'TWP']
+const PITCHER_GROUPS = new Set(['SP', 'RP', 'TWP'])
 
 const loading = ref(true)
 const error = ref(null)

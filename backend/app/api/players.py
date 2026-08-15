@@ -312,15 +312,19 @@ def get_player_surplus_value(player_id):
 
     Returns:
         JSON response:
-            - {"available": False} if the player is two-way (0028's
-              never-net-batting/pitching-WAR precedent), has no current
-              WAR projection, or has neither a contract nor a service-time
-              record on file.
+            - {"available": False} if the player has no current WAR
+              projection at all, or has neither a contract nor a
+              service-time record on file.
             - {"available": True, "years": [...], "total_value": ...,
               "total_cost": ..., "total_surplus": ...} otherwise, plus
               "recommendation" only when the player's current
               mlb_service_years falls in the arbitration window
               (ARB_ELIGIBLE_SERVICE_YEARS <= years < FA_SERVICE_YEARS).
+
+    A two-way player's batting and pitching WAR are summed into a single
+    base_war for the whole projection (per user request) -- a deliberate
+    change from 0056's original "exclude two-way players entirely"
+    precedent, scoped to this route.
     """
     con = get_db()
     try:
@@ -339,8 +343,15 @@ def get_player_surplus_value(player_id):
 
         batting_war = row["batting_war"]
         pitching_war = row["pitching_war"]
-        two_way = batting_war is not None and pitching_war is not None
-        base_war = batting_war if batting_war is not None else pitching_war
+        is_twp = batting_war is not None and pitching_war is not None
+        # A two-way player's base_war is the sum of both sides (per user
+        # request) -- same approach as the depth chart's roster_war,
+        # ticket 0067's post-close correction. Everyone else keeps a
+        # single side.
+        if is_twp:
+            base_war = batting_war + pitching_war
+        else:
+            base_war = batting_war if batting_war is not None else pitching_war
 
         # years=0/current_year=0 is a real row OOTP writes for every
         # unsigned player (a placeholder, not a 1-year $0 contract) --
@@ -351,8 +362,7 @@ def get_player_surplus_value(player_id):
         has_service_time = row["mlb_service_years"] is not None
 
         if (
-            two_way
-            or base_war is None
+            base_war is None
             or row["age"] is None
             or not (has_contract or has_service_time)
         ):
@@ -365,7 +375,12 @@ def get_player_surplus_value(player_id):
             mlb_service_years=mlb_service_years,
             contract=row if has_contract else None,
             prone_overall=row["prone_overall"],
-            is_pitcher=pitching_war is not None,
+            # A TWP's injury-durability lookup uses the batter multiplier,
+            # not the pitcher one -- their primary defensive workload
+            # (games played/batted) is typically far larger than their
+            # pitching innings share, so is_pitcher is only True for a
+            # player who is a pitcher and *not* also a hitter.
+            is_pitcher=pitching_war is not None and batting_war is None,
             pitching_role=row["pitching_role"],
         )
         if result is None:

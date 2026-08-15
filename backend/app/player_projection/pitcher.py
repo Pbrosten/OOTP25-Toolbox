@@ -46,7 +46,14 @@ ROLE_CONSTANTS = {
 # staging.players_pitching.role: 11 = Starting Pitcher, 12 = Relief Pitcher,
 # 13 = Closer (a small subset of all-relief usage, folded into RP since the
 # source spreadsheet only defines SP/RP rate curves -- see ticket 0026).
-ROLE_MAP = {11: 'SP', 12: 'RP', 13: 'RP'}
+# role 0 (non-pitcher) is included here as of ticket 0067 -- a two-way
+# player's role toggles between a real pitcher role and 0 depending on
+# which side of their game OOTP emphasized that month, but their
+# stuff/control/etc. ratings that feed this projection are still real
+# regardless. Defaults to 'SP' role_constants -- same "default an
+# unrecognized/absent role to Starter, more conservative" precedent
+# ticket 0059 already established for the injury-discount multiplier.
+ROLE_MAP = {11: 'SP', 12: 'RP', 13: 'RP', 0: 'SP'}
 
 
 class PitcherProjection:

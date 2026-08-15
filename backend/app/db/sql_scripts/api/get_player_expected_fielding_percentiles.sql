@@ -5,22 +5,75 @@ WITH target_player AS (
     pr.rating_date,
     pr.league_id,
     p.position,
-    CASE
-      WHEN p.position = 'C' THEN 'catcher'
-      WHEN p.position IN ('1B', '2B', '3B', 'SS') THEN 'infield'
-      WHEN p.position IN ('LF', 'CF', 'RF') THEN 'outfield'
-      WHEN p.position = 'DH' THEN 'dh'
-      ELSE 'other'
-    END AS position_group
+    -- effective_position (ticket 0067 post-close correction): for a TWP
+    -- whose listed players.position is 'P' -- not a real fielding
+    -- position -- substitute their highest-graded non-pitcher fielding
+    -- slot from players_fielding_position instead. Confirmed real case:
+    -- Bryce Eldridge is listed 'P' but has real fielding grades (RF 60,
+    -- 1B 50, LF 35) that were otherwise entirely discarded --
+    -- position_group fell through to 'other', so no fielding_value or
+    -- arm/range percentile was ever computed for him at all. Everyone
+    -- else (a real one-way pitcher, or any non-'P' position) is
+    -- unaffected -- the subquery only ever runs for position = 'P', and
+    -- only picks a slot with grade > 0. This only changes which fielding
+    -- cohort/value this query compares the target against -- the API's
+    -- own `position` output field (and every other feature keyed off
+    -- players.position) is untouched.
+    -- MariaDB can't correlate a derived table (FROM-clause subquery)
+    -- against an outer query column without LATERAL, so this picks the
+    -- best slot via GREATEST()/CASE against a single correlated row
+    -- instead of unpivoting pos2..pos9 into a derived table.
+    COALESCE(
+      (
+        SELECT
+          CASE GREATEST(
+            COALESCE(pfp.pos2, 0), COALESCE(pfp.pos3, 0), COALESCE(pfp.pos4, 0),
+            COALESCE(pfp.pos5, 0), COALESCE(pfp.pos6, 0), COALESCE(pfp.pos7, 0),
+            COALESCE(pfp.pos8, 0), COALESCE(pfp.pos9, 0)
+          )
+            WHEN pfp.pos2 THEN 'C'
+            WHEN pfp.pos3 THEN '1B'
+            WHEN pfp.pos4 THEN '2B'
+            WHEN pfp.pos5 THEN '3B'
+            WHEN pfp.pos6 THEN 'SS'
+            WHEN pfp.pos7 THEN 'LF'
+            WHEN pfp.pos8 THEN 'CF'
+            WHEN pfp.pos9 THEN 'RF'
+          END
+        FROM players_fielding_position pfp
+        WHERE pfp.rating_id = pr.rating_id
+          AND p.position = 'P'
+          AND GREATEST(
+                COALESCE(pfp.pos2, 0), COALESCE(pfp.pos3, 0), COALESCE(pfp.pos4, 0),
+                COALESCE(pfp.pos5, 0), COALESCE(pfp.pos6, 0), COALESCE(pfp.pos7, 0),
+                COALESCE(pfp.pos8, 0), COALESCE(pfp.pos9, 0)
+              ) > 0
+      ),
+      p.position
+    ) AS effective_position
   FROM players_rating pr
   JOIN players p ON pr.player_id = p.player_id
   WHERE pr.rating_id = %(rating_id)s
 ),
 
+target_player_grouped AS (
+  SELECT
+    tp.rating_id, tp.player_id, tp.rating_date, tp.league_id, tp.position,
+    CASE
+      WHEN tp.effective_position = 'C' THEN 'catcher'
+      WHEN tp.effective_position IN ('1B', '2B', '3B', 'SS') THEN 'infield'
+      WHEN tp.effective_position IN ('LF', 'CF', 'RF') THEN 'outfield'
+      WHEN tp.effective_position = 'DH' THEN 'dh'
+      ELSE 'other'
+    END AS position_group,
+    tp.effective_position
+  FROM target_player tp
+),
+
 target_value AS (
   SELECT
-    tp.*,
-    CASE tp.position
+    tp.rating_id, tp.player_id, tp.rating_date, tp.league_id, tp.position, tp.position_group,
+    CASE tp.effective_position
       WHEN 'C' THEN pfe.`C`
       WHEN '1B' THEN pfe.`1B`
       WHEN '2B' THEN pfe.`2B`
@@ -31,7 +84,7 @@ target_value AS (
       WHEN 'RF' THEN pfe.`RF`
       WHEN 'DH' THEN pfe.`DH`
     END AS fielding_value
-  FROM target_player tp
+  FROM target_player_grouped tp
   JOIN players_fielding_expected pfe ON tp.rating_id = pfe.rating_id
 ),
 
