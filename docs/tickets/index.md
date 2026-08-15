@@ -179,20 +179,24 @@ data readiness, not by the epic's original grouping:
 1. **Player Development Monitor** (0044) — zero data gaps, ships first.
 2. **Trade Target Finder** (0041) reduced v1 — position/age/WAR/role
    filtering ships now; full scope waits on contract data (step 7).
-3. **Roster Optimization & Organizational Depth** (0039) MLB-roster slice —
-   the WAR-by-player-by-position data source is already resolved; only the
-   org-depth slice waits on level/affiliate data (step 6).
+3. **Roster Optimization & Organizational Depth** (0039) — now ships as
+   one full-scope pass, not split into MLB-only/org-depth halves: the
+   level/affiliate data gap from step 5 turned out to be a small
+   schema+migration addition ([0062](0062-team-level-affiliate-schema-migration.md)),
+   not a real blocker, so it's filed as a direct prerequisite rather than
+   deferring org-depth to later.
 4. **Defensive Optimization** (0040) — follows 0039, reuses its shared
    query layer with a defense-weighted variant.
 5. *(prerequisite)* — inspect a real dump export for minor-league
    level/affiliate fields and contract/salary/arbitration tables; file
    schema + migration tickets mirroring
    [0024](0024-pitcher-schema-ratings-tables.md)/[0025](0025-pitcher-migration-ingestion.md).
-   Contract/salary/service-time half is now filed as
+   Contract/salary/service-time half is filed as
    [0053](0053-contract-service-time-schema.md)/
-   [0054](0054-contract-service-time-migration.md); minor-league
-   level/affiliate half (needed for steps 6, 8) is still unticketed.
-   Unblocks steps 6–8.
+   [0054](0054-contract-service-time-migration.md), both closed;
+   minor-league level/affiliate half is now filed as
+   [0062](0062-team-level-affiliate-schema-migration.md) (needed for
+   steps 6, 8). Unblocks steps 6–8.
 6. **Prospect Pipeline** (0043) — needs level/affiliate data from step 5,
    plus reuses 0044's trend layer from step 1.
 7. **Contract & Arbitration Analyzer** (0042) — needs contract/salary data
@@ -206,10 +210,8 @@ data readiness, not by the epic's original grouping:
    anywhere in the app today) — see 0038's Design choices.
 
 Ticket-level dependency graph (matches the table's "Depends on" column
-below; step-5's contract/salary/service-time half is now filed as
-0053/0054, drawn below — the minor-league level/affiliate half that
-partially gates 0039/0041/0043 is still unticketed and not drawn; see the
-build-order list above for that nuance):
+below; step-5's contract/salary/service-time half is filed as 0053/0054,
+its minor-league level/affiliate half as 0062, both drawn below):
 
 ```
 [x] 0044 Player Development Monitor
@@ -217,7 +219,16 @@ build-order list above for that nuance):
       v
 [ ] 0043 Prospect Pipeline ----------------------+
                                                   |
-[ ] 0039 Roster Optimization & Org Depth --------+
+[ ] 0062 Team level/affiliate schema+migration    |
+      |                                          |
+      v                                          |
+[ ] 0063 Roster depth-chart query + API           |
+      |                                          |
+      v                                          |
+[ ] 0064 Roster depth-chart frontend              |
+      |                                          |
+      v                                          |
+[~] 0039 Roster Optimization & Org Depth --------+
       |                                          |
       v                                          |
 [ ] 0040 Defensive Optimization                  |
@@ -257,7 +268,7 @@ build-order list above for that nuance):
 |---|-------|-----|--------|------------|
 | [0044](0044-player-development-monitor.md) | Player Development Monitor (epic tracker) | feat | Closed | — |
 | [0041](0041-trade-target-finder.md) | Trade Target Finder (epic tracker) | feat | Open | — |
-| [0039](0039-roster-optimization-org-depth.md) | Roster Optimization & Organizational Depth (epic tracker) | feat | Open | — |
+| [0039](0039-roster-optimization-org-depth.md) | Roster Optimization & Organizational Depth (epic tracker) | feat | In-Progress | 0062 |
 | [0040](0040-defensive-optimization.md) | Defensive Optimization (epic tracker) | feat | Open | 0039 |
 | [0043](0043-prospect-pipeline.md) | Prospect Pipeline (epic tracker) | feat | Open | 0044 |
 | [0042](0042-contract-arbitration-analyzer.md) | Contract & Arbitration Analyzer (epic tracker) | feat | Closed | 0053, 0054 |
@@ -290,14 +301,28 @@ depth-chart output.
 
 ### Tool: Roster Optimization & Organizational Depth
 
-[0039](0039-roster-optimization-org-depth.md) — also ships in two passes.
-The MLB-roster slice (best lineup, position eligibility, WAR by position)
-has a fully resolved data source already. The organizational-depth slice
-(AAA/AA/A) waits on the minor-league level/affiliate ingestion prerequisite.
-Whichever of this or Defensive Optimization starts first builds the shared
-"WAR by player by eligible position" query layer the other reuses — sequenced
-first here since its output also feeds GM Command Center and Trade Target
-Finder's organizational-fit filter.
+[0039](0039-roster-optimization-org-depth.md) — ships as one full-scope
+pass (MLB roster + AAA/AA/A/Rookie affiliates together), not split into
+an MLB-only slice first: inspecting a real `TEST.lg` dump export found
+`teams.parent_team_id`/`level` already present in the raw OOTP export, so
+the org-depth gap is a small schema+migration ticket
+([0062](0062-team-level-affiliate-schema-migration.md)) rather than a real
+blocker. The depth chart itself is
+[0063](0063-roster-depth-chart-query-api.md) (query layer + API, grouped
+by org/level/position, pitchers split SP/RP) and
+[0064](0064-roster-depth-chart-frontend.md) (frontend view). The "best
+9-man lineup" optimizer from the source doc is deliberately deferred,
+unticketed — see 0039's Design choices. Whichever of this or Defensive
+Optimization starts first builds the shared "WAR by player by eligible
+position" query layer the other reuses — sequenced first here since its
+output also feeds GM Command Center and Trade Target Finder's
+organizational-fit filter.
+
+| # | Title | Tag | Status | Depends on |
+|---|-------|-----|--------|------------|
+| [0062](0062-team-level-affiliate-schema-migration.md) | Ingest team level and parent-org data | feat | Open | — |
+| [0063](0063-roster-depth-chart-query-api.md) | Roster depth-chart query layer + API route | feat | Open | 0062 |
+| [0064](0064-roster-depth-chart-frontend.md) | Roster depth-chart frontend view | feat | Open | 0063 |
 
 ### Tool: Defensive Optimization
 
