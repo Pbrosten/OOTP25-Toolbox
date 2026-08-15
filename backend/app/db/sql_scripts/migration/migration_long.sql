@@ -12,11 +12,13 @@ VALUES (
 
 INSERT INTO teams (
     team_id, name, abbr, nickname, division_id,
-    league_id, human_team, background_color, text_color
+    league_id, human_team, background_color, text_color,
+    parent_team_id, level
 )
-SELECT 
+SELECT
     team_id, name, abbr, nickname, division_id,
-    league_id, human_team, background_color_id, text_color_id
+    league_id, human_team, background_color_id, text_color_id,
+    parent_team_id, level
 FROM staging.teams
 ON DUPLICATE KEY UPDATE
     name = VALUES(name),
@@ -26,7 +28,9 @@ ON DUPLICATE KEY UPDATE
     league_id = VALUES(league_id),
     human_team = VALUES(human_team),
     background_color = VALUES(background_color),
-    text_color = VALUES(text_color);
+    text_color = VALUES(text_color),
+    parent_team_id = VALUES(parent_team_id),
+    level = VALUES(level);
 
 -- Excludes players who are both retired and inactive since before 2024 --
 -- ootp.players carries a save's entire player history otherwise (see

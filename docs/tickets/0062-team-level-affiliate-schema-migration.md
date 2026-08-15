@@ -1,7 +1,7 @@
 # 0062 — Ingest team level and parent-org data
 
 - **Tag:** feat
-- **Status:** Open
+- **Status:** Closed
 - **Depends on:** —
 - **Blocks:** [0063](0063-roster-depth-chart-query-api.md)
 
@@ -92,3 +92,28 @@ only `ootp.teams` and the migration query need updating).
 **Files involved:**
 - `backend/app/db/sql_scripts/schema.sql` (modified)
 - `backend/app/db/sql_scripts/migration/migration_long.sql` (modified)
+
+**Verified** on a throwaway MariaDB container (established pattern, no
+persistent volume): loaded `schema.sql` into a scratch `ootp` DB and the
+real `TEST.lg` `dump_2024_yearly/mysql/teams.mysql.sql` export into a
+scratch `staging` DB, then ran the updated `teams` INSERT block from
+`migration_long.sql`. Confirmed:
+- `staging.teams`: 259 rows, 6 distinct `level` values, matching the
+  investigation above.
+- `ootp.teams` after migration: 260 rows (259 real + the synthetic
+  `team_id = 999` Free Agents row), 6 distinct `level` values, `COUNT
+  (parent_team_id) = 259` (i.e. every real team got a value, only the
+  synthetic row is `NULL`).
+- Level-1 (MLB) teams have `parent_team_id = 0` (e.g. Arizona/Atlanta/
+  Baltimore). Level-2/3/4/6 affiliates have `parent_team_id` pointing
+  directly at their MLB parent (e.g. team 33 "Columbus", level 2, `parent_
+  team_id = 8`). Level-5 rows are the 2 "All-Star" teams, `parent_team_id
+  = 0` as expected. `team_id = 999` (Free Agents) correctly has `level`/
+  `parent_team_id` both `NULL` — it's never part of the `SELECT FROM
+  staging.teams`.
+- Backend suite: 118 passed (no Python touched by this ticket).
+
+Did **not** apply to the persistent dev-stack `ootp` database — per user
+request, held off for now. 0063/0064 will need this run against the real
+dev DB before they can build/verify against live `level`/`parent_team_id`
+data; ask before running `update-db` against it.

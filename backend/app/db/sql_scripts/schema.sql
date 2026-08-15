@@ -47,7 +47,14 @@ CREATE TABLE teams (
   league_id INT,
   human_team TINYINT,
   background_color VARCHAR(8),
-  text_color VARCHAR(8)
+  text_color VARCHAR(8),
+  -- parent_team_id/level (ticket 0062): raw OOTP org-affiliate fields --
+  -- level 1 = MLB, 2 = AAA, 3 = AA, 4 = A/High-A, 6 = Rookie/Complex.
+  -- level 5 is a save-specific anomaly (exhibition "All-Star" teams, not a
+  -- real minor-league tier) -- excluded at query time, not ingestion, same
+  -- convention as team_id = 999 (Free Agents).
+  parent_team_id INT,
+  level INT
   -- FOREIGN KEY (division_id) REFERENCES divisions(division_id),
   -- FOREIGN KEY (league_id) REFERENCES leagues(league_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

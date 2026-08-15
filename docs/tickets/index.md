@@ -219,7 +219,7 @@ its minor-league level/affiliate half as 0062, both drawn below):
       v
 [ ] 0043 Prospect Pipeline ----------------------+
                                                   |
-[ ] 0062 Team level/affiliate schema+migration    |
+[x] 0062 Team level/affiliate schema+migration    |
       |                                          |
       v                                          |
 [ ] 0063 Roster depth-chart query + API           |
@@ -320,7 +320,7 @@ organizational-fit filter.
 
 | # | Title | Tag | Status | Depends on |
 |---|-------|-----|--------|------------|
-| [0062](0062-team-level-affiliate-schema-migration.md) | Ingest team level and parent-org data | feat | Open | — |
+| [0062](0062-team-level-affiliate-schema-migration.md) | Ingest team level and parent-org data | feat | Closed | — |
 | [0063](0063-roster-depth-chart-query-api.md) | Roster depth-chart query layer + API route | feat | Open | 0062 |
 | [0064](0064-roster-depth-chart-frontend.md) | Roster depth-chart frontend view | feat | Open | 0063 |
 
