@@ -364,6 +364,9 @@ def get_player_surplus_value(player_id):
             current_age=row["age"],
             mlb_service_years=mlb_service_years,
             contract=row if has_contract else None,
+            prone_overall=row["prone_overall"],
+            is_pitcher=pitching_war is not None,
+            pitching_role=row["pitching_role"],
         )
         if result is None:
             return jsonify({"available": False})

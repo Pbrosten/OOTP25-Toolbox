@@ -3,7 +3,7 @@
 - **Tag:** feat
 - **Status:** In-Progress
 - **Depends on:** [0053](0053-contract-service-time-schema.md), [0054](0054-contract-service-time-migration.md)
-- **Blocks:** [0056](0056-surplus-value-calculation.md), [0057](0057-surplus-value-frontend-display.md), [0058](0058-contract-recommendation-thresholds.md)
+- **Blocks:** [0056](0056-surplus-value-calculation.md), [0057](0057-surplus-value-frontend-display.md), [0058](0058-contract-recommendation-thresholds.md), [0059](0059-wire-injury-risk-into-surplus-value.md)
 
 ## 1. Problem
 
@@ -71,9 +71,11 @@ a dependency chain despite sharing a data gap.
   0056's design discussion) — see 0056 for the chosen slow-then-harsh
   decline coefficients, scoped only to this calculation, not to the rating
   projections themselves. "Injury risk" still matches 0041's tentative
-  resolution — `players.prone_overall` as the proxy — and isn't yet wired
-  into 0056's calculation at all (0056 doesn't apply an injury discount;
-  that remains open for a future revision).
+  resolution — `players.prone_overall` as the proxy — and is now filed as
+  [0059](0059-wire-injury-risk-into-surplus-value.md): reuse
+  `BatterProjection`/`PitcherProjection`'s existing durability-category
+  multipliers (already real numbers, just not yet applied beyond the
+  current season) as a per-future-year discount on projected value.
 
 ## 3. Approach (epic outline — broken down into sub-tickets below)
 
@@ -95,6 +97,9 @@ a dependency chain despite sharing a data gap.
 - Recommendation label: [0058](0058-contract-recommendation-thresholds.md) —
   turns 0056's surplus number into the Extend/Keep/Let-walk/Non-tender/
   Trade label the original ask wanted, displayed in 0057's component.
+- Injury risk: [0059](0059-wire-injury-risk-into-surplus-value.md) — wires
+  the already-chosen `prone_overall` proxy into 0056's calculation, which
+  never actually applied it.
 
 **Files involved:**
 - Contract ingestion: see [0053](0053-contract-service-time-schema.md)/
@@ -105,3 +110,5 @@ a dependency chain despite sharing a data gap.
   [0057](0057-surplus-value-frontend-display.md) for exact files.
 - Recommendation label: see
   [0058](0058-contract-recommendation-thresholds.md) for exact files.
+- Injury risk: see
+  [0059](0059-wire-injury-risk-into-surplus-value.md) for exact files.

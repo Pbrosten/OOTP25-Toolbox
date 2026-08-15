@@ -6,6 +6,7 @@ from app.player_projection.contract_value import (
     WAR_DOLLAR_VALUE,
     FA_SERVICE_YEARS,
     MIN_SALARY,
+    INJURY_MULTIPLIERS,
 )
 
 
@@ -116,6 +117,100 @@ def test_negative_surplus_is_not_floored():
         base_war=0.5, current_age=25, mlb_service_years=0, contract=contract
     )
     assert result["total_surplus"] < 0
+
+
+# === injury-risk discount (ticket 0059) ===
+
+
+def test_injury_discount_does_not_apply_to_year_zero():
+    # Year 0's base_war is already PA/IP-discounted upstream by
+    # BatterProjection/PitcherProjection -- applying the multiplier again
+    # here would double-count.
+    contract = make_contract(current_year=0, years=3, salary0=0, salary1=0, salary2=0)
+    result = calculate_surplus_value(
+        base_war=3.0, current_age=25, mlb_service_years=2, contract=contract,
+        prone_overall=200, is_pitcher=False,
+    )
+    assert result["years"][0]["value"] == pytest.approx(3.0 * WAR_DOLLAR_VALUE)
+
+
+def test_injury_discount_applies_to_future_years_for_batter():
+    contract = make_contract(current_year=0, years=3, salary0=0, salary1=0, salary2=0)
+    result = calculate_surplus_value(
+        base_war=3.0, current_age=25, mlb_service_years=2, contract=contract,
+        prone_overall=200, is_pitcher=False,
+    )
+    expected = 3.0 * WAR_DOLLAR_VALUE * INJURY_MULTIPLIERS["Wrecked"]["Batter"]
+    assert result["years"][1]["value"] == pytest.approx(expected)
+
+
+def test_injury_discount_does_not_compound_across_years():
+    # current_age=25 keeps every projected year below AGE_DECLINE_SLOW_START
+    # (32), so war/value would be flat across years but for the multiplier --
+    # confirms the same multiplier is applied fresh each year, not raised to
+    # increasing powers.
+    contract = make_contract(
+        current_year=0, years=5, salary0=0, salary1=0, salary2=0, salary3=0, salary4=0
+    )
+    result = calculate_surplus_value(
+        base_war=4.0, current_age=25, mlb_service_years=2, contract=contract,
+        prone_overall=200, is_pitcher=False,
+    )
+    multiplier = INJURY_MULTIPLIERS["Wrecked"]["Batter"]
+    expected = 4.0 * WAR_DOLLAR_VALUE * multiplier
+    assert result["years"][1]["value"] == pytest.approx(expected)
+    assert result["years"][4]["value"] == pytest.approx(expected)
+
+
+def test_injury_discount_missing_prone_overall_is_unaffected():
+    contract = make_contract(current_year=0, years=2, salary0=0, salary1=0)
+    result = calculate_surplus_value(
+        base_war=3.0, current_age=25, mlb_service_years=2, contract=contract,
+        prone_overall=None, is_pitcher=False,
+    )
+    assert result["years"][1]["value"] == pytest.approx(3.0 * WAR_DOLLAR_VALUE)
+
+
+def test_injury_discount_uses_starter_multiplier_for_pitching_role_11():
+    contract = make_contract(current_year=0, years=2, salary0=0, salary1=0)
+    result = calculate_surplus_value(
+        base_war=3.0, current_age=25, mlb_service_years=2, contract=contract,
+        prone_overall=200, is_pitcher=True, pitching_role=11,
+    )
+    expected = 3.0 * WAR_DOLLAR_VALUE * INJURY_MULTIPLIERS["Wrecked"]["Starter"]
+    assert result["years"][1]["value"] == pytest.approx(expected)
+
+
+def test_injury_discount_uses_reliever_multiplier_for_pitching_role_12_and_13():
+    contract = make_contract(current_year=0, years=2, salary0=0, salary1=0)
+    for role in (12, 13):
+        result = calculate_surplus_value(
+            base_war=3.0, current_age=25, mlb_service_years=2, contract=contract,
+            prone_overall=200, is_pitcher=True, pitching_role=role,
+        )
+        expected = 3.0 * WAR_DOLLAR_VALUE * INJURY_MULTIPLIERS["Wrecked"]["Reliever"]
+        assert result["years"][1]["value"] == pytest.approx(expected)
+
+
+def test_injury_discount_defaults_unknown_pitching_role_to_starter():
+    contract = make_contract(current_year=0, years=2, salary0=0, salary1=0)
+    result = calculate_surplus_value(
+        base_war=3.0, current_age=25, mlb_service_years=2, contract=contract,
+        prone_overall=200, is_pitcher=True, pitching_role=None,
+    )
+    expected = 3.0 * WAR_DOLLAR_VALUE * INJURY_MULTIPLIERS["Wrecked"]["Starter"]
+    assert result["years"][1]["value"] == pytest.approx(expected)
+
+
+def test_injury_discount_durable_player_is_materially_unaffected():
+    contract = make_contract(current_year=0, years=2, salary0=0, salary1=0)
+    normal = calculate_surplus_value(
+        base_war=3.0, current_age=25, mlb_service_years=2, contract=contract,
+        prone_overall=10, is_pitcher=False,
+    )
+    assert normal["years"][1]["value"] == pytest.approx(
+        3.0 * WAR_DOLLAR_VALUE * INJURY_MULTIPLIERS["Durable"]["Batter"]
+    )
 
 
 # === recommend_contract_action (ticket 0058) ===

@@ -237,6 +237,9 @@ build-order list above for that nuance):
 [x] 0058 Recommendation thresholds                |
       |                                          |
       v                                          |
+[x] 0059 Wire injury risk into surplus value      |
+      |                                          |
+      v                                          |
 [~] 0042 Contract & Arbitration Analyzer --------+
                                                   |
                                                   v
@@ -333,7 +336,9 @@ label is [0058](0058-contract-recommendation-thresholds.md) — a two-axis
 decision table derived from a curated cohort of real, salaried contracts
 (deriving from the full player pool failed initially: this save has 259
 teams, so most rated players are organizational depth, not a
-projection-system bug).
+projection-system bug). [0059](0059-wire-injury-risk-into-surplus-value.md)
+closes the last remaining gap — the `prone_overall` injury-risk proxy was
+chosen back in 0041/0042 but 0056 never actually applied it.
 
 | # | Title | Tag | Status | Depends on |
 |---|-------|-----|--------|------------|
@@ -342,6 +347,7 @@ projection-system bug).
 | [0056](0056-surplus-value-calculation.md) | Surplus-value calculation module + API route | feat | Closed | 0053, 0054 |
 | [0057](0057-surplus-value-frontend-display.md) | Surplus-value frontend display | feat | Closed | 0056 |
 | [0058](0058-contract-recommendation-thresholds.md) | Contract recommendation thresholds | feat | Closed | 0056 |
+| [0059](0059-wire-injury-risk-into-surplus-value.md) | Wire injury risk into the surplus-value calculation | feat | Closed | 0056 |
 
 ### Tool: GM Command Center
 
