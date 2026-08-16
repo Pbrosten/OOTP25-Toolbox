@@ -8,9 +8,11 @@ import TeamDepthChart from '@/views/TeamDepthChart.vue'
 import ProspectPipelinePicker from '@/views/ProspectPipelinePicker.vue'
 import ProspectPipeline from '@/views/ProspectPipeline.vue'
 import ProspectLeaderboard from '@/views/ProspectLeaderboard.vue'
+import GmOrgSelect from '@/views/GmOrgSelect.vue'
 
 const routes = [
   { path: '/', component: LandingPage },
+  { path: '/gm', component: GmOrgSelect },
   { path: '/search', component: PlayerSearch },
   { path: '/players/:id', component: PlayerProfile, props: true },
   { path: '/admin', component: AdminPanel },

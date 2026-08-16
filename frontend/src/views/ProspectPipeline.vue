@@ -126,7 +126,7 @@ function formatPercent(value) {
 // asset, not a liability. Teal = potential impact player, gray = average
 // regular ceiling, amber = organizational depth.
 function fvClass(fv) {
-  if (fv >= 55) return 'bg-teal-50 text-teal-900'
+  if (fv >= 55) return 'bg-team-subtle text-team'
   if (fv >= 45) return 'bg-gray-100 text-gray-800'
   return 'bg-amber-50 text-amber-900'
 }
@@ -196,13 +196,13 @@ function riskTagTitle(riskTag) {
               <td class="px-3 py-2">
                 <router-link
                   :to="`/players/${prospect.player_id}`"
-                  class="hover:underline hover:text-teal-800 font-medium"
+                  class="hover:underline hover:text-team font-medium"
                 >
                   {{ prospect.first_name }} {{ prospect.last_name }}
                 </router-link>
                 <ArrowUpCircleIcon
                   v-if="prospect.value.mlb_promotion_ready"
-                  class="inline-block h-4 w-4 text-teal-600 align-text-bottom"
+                  class="inline-block h-4 w-4 text-team align-text-bottom"
                   title="MLB promotion ready: current-form projection already grades as a bench player/backend starter or better"
                 />
               </td>
@@ -231,7 +231,7 @@ function riskTagTitle(riskTag) {
               <td class="px-3 py-2">
                 <span
                   v-if="prospect.trend.direction === 'up'"
-                  class="inline-flex items-center gap-1 text-teal-700"
+                  class="inline-flex items-center gap-1 text-team"
                   :title="prospect.trend.alerts.map((a) => a.message).join(' ')"
                 >
                   <ArrowTrendingUpIcon class="h-4 w-4" /> Improving

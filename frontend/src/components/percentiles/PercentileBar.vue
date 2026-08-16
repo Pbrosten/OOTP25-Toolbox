@@ -58,7 +58,7 @@ export default {
   <div class="grid grid-cols-[150px_1fr_44px] items-center gap-3 my-3 w-full">
     <!-- Right-aligned label, short dotted underline beneath it (Savant-style leader) -->
     <div class="whitespace-nowrap font-bold text-sm text-right">
-      <span class="inline-block border-b-2 border-dotted border-teal-600 pb-0.5">{{ label }}</span>
+      <span class="inline-block border-b-2 border-dotted border-team pb-0.5">{{ label }}</span>
     </div>
 
     <!-- Bar container -->

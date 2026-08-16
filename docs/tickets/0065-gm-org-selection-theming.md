@@ -1,7 +1,7 @@
 # 0065 — GM organization selection + app-wide color theming
 
 - **Tag:** feat
-- **Status:** Open
+- **Status:** Closed
 - **Depends on:** —
 - **Blocks:** —
 
@@ -26,55 +26,114 @@ lands, e.g. a `useCurrentTeam()`-style composable, once it exists).
 
 ## 2. Design choices
 
-- **Persistence: `localStorage`, not a backend session/user concept.**
-  This app has no auth/login/multi-user concept anywhere today (confirmed:
-  no session middleware, no user table). **Outstanding:** confirm
-  `localStorage` (survives reloads, scoped to the browser, no backend
-  change needed) is the right call rather than a URL param or a new
-  backend "current org" endpoint — leaning `localStorage` since it's the
-  lowest-friction option and nothing else in the app needs to know a
-  user's selected org server-side.
-- **Where the selection lives / how it's shared app-wide.** Needs a
-  small shared reactive store so any component can read the selected
-  `team_id` and its colors without prop-drilling. **Outstanding:** a
-  plain reactive `ref`/composable (e.g. `frontend/src/composables/
-  useCurrentTeam.ts`, matching this app's existing composition-API style)
-  vs. introducing Pinia (not currently a dependency — confirmed via
-  `grep` for `pinia` across `frontend/src`, no hits). Leaning composable,
-  since the app doesn't need Pinia's fuller feature set (devtools,
-  multi-store modules) for one small piece of shared state, and adding a
-  new state-management dependency for this alone seems like more than
-  this ticket needs.
+Resolved with the user 2026-08-16:
+
+- **Persistence: `localStorage`.** No auth/login/multi-user concept
+  exists anywhere in this app today (confirmed: no session middleware,
+  no user table). The selected org's `team_id` persists in
+  `localStorage`, survives reloads, scoped to the browser. No backend
+  change needed.
+- **State sharing: plain composable, not Pinia.** A new
+  `frontend/src/composables/useCurrentTeam.ts` exposing a reactive
+  selected-team ref (backed by the `localStorage` value), matching this
+  app's existing composition-API style. Pinia is not a dependency today
+  and isn't needed for one piece of shared state.
+- **Theming scope: full reskin.** Every hardcoded `teal-*` Tailwind
+  accent across the app (badges, underlines, buttons, borders, etc.) is
+  replaced with the selected org's team colors, not just the header/nav.
+  This is the larger/riskier option flagged in the original ticket, but
+  is what was chosen.
 - **Theming mechanism: reuse 0064's inline CSS-custom-property approach,
   hoisted to `App.vue`.** 0064 already proved out `--team-bg`/`--team-
-  text` CSS custom properties set inline per-page; this ticket's job is
-  mostly relocating that same mechanism to apply at the app root
-  (`App.vue`) instead of one view, driven by the persisted selection
-  instead of the currently-viewed team. **Outstanding:** how much of the
-  UI actually repaints with team colors (just the header/nav, per the
-  literal "GM tab" ask? or every teal accent throughout the app, e.g.
-  `SurplusValue.vue`'s recommendation badges, `BatterPercentiles.vue`'s
-  section underlines?) — a full reskin of every hardcoded `teal-*`
-  Tailwind class across the codebase is a much larger, riskier change
-  than just recoloring the header/nav, and not clearly what was asked
-  for ("set the UI color scheme to match" is ambiguous on scope). Needs
-  a design pass before implementation, not decided here.
-- **Contrast/accessibility.** Real MLB team color pairs aren't guaranteed
-  to be readable against arbitrary backgrounds (0064 used them only
-  against each other — `background_color` behind text colored
-  `text_color`, i.e. exactly how OOTP itself pairs them). Applying them
-  more broadly (e.g. as accent colors on a white page background) risks
-  poor contrast for some teams. **Outstanding:** needs real-data spot
-  checks across a sample of teams before broad rollout, not decided here.
+  text` CSS custom properties set inline per-page. This ticket relocates
+  that mechanism to the app root (`App.vue`), driven by the persisted
+  `useCurrentTeam()` selection instead of the currently-viewed team, and
+  the reskinned components consume the same CSS variables instead of
+  hardcoded `teal-*` classes.
+- **Contrast/accessibility: use colors as-is.** Same pairing 0064 (and
+  OOTP itself) uses — `background_color` behind text colored
+  `text_color`. No contrast-ratio fallback logic. Revisit only if a real
+  team's pair turns out to look bad in practice.
 
 ## 3. Approach
 
-Not scoped into concrete steps yet — the Outstanding questions above
-(state location, theming scope/mechanism, contrast handling) need
-resolving first, following this project's established pattern of asking
-before assuming design decisions on a ticket like this.
+Implemented 2026-08-16:
 
-**Files involved:** TBD once the Outstanding questions above are
-resolved — likely `frontend/src/components/Header.vue` (new "GM" tab/
-selector), a new composable under `frontend/src/composables/`, and
-`frontend/src/App.vue` (apply the persisted theme at the app root).
+1. `frontend/src/api/teams.ts` (new) — typed `fetchTeams()` client for
+   `GET /api/teams` (no lightweight single-team route exists; the
+   composable fetches the full list once and finds the current team
+   client-side, matching the pattern `ProspectPipeline.vue` already used).
+2. `frontend/src/composables/useCurrentTeam.ts` (new) — module-level
+   singleton reactive state: `currentTeamId` backed by `localStorage`
+   (`ootp-toolbox:current-team-id`), `currentTeam` derived from the
+   fetched list, `teamColors` computed (`--team-bg`/`--team-text`, falling
+   back to the app's original teal-800/white when no org is selected),
+   and `setCurrentTeam(id)`.
+3. `frontend/src/views/GmOrgSelect.vue` (new) + `/gm` route
+   (`frontend/src/router/index.ts`) — the "GM" tab's destination, styled
+   as a settings/configuration panel rather than a picker list: a "My
+   Organization" field with a `<select>` dropdown (plus color swatch)
+   bound to `useCurrentTeam()`.
+4. `frontend/src/components/Header.vue` — added nav links for "Depth
+   Chart" (`/teams`, the existing `TeamPicker.vue` route) and "Prospect
+   Pipelines" (`/prospects`, the existing `ProspectPipelinePicker.vue`
+   route) alongside the new "GM" tab — both tools existed already but
+   weren't reachable from the header nav. The header itself now themes
+   via `bg-team`/`text-team-on-bg` instead of the old hardcoded
+   `bg-teal-800 text-white`.
+5. `frontend/src/App.vue` — wraps `<Header/>` + `<router-view/>` in a div
+   with `:style="teamColors"` from `useCurrentTeam()`, so the CSS custom
+   properties cascade to every page.
+6. `frontend/src/style.css` — new `.bg-team`/`.text-team`/
+   `.text-team-on-bg`/`.border-team`/`.bg-team-subtle` (light tint via
+   `color-mix()`) utility classes, replacing the old static `teal-*`
+   Tailwind classes app-wide (13 files, ~45 occurrences swept).
+   `TeamDepthChart.vue`/`ProspectPipeline.vue` keep their own local
+   `teamColors` override (0064) for the *viewed* team's colors — CSS
+   custom property scoping means `var(--team-bg)` inside those pages'
+   already-existing wrapper div resolves to the viewed team, while every
+   other page (and the header/nav) resolves to the app-root "my org"
+   value from `useCurrentTeam()`. No conflict between the two concepts.
+7. `frontend/src/views/TeamPicker.vue` (`/teams`) and
+   `ProspectPipelinePicker.vue` (`/prospects`) — both source their team
+   list from `useCurrentTeam()` instead of their own `fetch('/api/
+   teams')`, keeping a single shared fetch/error state
+   (`useCurrentTeam()` gained a `teamsError` ref for this). Both remain
+   plain manual pickers — an auto-select-and-navigate-to-the-GM's-own-org
+   behavior was tried and then explicitly removed, since selecting an
+   org for these two tools should stay a deliberate per-visit choice, not
+   implied by the separate app-wide "My Organization" theming selection.
+8. `frontend/src/views/LandingPage.vue` — the Home page's "Roster Depth
+   Chart" and "Prospect Pipeline" tool cards route to `/teams` and
+   `/prospects` respectively — each tool's own org-selection page (step
+   7's picker views), not the shared `/gm` settings screen.
+9. `frontend/src/components/Sidebar.vue` (new) — the per-tool links
+   ("Find a Player", "Depth Chart", "Prospect Pipelines") moved out of
+   `Header.vue`'s top bar into a left sidebar. `Header.vue`'s top nav now
+   only has "Home" and "GM". `App.vue` lays out `<Header/>` on top, then
+   a flex row of `<Sidebar/>` + `<main><router-view/></main>` below it.
+   Sidebar visuals: a "TOOLS" section label, a `@heroicons/vue/24/outline`
+   icon per link (`MagnifyingGlassIcon`/`UserGroupIcon`/
+   `RocketLaunchIcon`), hover state (white pill + team-colored text), and
+   an active-route state (`bg-team-subtle`/`text-team` via `router-link`'s
+   `active-class`) instead of the original plain stacked text links.
+
+**Files involved:** `frontend/src/api/teams.ts` (new),
+`frontend/src/composables/useCurrentTeam.ts` (new),
+`frontend/src/views/GmOrgSelect.vue` (new),
+`frontend/src/router/index.ts`, `frontend/src/components/Header.vue`,
+`frontend/src/App.vue`, `frontend/src/style.css`, and every component
+that previously used hardcoded `teal-*` classes: `DevelopmentTrends.vue`,
+`PlayerDetails.vue`, `SurplusValue.vue`, `BatterPercentiles.vue`,
+`PercentileBar.vue`, `PitcherPercentiles.vue`, `PlayerProfile.vue`,
+`PlayerSearch.vue`, `ProspectLeaderboard.vue`, `ProspectPipeline.vue`,
+`ProspectPipelinePicker.vue`, `TeamDepthChart.vue`, `TeamPicker.vue`.
+
+**Verification:** `npm run build`'s `vue-tsc -b` errors are pre-existing
+(confirmed identical on `develop` before this change — the container's
+tsc invocation doesn't resolve `@/` path aliases at all, unrelated to
+this ticket). Dev server HMR picked up every change cleanly, `/gm` route
+returns 200, and `GET /api/teams` confirmed returning real
+`background_color`/`text_color` per team. Not verified in an actual
+browser (no browser tool available this session) — worth a manual
+visual pass before closing.

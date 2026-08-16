@@ -1,1 +1,26 @@
 @import "tailwindcss";
+
+/* Ticket 0065: app-wide org theming. --team-bg/--team-text are set inline
+   (App.vue) from the selected org's real colors; these utilities replace
+   the app's former hardcoded teal-* accents so every page follows suit. */
+.bg-team {
+  background-color: var(--team-bg);
+}
+.text-team-on-bg {
+  color: var(--team-text);
+}
+.text-team {
+  color: var(--team-bg);
+}
+.border-team {
+  border-color: var(--team-bg);
+}
+.bg-team-subtle {
+  background-color: color-mix(in srgb, var(--team-bg) 10%, white);
+}
+.hover\:text-team:hover {
+  color: var(--team-bg);
+}
+.focus\:border-team:focus {
+  border-color: var(--team-bg);
+}

@@ -260,7 +260,7 @@ const filteredFieldingPercentiles = computed(() => {
         <Listbox v-model="selectedYear">
           <div class="relative mt-1">
             <ListboxButton
-              class="min-w-[5rem] w-auto cursor-default rounded-lg bg-white py-2 pl-3 pr-10 text-left shadow-md focus:outline-none focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-white/75 focus-visible:ring-offset-2 focus-visible:ring-offset-teal-600 sm:text-sm">
+              class="min-w-[5rem] w-auto cursor-default rounded-lg bg-white py-2 pl-3 pr-10 text-left shadow-md focus:outline-none focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-white/75 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--team-bg)] sm:text-sm">
               <span class="block truncate">{{ formatYear(selectedYear.rating_date) }}</span>
               <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
                 <ChevronUpDownIcon class="h-5 w-5 text-gray-400" aria-hidden="true" />
@@ -275,7 +275,7 @@ const filteredFieldingPercentiles = computed(() => {
                 <ListboxOption v-slot="{ active, selected }" v-for="year in years" :key="year.rating_date" :value="year"
                   as="template">
                   <li :class="[
-                    active ? 'bg-teal-100 text-teal-900' : 'text-gray-900',
+                    active ? 'bg-team-subtle text-team' : 'text-gray-900',
                     'relative cursor-default select-none py-2 pl-10 pr-4',
                   ]">
                     <span :class="[
@@ -299,7 +299,7 @@ const filteredFieldingPercentiles = computed(() => {
 
       <div v-if='isMlb && xStatsBat'>
         <div class="relative w-full h-10">
-          <div class="absolute inset-x-0 bottom-1.25 h-0.5 bg-teal-600"></div>
+          <div class="absolute inset-x-0 bottom-1.25 h-0.5 bg-team"></div>
 
           <div class="relative flex items-center space-x-2 h-full px-4">
             <img src="@/assets/slider-trophy.png" class="w-10 h-10" />
@@ -322,7 +322,7 @@ const filteredFieldingPercentiles = computed(() => {
 
       <div v-if='isMlb && xStatsBat'>
         <div class="relative w-full h-10">
-          <div class="absolute inset-x-0 bottom-1.25 h-0.5 bg-teal-600"></div>
+          <div class="absolute inset-x-0 bottom-1.25 h-0.5 bg-team"></div>
 
           <div class="relative flex items-center space-x-2 h-full px-4">
             <img src="@/assets/slider-batter.png" class="w-10 h-10" />
@@ -345,7 +345,7 @@ const filteredFieldingPercentiles = computed(() => {
 
       <div v-if='isMlb && Object.keys(filteredFieldingPercentiles).length > 0'>
         <div class="relative w-full h-10">
-          <div class="absolute inset-x-0 bottom-1.25 h-0.5 bg-teal-600"></div>
+          <div class="absolute inset-x-0 bottom-1.25 h-0.5 bg-team"></div>
 
           <div class="relative flex items-center space-x-2 h-full px-4">
             <img src="@/assets/slider-fielder.png" class="w-10 h-10" />
@@ -368,7 +368,7 @@ const filteredFieldingPercentiles = computed(() => {
 
       <div v-if='isMlb && xStatsRun'>
         <div class="relative w-full h-10">
-          <div class="absolute inset-x-0 bottom-1.25 h-0.5 bg-teal-600"></div>
+          <div class="absolute inset-x-0 bottom-1.25 h-0.5 bg-team"></div>
 
           <div class="relative flex items-center space-x-2 h-full px-4">
             <img src="@/assets/slider-runner.png" class="w-10 h-10" />

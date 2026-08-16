@@ -93,8 +93,8 @@ async function fetchValue() {
 // exit" (let it play out or move him), "cut him loose now" (non-tender) --
 // colored accordingly rather than a five-way palette.
 const recommendationClass: Record<string, string> = {
-  Extend: 'bg-teal-50 text-teal-900',
-  'Keep short-term': 'bg-teal-50 text-teal-900',
+  Extend: 'bg-team-subtle text-team',
+  'Keep short-term': 'bg-team-subtle text-team',
   'Trade before free agency': 'bg-amber-50 text-amber-900',
   'Let walk': 'bg-amber-50 text-amber-900',
   'Non-tender': 'bg-red-50 text-red-900',
@@ -104,7 +104,7 @@ const recommendationClass: Record<string, string> = {
 // colors above) -- even a low-ceiling prospect is a real asset, not a
 // liability. Same tiering as ProspectPipeline.vue (ticket 0070).
 function fvClass(grade: number): string {
-  if (grade >= 55) return 'bg-teal-50 text-teal-900'
+  if (grade >= 55) return 'bg-team-subtle text-team'
   if (grade >= 45) return 'bg-gray-100 text-gray-800'
   return 'bg-amber-50 text-amber-900'
 }
@@ -157,7 +157,7 @@ function formatPercent(value: number): string {
         </p>
         <span
           v-if="mlbPromotionReady"
-          class="inline-block px-3 py-1 mb-3 rounded-full text-sm font-semibold bg-teal-50 text-teal-900"
+          class="inline-block px-3 py-1 mb-3 rounded-full text-sm font-semibold bg-team-subtle text-team"
         >
           MLB Promotion Ready
         </span>
@@ -217,7 +217,7 @@ function formatPercent(value: number): string {
           </div>
           <div
             class="px-3 py-2 rounded"
-            :class="totalSurplus >= 0 ? 'bg-teal-50 text-teal-900' : 'bg-red-50 text-red-900'"
+            :class="totalSurplus >= 0 ? 'bg-team-subtle text-team' : 'bg-red-50 text-red-900'"
           >
             <div>Surplus</div>
             <div class="font-semibold">{{ formatMoney(totalSurplus) }}</div>
@@ -243,7 +243,7 @@ function formatPercent(value: number): string {
                 <td class="px-2 py-1">{{ formatMoney(yr.cost) }}</td>
                 <td
                   class="px-2 py-1"
-                  :class="yr.surplus >= 0 ? 'text-teal-700' : 'text-red-600'"
+                  :class="yr.surplus >= 0 ? 'text-team' : 'text-red-600'"
                 >
                   {{ formatMoney(yr.surplus) }}
                 </td>

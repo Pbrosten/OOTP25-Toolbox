@@ -59,7 +59,7 @@ const onPlayerSelect = (player) => {
     <Combobox :modelValue="selectedPlayer" @update:modelValue="onPlayerSelect">
       <div class="relative">
         <ComboboxInput
-          class="w-full border border-gray-300 rounded-md py-2 px-4 focus:outline-none focus:ring-2 focus:ring-white focus:border-teal-500"
+          class="w-full border border-gray-300 rounded-md py-2 px-4 focus:outline-none focus:ring-2 focus:ring-white focus:border-team"
           placeholder="Search for a player..."
           @input="handleSearch"
           :display-value="(player) => player ? player.first_name + ' ' + player.last_name : searchQuery"

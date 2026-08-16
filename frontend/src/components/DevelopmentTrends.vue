@@ -69,7 +69,7 @@ async function fetchTrends() {
             :key="alert.table + '-' + alert.column"
             class="text-sm px-3 py-2 rounded border-l-4"
             :class="alert.direction === 'improved'
-              ? 'border-teal-600 bg-teal-50 text-teal-900'
+              ? 'border-team bg-team-subtle text-team'
               : 'border-red-500 bg-red-50 text-red-900'"
           >
             {{ alert.message }}

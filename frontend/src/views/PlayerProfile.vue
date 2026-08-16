@@ -43,7 +43,7 @@ const isTwp = computed(() => playerDetails.value?.is_twp ?? false)
               <Tab v-slot="{ selected }" as="template">
                 <button
                   class="px-4 py-2 text-sm font-semibold rounded-t-md focus:outline-none transition-colors"
-                  :class="selected ? 'bg-teal-700 text-white' : 'text-gray-600 hover:bg-gray-100'"
+                  :class="selected ? 'bg-team text-team-on-bg' : 'text-gray-600 hover:bg-gray-100'"
                 >
                   Batting
                 </button>
@@ -51,7 +51,7 @@ const isTwp = computed(() => playerDetails.value?.is_twp ?? false)
               <Tab v-slot="{ selected }" as="template">
                 <button
                   class="px-4 py-2 text-sm font-semibold rounded-t-md focus:outline-none transition-colors"
-                  :class="selected ? 'bg-teal-700 text-white' : 'text-gray-600 hover:bg-gray-100'"
+                  :class="selected ? 'bg-team text-team-on-bg' : 'text-gray-600 hover:bg-gray-100'"
                 >
                   Pitching
                 </button>

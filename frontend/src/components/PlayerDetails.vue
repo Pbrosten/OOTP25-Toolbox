@@ -245,7 +245,7 @@ defineExpose({
     <h2 class="text-xl mb-2">
       <div v-if="playerDetails">
         {{ playerDetails.is_twp ? 'TWP' : playerDetails.position }}
-        <span class="text-teal-800">|</span>
+        <span class="text-team">|</span>
         {{ playerDetails.team_city }} {{ playerDetails.team_name }}
       </div>
     </h2>
@@ -253,15 +253,15 @@ defineExpose({
     <p class="text-sm text-gray-600 mb-6">
       <div v-if="playerDetails">
         Bats/Throws: {{ playerDetails.bats }}/{{ playerDetails.throws }}
-        <span class="text-lg text-teal-800">|</span>
+        <span class="text-lg text-team">|</span>
         {{ playerDetails.height }}CM {{ playerDetails.weight }}LBS
-        <span class="text-lg text-teal-800">|</span>
+        <span class="text-lg text-team">|</span>
         Age: {{ playerDetails.age }}
       </div>
       <div v-else>Player Position
-        <span class="text-lg text-teal-800">|</span>  Bats/Throws: R/R
-        <span class="text-lg text-teal-800">|</span>  Height Weight
-        <span class="text-lg text-teal-800">|</span>  Age: ##</div>
+        <span class="text-lg text-team">|</span>  Bats/Throws: R/R
+        <span class="text-lg text-team">|</span>  Height Weight
+        <span class="text-lg text-team">|</span>  Age: ##</div>
     </p>
 
     <template

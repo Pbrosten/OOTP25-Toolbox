@@ -277,7 +277,7 @@ its minor-league level/affiliate half as 0062, both drawn below):
     build-order list, not a hard ticket dependency — same convention as
     0035/0036/0037 being left out of the pitcher-projection epic's diagram).
 
-[ ] 0065 GM Org Selection + Theming — standalone, omitted above (resolves
+[x] 0065 GM Org Selection + Theming — standalone, omitted above (resolves
     the "current team" gap 0038/0039 both flagged, but scoped narrowly to
     selection + theming, not the full Command Center dashboard; no ticket
     depends on it yet).
@@ -294,7 +294,7 @@ its minor-league level/affiliate half as 0062, both drawn below):
 | [0043](0043-prospect-pipeline.md) | Prospect Pipeline (epic tracker) | feat | Closed | 0044 |
 | [0042](0042-contract-arbitration-analyzer.md) | Contract & Arbitration Analyzer (epic tracker) | feat | Closed | 0053, 0054 |
 | [0038](0038-gm-command-center.md) | GM Command Center (epic tracker) | feat | Open | 0039, 0042, 0043 |
-| [0065](0065-gm-org-selection-theming.md) | GM organization selection + app-wide color theming | feat | Open | — |
+| [0065](0065-gm-org-selection-theming.md) | GM organization selection + app-wide color theming | feat | Closed | — |
 
 ### Tool: Player Development Monitor
 

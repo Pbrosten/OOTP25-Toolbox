@@ -90,7 +90,7 @@ function formatPercent(value) {
 // Same tiering as ProspectPipeline.vue (ticket 0070/0072) -- no "bad" tier,
 // even a low-ceiling prospect is a real asset, not a liability.
 function fvClass(fv) {
-  if (fv >= 55) return 'bg-teal-50 text-teal-900'
+  if (fv >= 55) return 'bg-team-subtle text-team'
   if (fv >= 45) return 'bg-gray-100 text-gray-800'
   return 'bg-amber-50 text-amber-900'
 }
@@ -114,7 +114,7 @@ const totalPages = () => Math.max(1, Math.ceil(topOverall.value.total / pageSize
 
 <template>
   <div class="max-w-6xl mx-auto p-6">
-    <h1 class="text-xl font-bold rounded-lg px-4 py-3 mb-6 bg-teal-700 text-white">
+    <h1 class="text-xl font-bold rounded-lg px-4 py-3 mb-6 bg-team text-team-on-bg">
       League-Wide Prospect Leaderboard
     </h1>
 
@@ -169,13 +169,13 @@ const totalPages = () => Math.max(1, Math.ceil(topOverall.value.total / pageSize
                 <td class="px-3 py-2">
                   <router-link
                     :to="`/players/${prospect.player_id}`"
-                    class="hover:underline hover:text-teal-800 font-medium"
+                    class="hover:underline hover:text-team font-medium"
                   >
                     {{ prospect.first_name }} {{ prospect.last_name }}
                   </router-link>
                   <ArrowUpCircleIcon
                     v-if="prospect.value.mlb_promotion_ready"
-                    class="inline-block h-4 w-4 text-teal-600 align-text-bottom"
+                    class="inline-block h-4 w-4 text-team align-text-bottom"
                     title="MLB promotion ready: current-form projection already grades as a bench player/backend starter or better"
                   />
                 </td>
@@ -227,13 +227,13 @@ const totalPages = () => Math.max(1, Math.ceil(topOverall.value.total / pageSize
             :key="pos"
             class="bg-white rounded-lg shadow-sm border border-gray-200 p-4"
           >
-            <h3 class="text-sm font-semibold text-teal-800 uppercase tracking-wide mb-2 pb-2 border-b border-gray-100">
+            <h3 class="text-sm font-semibold text-team uppercase tracking-wide mb-2 pb-2 border-b border-gray-100">
               {{ pos }}
             </h3>
             <ol class="text-sm space-y-1">
               <li v-for="(prospect, index) in group" :key="prospect.player_id" class="flex items-center gap-2">
                 <span class="text-gray-400 w-4 text-right">{{ index + 1 }}</span>
-                <router-link :to="`/players/${prospect.player_id}`" class="hover:underline hover:text-teal-800 flex-1 truncate">
+                <router-link :to="`/players/${prospect.player_id}`" class="hover:underline hover:text-team flex-1 truncate">
                   {{ prospect.first_name }} {{ prospect.last_name }}
                 </router-link>
                 <span class="text-gray-400 text-xs whitespace-nowrap">{{ prospect.org_abbr }}</span>
@@ -255,13 +255,13 @@ const totalPages = () => Math.max(1, Math.ceil(topOverall.value.total / pageSize
             :key="lvl"
             class="bg-white rounded-lg shadow-sm border border-gray-200 p-4"
           >
-            <h3 class="text-sm font-semibold text-teal-800 uppercase tracking-wide mb-2 pb-2 border-b border-gray-100">
+            <h3 class="text-sm font-semibold text-team uppercase tracking-wide mb-2 pb-2 border-b border-gray-100">
               {{ LEVEL_LABELS[lvl] || lvl }}
             </h3>
             <ol class="text-sm space-y-1">
               <li v-for="(prospect, index) in group" :key="prospect.player_id" class="flex items-center gap-2">
                 <span class="text-gray-400 w-4 text-right">{{ index + 1 }}</span>
-                <router-link :to="`/players/${prospect.player_id}`" class="hover:underline hover:text-teal-800 flex-1 truncate">
+                <router-link :to="`/players/${prospect.player_id}`" class="hover:underline hover:text-team flex-1 truncate">
                   {{ prospect.first_name }} {{ prospect.last_name }}
                 </router-link>
                 <span class="text-gray-400 text-xs whitespace-nowrap">{{ prospect.org_abbr }}</span>
