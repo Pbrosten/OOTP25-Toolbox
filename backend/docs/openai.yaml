@@ -892,6 +892,12 @@ paths:
         talent/current ratings (ticket 0068); development trend reuses
         ticket 0050/0051's rating-delta/alert layer. Excludes FV 30
         ("Up & Down") players entirely (ticket 0072 follow-up).
+
+        With `leaderboard=1` (ticket 0076), switches to a league-wide
+        leaderboard mode instead of the flat org-scoped list: reads ticket
+        0075's persisted `players_prospect_value` table (no per-request
+        projection calls) and returns three curated sections. team_id/
+        position/level still apply as filters in this mode.
       tags: [Prospects]
       parameters:
         - in: query
@@ -912,79 +918,133 @@ paths:
             type: integer
           required: false
           description: Scope to a single teams.level (1 = MLB, 2 = AAA, 3 = AA, 4 = A/High-A, 6 = Rookie/Complex).
+        - in: query
+          name: leaderboard
+          schema:
+            type: string
+          required: false
+          description: Any truthy value switches to league-wide leaderboard mode (ticket 0076).
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          required: false
+          description: Leaderboard mode only -- paginates the top_overall section.
+        - in: query
+          name: page_size
+          schema:
+            type: integer
+            default: 50
+          required: false
+          description: Leaderboard mode only -- results per page in top_overall.
       responses:
         '200':
-          description: List of prospects
+          description: List of prospects (default mode), or the three-section leaderboard (leaderboard=1)
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    player_id:
-                      type: integer
-                    first_name:
-                      type: string
-                    last_name:
-                      type: string
-                    position:
-                      type: string
-                    age:
-                      type: integer
-                    team_id:
-                      type: integer
-                    team_abbr:
-                      type: string
-                    level:
-                      type: integer
-                    parent_team_id:
-                      type: integer
-                      nullable: true
-                    mlb_service_years:
-                      type: integer
-                      nullable: true
-                    value:
+                oneOf:
+                  - type: array
+                    description: Default mode -- one entry per prospect.
+                    items:
                       type: object
-                      description: |
-                        {"available": false} only for a player with no
-                        usable rating data -- RP-role prospects get a real
-                        value too (their own smaller workload naturally
-                        produces a lower WAR/FV, no exclusion needed).
                       properties:
-                        available:
-                          type: boolean
-                        fv:
+                        player_id:
                           type: integer
-                          description: 20-80 Future Value grade off the player's talent-ceiling projection.
-                        surplus_value:
-                          type: integer
-                          description: Expected surplus value in dollars, looked up by FV grade.
-                        expected_war:
-                          type: number
-                        star_odds:
-                          type: number
-                          description: Percent chance of a multi-4+-WAR-season "star" outcome, by FV grade.
-                        current_fv:
-                          type: integer
-                          description: FV grade off the player's *current* (not talent) ratings.
-                        risk_tag:
+                        first_name:
                           type: string
+                        last_name:
+                          type: string
+                        position:
+                          type: string
+                        age:
+                          type: integer
+                        team_id:
+                          type: integer
+                        team_abbr:
+                          type: string
+                        level:
+                          type: integer
+                        parent_team_id:
+                          type: integer
                           nullable: true
-                          enum: ["+", "-"]
-                          description: Ticket 0072 -- "-" if fv is >= 20 points above current_fv (far from talent ceiling), "+" if within 5 points, null otherwise. Independent of prone_overall injury risk.
-                        mlb_promotion_ready:
-                          type: boolean
-                          description: Present only when level != 1 -- true if current_fv >= 40 ("Bench Player"/"Backend starter" or better).
-                    trend:
-                      type: object
-                      properties:
-                        direction:
-                          type: string
-                          enum: [up, down, mixed, flat]
-                        alerts:
+                        mlb_service_years:
+                          type: integer
+                          nullable: true
+                        value:
+                          type: object
+                          description: |
+                            {"available": false} only for a player with no
+                            usable rating data -- RP-role prospects get a real
+                            value too (their own smaller workload naturally
+                            produces a lower WAR/FV, no exclusion needed).
+                          properties:
+                            available:
+                              type: boolean
+                            fv:
+                              type: integer
+                              description: 20-80 Future Value grade off the player's talent-ceiling projection.
+                            surplus_value:
+                              type: integer
+                              description: Expected surplus value in dollars, looked up by FV grade.
+                            expected_war:
+                              type: number
+                            star_odds:
+                              type: number
+                              description: Percent chance of a multi-4+-WAR-season "star" outcome, by FV grade.
+                            current_fv:
+                              type: integer
+                              description: FV grade off the player's *current* (not talent) ratings.
+                            risk_tag:
+                              type: string
+                              nullable: true
+                              enum: ["+", "-"]
+                              description: Ticket 0072 -- "-" if fv is >= 20 points above current_fv (far from talent ceiling), "+" if within 5 points, null otherwise. Independent of prone_overall injury risk.
+                            mlb_promotion_ready:
+                              type: boolean
+                              description: Present only when level != 1 -- true if current_fv >= 40 ("Bench Player"/"Backend starter" or better).
+                        trend:
+                          type: object
+                          properties:
+                            direction:
+                              type: string
+                              enum: [up, down, mixed, flat]
+                            alerts:
+                              type: array
+                              description: Ticket 0051's per-category development alerts (see /api/players/ratings/{player_id}/trends/alerts).
+                              items:
+                                type: object
+                  - type: object
+                    description: Leaderboard mode (leaderboard=1) -- three curated sections, no "trend" field (not computed in this mode).
+                    properties:
+                      top_overall:
+                        type: object
+                        properties:
+                          page:
+                            type: integer
+                          page_size:
+                            type: integer
+                          total:
+                            type: integer
+                            description: Total prospects matching the filters, before pagination.
+                          results:
+                            type: array
+                            items:
+                              type: object
+                              description: Same identity/value shape as the default mode's list entries, minus "trend". value.available is always true here -- a prospect with no persisted row is simply absent from the result set.
+                      top_by_position:
+                        type: object
+                        description: Keyed by players.position; each value an array of up to 10 entries.
+                        additionalProperties:
                           type: array
-                          description: Ticket 0051's per-category development alerts (see /api/players/ratings/{player_id}/trends/alerts).
+                          items:
+                            type: object
+                      top_by_level:
+                        type: object
+                        description: Keyed by teams.level as a string (including "0" for Int'l Complex, ticket 0073); each value an array of up to 10 entries.
+                        additionalProperties:
+                          type: array
                           items:
                             type: object
 

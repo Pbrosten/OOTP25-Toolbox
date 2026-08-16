@@ -1,3 +1,4 @@
+import os
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -53,6 +54,28 @@ def _pitcher_row(**overrides):
     )
     row.update(overrides)
     return row
+
+
+def _leaderboard_row(**overrides):
+    """Matches get_prospect_leaderboard.sql's flat output shape."""
+    row = {
+        "player_id": 1, "first_name": "Alice", "last_name": "Ace",
+        "position": "SS", "age": 20, "team_id": 5, "team_abbr": "AAA",
+        "level": 2, "parent_team_id": 1, "mlb_service_years": 0,
+        "fv": 60, "surplus_value": 82_000_000, "expected_war": 12.5,
+        "star_odds": 33.0, "current_fv": 40, "risk_tag": "+",
+    }
+    row.update(overrides)
+    return row
+
+
+def _mock_leaderboard_db(mock_get_db, rows):
+    mock_con = MagicMock()
+    mock_cursor = MagicMock()
+    mock_cursor.fetchall.return_value = rows
+    mock_con.cursor.return_value.__enter__.return_value = mock_cursor
+    mock_get_db.return_value = mock_con
+    return mock_con, mock_cursor
 
 
 def _mock_db(mock_get_db, prospect_rows, trend_rows_per_player=None):
@@ -308,3 +331,176 @@ def test_get_prospect_value_passes_player_id_filter(
     assert call_args.args[1] == {
         "team_id": None, "position": None, "level": None, "player_id": 42,
     }
+
+
+# === leaderboard mode (ticket 0076) ===
+
+
+@patch("app.api.prospects.current_app.open_resource")
+@patch("app.api.prospects.close_db")
+@patch("app.api.prospects.get_db")
+def test_leaderboard_uses_get_prospect_leaderboard_sql(
+    mock_get_db, mock_close_db, mock_open_resource, client
+):
+    mock_open_resource.return_value.__enter__.return_value.read.return_value = "SELECT ..."
+    _mock_leaderboard_db(mock_get_db, [_leaderboard_row()])
+
+    response = client.get("/api/prospects?leaderboard=1")
+
+    assert response.status_code == 200
+    expected_path = os.path.join("db", "sql_scripts", "api", "get_prospect_leaderboard.sql")
+    mock_open_resource.assert_called_once_with(expected_path, "r")
+
+
+@patch("app.api.prospects.current_app.open_resource")
+@patch("app.api.prospects.close_db")
+@patch("app.api.prospects.get_db")
+def test_leaderboard_response_shape(mock_get_db, mock_close_db, mock_open_resource, client):
+    mock_open_resource.return_value.__enter__.return_value.read.return_value = "SELECT ..."
+    _mock_leaderboard_db(mock_get_db, [_leaderboard_row()])
+
+    body = client.get("/api/prospects?leaderboard=1").get_json()
+
+    assert set(body.keys()) == {"top_overall", "top_by_position", "top_by_level"}
+    assert body["top_overall"]["page"] == 1
+    assert body["top_overall"]["total"] == 1
+    entry = body["top_overall"]["results"][0]
+    assert entry["value"]["available"] is True
+    assert entry["value"]["fv"] == 60
+    assert "trend" not in entry
+    assert body["top_by_position"]["SS"][0]["player_id"] == 1
+    assert body["top_by_level"]["2"][0]["player_id"] == 1
+
+
+@patch("app.api.prospects.current_app.open_resource")
+@patch("app.api.prospects.close_db")
+@patch("app.api.prospects.get_db")
+def test_leaderboard_mlb_level_omits_promotion_ready(
+    mock_get_db, mock_close_db, mock_open_resource, client
+):
+    mock_open_resource.return_value.__enter__.return_value.read.return_value = "SELECT ..."
+    _mock_leaderboard_db(mock_get_db, [_leaderboard_row(level=1)])
+
+    body = client.get("/api/prospects?leaderboard=1").get_json()
+
+    assert "mlb_promotion_ready" not in body["top_overall"]["results"][0]["value"]
+
+
+@patch("app.api.prospects.current_app.open_resource")
+@patch("app.api.prospects.close_db")
+@patch("app.api.prospects.get_db")
+def test_leaderboard_excludes_fv30(mock_get_db, mock_close_db, mock_open_resource, client):
+    mock_open_resource.return_value.__enter__.return_value.read.return_value = "SELECT ..."
+    _mock_leaderboard_db(mock_get_db, [_leaderboard_row(fv=30)])
+
+    body = client.get("/api/prospects?leaderboard=1").get_json()
+
+    assert body["top_overall"]["results"] == []
+    assert body["top_by_position"] == {}
+    assert body["top_by_level"] == {}
+
+
+@patch("app.api.prospects.current_app.open_resource")
+@patch("app.api.prospects.close_db")
+@patch("app.api.prospects.get_db")
+def test_leaderboard_sections_group_by_position_and_level(
+    mock_get_db, mock_close_db, mock_open_resource, client
+):
+    mock_open_resource.return_value.__enter__.return_value.read.return_value = "SELECT ..."
+    rows = [
+        _leaderboard_row(player_id=1, position="SS", level=2, fv=70),
+        _leaderboard_row(player_id=2, position="1B", level=2, fv=60),
+        _leaderboard_row(player_id=3, position="SS", level=3, fv=50),
+    ]
+    _mock_leaderboard_db(mock_get_db, rows)
+
+    body = client.get("/api/prospects?leaderboard=1").get_json()
+
+    assert [p["player_id"] for p in body["top_by_position"]["SS"]] == [1, 3]
+    assert [p["player_id"] for p in body["top_by_position"]["1B"]] == [2]
+    assert [p["player_id"] for p in body["top_by_level"]["2"]] == [1, 2]
+    assert [p["player_id"] for p in body["top_by_level"]["3"]] == [3]
+    assert len(body["top_overall"]["results"]) == 3
+
+
+@patch("app.api.prospects.current_app.open_resource")
+@patch("app.api.prospects.close_db")
+@patch("app.api.prospects.get_db")
+def test_leaderboard_section_size_caps_at_ten(
+    mock_get_db, mock_close_db, mock_open_resource, client
+):
+    mock_open_resource.return_value.__enter__.return_value.read.return_value = "SELECT ..."
+    rows = [
+        _leaderboard_row(player_id=i, position="SS", level=2, fv=80 - i)
+        for i in range(15)
+    ]
+    _mock_leaderboard_db(mock_get_db, rows)
+
+    body = client.get("/api/prospects?leaderboard=1").get_json()
+
+    assert len(body["top_by_position"]["SS"]) == 10
+    assert len(body["top_by_level"]["2"]) == 10
+    assert [p["player_id"] for p in body["top_by_position"]["SS"]] == list(range(10))
+
+
+@patch("app.api.prospects.current_app.open_resource")
+@patch("app.api.prospects.close_db")
+@patch("app.api.prospects.get_db")
+def test_leaderboard_top_overall_pagination(
+    mock_get_db, mock_close_db, mock_open_resource, client
+):
+    mock_open_resource.return_value.__enter__.return_value.read.return_value = "SELECT ..."
+    rows = [_leaderboard_row(player_id=i, fv=80 - i) for i in range(5)]
+    _mock_leaderboard_db(mock_get_db, rows)
+
+    body = client.get("/api/prospects?leaderboard=1&page=2&page_size=2").get_json()
+
+    assert body["top_overall"]["page"] == 2
+    assert body["top_overall"]["page_size"] == 2
+    assert body["top_overall"]["total"] == 5
+    assert [p["player_id"] for p in body["top_overall"]["results"]] == [2, 3]
+
+
+@patch("app.api.prospects.current_app.open_resource")
+@patch("app.api.prospects.close_db")
+@patch("app.api.prospects.get_db")
+def test_leaderboard_default_page_size(
+    mock_get_db, mock_close_db, mock_open_resource, client
+):
+    mock_open_resource.return_value.__enter__.return_value.read.return_value = "SELECT ..."
+    _mock_leaderboard_db(mock_get_db, [_leaderboard_row()])
+
+    body = client.get("/api/prospects?leaderboard=1").get_json()
+
+    assert body["top_overall"]["page_size"] == 50
+
+
+@patch("app.api.prospects.current_app.open_resource")
+@patch("app.api.prospects.close_db")
+@patch("app.api.prospects.get_db")
+def test_leaderboard_passes_filters_to_query(
+    mock_get_db, mock_close_db, mock_open_resource, client
+):
+    mock_open_resource.return_value.__enter__.return_value.read.return_value = "SELECT ..."
+    _, mock_cursor = _mock_leaderboard_db(mock_get_db, [])
+
+    client.get("/api/prospects?leaderboard=1&team_id=5&position=SS&level=2")
+
+    call_args = mock_cursor.execute.call_args_list[0]
+    assert call_args.args[1] == {"team_id": 5, "position": "SS", "level": 2}
+
+
+@patch("app.api.prospects.current_app.open_resource")
+@patch("app.api.prospects.close_db")
+@patch("app.api.prospects.get_db")
+def test_leaderboard_does_not_query_trends(
+    mock_get_db, mock_close_db, mock_open_resource, client
+):
+    # Leaderboard mode reads only the persisted table -- no per-player
+    # get_player_rating_trends.sql calls (unlike the org-scoped mode).
+    mock_open_resource.return_value.__enter__.return_value.read.return_value = "SELECT ..."
+    _, mock_cursor = _mock_leaderboard_db(mock_get_db, [_leaderboard_row()])
+
+    client.get("/api/prospects?leaderboard=1")
+
+    assert mock_cursor.execute.call_count == 1

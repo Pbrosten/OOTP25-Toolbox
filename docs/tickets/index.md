@@ -404,7 +404,7 @@ same sequential-layering convention as 0068/0069/0070 itself.
 | [0073](0073-prospect-pipeline-org-theming.md) | Org color theming for the Prospect Pipeline page | feat | Closed | 0070 |
 | [0074](0074-league-wide-prospect-leaderboard.md) | League-wide prospect leaderboard (epic tracker) | feat | In-Progress | 0069, 0072 |
 | [0075](0075-persist-prospect-value-per-heap.md) | Persist prospect FV/value per heap | feat | Closed | — |
-| [0076](0076-leaderboard-query-layer-api.md) | Leaderboard query layer + API | feat | Open | 0075 |
+| [0076](0076-leaderboard-query-layer-api.md) | Leaderboard query layer + API | feat | Closed | 0075 |
 | [0077](0077-leaderboard-frontend-view.md) | Leaderboard frontend view | feat | Open | 0076 |
 
 ### Tool: Contract & Arbitration Analyzer

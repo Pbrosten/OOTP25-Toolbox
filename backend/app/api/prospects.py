@@ -3,7 +3,10 @@ import logging
 
 from flask import Blueprint, jsonify, current_app, request
 from app.db.connection import get_db, close_db
-from app.player_projection.prospect_value import calculate_prospect_value_from_row
+from app.player_projection.prospect_value import (
+    calculate_prospect_value_from_row,
+    PROMOTION_READY_FV_FLOOR,
+)
 from app.player_projection.development_alerts import get_development_alerts
 
 bp = Blueprint("prospects", __name__, url_prefix="/api/prospects")
@@ -24,6 +27,97 @@ def _is_excluded(value):
 
 def _int_or_none(value):
     return int(value) if value is not None else None
+
+
+# Ticket 0076: league-wide leaderboard mode (?leaderboard=1). Top-overall
+# is paginated at this page size by default; top-by-position/top-by-level
+# are fixed-size sections, no pagination needed for either.
+LEADERBOARD_DEFAULT_PAGE_SIZE = 50
+LEADERBOARD_SECTION_SIZE = 10
+
+
+def _leaderboard_entry(row):
+    """Shapes one get_prospect_leaderboard.sql row into the same
+    identity/value shape GET /api/prospects' org-scoped rows use, so the
+    frontend (ticket 0077) can reuse its existing per-prospect rendering.
+    Unlike _value_for(), there's no calc to run or failure to catch here --
+    the value already sits in the row (ticket 0075's persisted table) --
+    so "available" is always true; a prospect with no persisted row was
+    never selected by the JOIN in the first place (see
+    get_prospect_leaderboard.sql's own comment on this).
+    mlb_promotion_ready is recomputed from current_fv at read time, same
+    as _value_for() -- it's level-dependent and 0075 deliberately doesn't
+    persist it.
+    """
+    value = {
+        "available": True,
+        "fv": row["fv"],
+        "surplus_value": row["surplus_value"],
+        "expected_war": row["expected_war"],
+        "star_odds": row["star_odds"],
+        "current_fv": row["current_fv"],
+        "risk_tag": row["risk_tag"],
+    }
+    if row["level"] != 1:
+        value["mlb_promotion_ready"] = row["current_fv"] >= PROMOTION_READY_FV_FLOOR
+    return {
+        "player_id": row["player_id"],
+        "first_name": row["first_name"],
+        "last_name": row["last_name"],
+        "position": row["position"],
+        "age": row["age"],
+        "team_id": row["team_id"],
+        "team_abbr": row["team_abbr"],
+        "level": row["level"],
+        "parent_team_id": row["parent_team_id"],
+        "mlb_service_years": row["mlb_service_years"],
+        "value": value,
+    }
+
+
+def _prospect_leaderboard(cursor, team_id, position, level, page, page_size):
+    """Runs get_prospect_leaderboard.sql (ticket 0075's persisted table --
+    no projection calls here at all) and shapes the three curated sections
+    from the single, already fv-DESC-sorted result set: taking the first
+    LEADERBOARD_SECTION_SIZE rows encountered per position/level group is
+    equivalent to a separate top-N-per-group query, since the group
+    subsets preserve the overall sort order."""
+    sql_path = os.path.join("db", "sql_scripts", "api", "get_prospect_leaderboard.sql")
+    with current_app.open_resource(sql_path, "r") as f:
+        sql = f.read()
+    cursor.execute(sql, {"team_id": team_id, "position": position, "level": level})
+    rows = [row for row in cursor.fetchall() if row["fv"] not in EXCLUDED_FV]
+
+    start = (page - 1) * page_size
+    top_overall = rows[start:start + page_size]
+
+    top_by_position = {}
+    top_by_level = {}
+    for row in rows:
+        position_group = top_by_position.setdefault(row["position"], [])
+        if len(position_group) < LEADERBOARD_SECTION_SIZE:
+            position_group.append(row)
+
+        level_group = top_by_level.setdefault(str(row["level"]), [])
+        if len(level_group) < LEADERBOARD_SECTION_SIZE:
+            level_group.append(row)
+
+    return {
+        "top_overall": {
+            "page": page,
+            "page_size": page_size,
+            "total": len(rows),
+            "results": [_leaderboard_entry(row) for row in top_overall],
+        },
+        "top_by_position": {
+            pos: [_leaderboard_entry(row) for row in group]
+            for pos, group in top_by_position.items()
+        },
+        "top_by_level": {
+            lvl: [_leaderboard_entry(row) for row in group]
+            for lvl, group in top_by_level.items()
+        },
+    }
 
 
 def _value_for(row):
@@ -94,14 +188,27 @@ def get_prospects():
     definition). Excludes FV 30 ("Up & Down") players entirely (ticket
     0072 follow-up, user request) -- see EXCLUDED_FV.
 
+    With `?leaderboard=1` (ticket 0076), switches to the league-wide
+    leaderboard mode instead: reads ticket 0075's persisted
+    players_prospect_value table (no per-request projection calls) and
+    returns three curated sections instead of a flat list -- see the
+    Returns section below. team_id/position/level still apply as filters
+    in this mode too.
+
     Query Parameters:
         - team_id (int, optional): scope to a single org -- the given MLB
           team plus every affiliate whose parent_team_id points at it.
         - position (str, optional): scope to a single players.position.
         - level (int, optional): scope to a single teams.level (1/2/3/4/6).
+        - leaderboard (optional): any truthy value switches to leaderboard
+          mode (see above).
+        - page, page_size (int, optional; leaderboard mode only): paginate
+          the top_overall section. Defaults to page 1,
+          LEADERBOARD_DEFAULT_PAGE_SIZE (50) per page.
 
     Returns:
-        JSON response: a list of objects, one per prospect --
+        Default mode -- JSON response: a list of objects, one per
+        prospect --
             {player_id, first_name, last_name, position, age, team_id,
              team_abbr, level, parent_team_id, mlb_service_years,
              value: {available, fv, surplus_value, expected_war, star_odds,
@@ -116,6 +223,19 @@ def get_prospects():
             FV table applies to both SP and RP, a reliever's own smaller
             workload naturally produces a lower WAR/FV rather than needing
             exclusion). mlb_promotion_ready is only present at level != 1.
+
+        Leaderboard mode -- JSON response:
+            {"top_overall": {"page": ..., "page_size": ..., "total": ...,
+                              "results": [<prospect entry>, ...]},
+             "top_by_position": {"<position>": [<prospect entry>, ...]},
+             "top_by_level": {"<level>": [<prospect entry>, ...]}}.
+            Each <prospect entry> is the same identity/value shape as the
+            default mode's list rows, minus "trend" (not computed in this
+            mode -- see ticket 0076's Design choices). top_by_position/
+            top_by_level cap at 10 entries per group; top_overall paginates
+            per page/page_size. Every entry has value.available == true --
+            a prospect with no persisted row simply isn't in the result set
+            (see get_prospect_leaderboard.sql).
     """
     team_id = _int_or_none(request.args.get("team_id"))
     position = request.args.get("position")
@@ -123,6 +243,14 @@ def get_prospects():
 
     con = get_db()
     try:
+        if request.args.get("leaderboard"):
+            page = max(_int_or_none(request.args.get("page")) or 1, 1)
+            page_size = _int_or_none(request.args.get("page_size")) or LEADERBOARD_DEFAULT_PAGE_SIZE
+            with con.cursor() as cursor:
+                return jsonify(
+                    _prospect_leaderboard(cursor, team_id, position, level, page, page_size)
+                )
+
         sql_path = os.path.join("db", "sql_scripts", "api", "get_prospects.sql")
         with current_app.open_resource(sql_path, "r") as f:
             sql = f.read()

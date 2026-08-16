@@ -76,7 +76,7 @@ Mirrors the layering 0043's own epic used (0068 → 0069 → 0070):
 [x] 0075 Persist prospect FV/value per heap (schema + heap-processing calc)
       |
       v
-[ ] 0076 Leaderboard query layer + API (?leaderboard=1 mode, pagination)
+[x] 0076 Leaderboard query layer + API (?leaderboard=1 mode, pagination)
       |
       v
 [ ] 0077 Leaderboard frontend view
