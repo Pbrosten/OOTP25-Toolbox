@@ -1,7 +1,7 @@
 # 0074 — League-wide prospect leaderboard
 
 - **Tag:** feat
-- **Status:** In-Progress
+- **Status:** Closed
 - **Depends on:** [0069](0069-prospect-query-layer-api.md), [0072](0072-prospect-risk-adjustment.md)
 - **Blocks:** —
 
