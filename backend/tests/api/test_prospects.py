@@ -173,7 +173,9 @@ def test_get_prospects_passes_filters_to_query(
 
     assert response.status_code == 200
     first_call_args = mock_cursor.execute.call_args_list[0]
-    assert first_call_args.args[1] == {"team_id": 5, "position": "SS", "level": 2}
+    assert first_call_args.args[1] == {
+        "team_id": 5, "position": "SS", "level": 2, "player_id": None,
+    }
 
 
 @patch("app.api.prospects.current_app.open_resource")
@@ -188,4 +190,69 @@ def test_get_prospects_no_filters_pass_none(
     client.get("/api/prospects")
 
     first_call_args = mock_cursor.execute.call_args_list[0]
-    assert first_call_args.args[1] == {"team_id": None, "position": None, "level": None}
+    assert first_call_args.args[1] == {
+        "team_id": None, "position": None, "level": None, "player_id": None,
+    }
+
+
+@patch("app.api.prospects.current_app.open_resource")
+@patch("app.api.prospects.close_db")
+@patch("app.api.prospects.get_db")
+def test_get_prospect_value_not_a_prospect(
+    mock_get_db, mock_close_db, mock_open_resource, client
+):
+    mock_open_resource.return_value.__enter__.return_value.read.return_value = "SELECT ..."
+    mock_con = MagicMock()
+    mock_cursor = MagicMock()
+    mock_cursor.fetchone.return_value = None
+    mock_con.cursor.return_value.__enter__.return_value = mock_cursor
+    mock_get_db.return_value = mock_con
+
+    response = client.get("/api/prospects/999")
+
+    assert response.status_code == 200
+    assert response.get_json() == {"is_prospect": False}
+
+
+@patch("app.api.prospects.current_app.open_resource")
+@patch("app.api.prospects.close_db")
+@patch("app.api.prospects.get_db")
+def test_get_prospect_value_is_a_prospect(
+    mock_get_db, mock_close_db, mock_open_resource, client
+):
+    mock_open_resource.return_value.__enter__.return_value.read.return_value = "SELECT ..."
+    mock_con = MagicMock()
+    mock_cursor = MagicMock()
+    mock_cursor.fetchone.return_value = _prospect_row()
+    mock_con.cursor.return_value.__enter__.return_value = mock_cursor
+    mock_get_db.return_value = mock_con
+
+    response = client.get("/api/prospects/1")
+
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["is_prospect"] is True
+    assert body["available"] is True
+    assert "fv" in body
+    assert "mlb_promotion_ready" in body  # level=2 in _prospect_row()
+
+
+@patch("app.api.prospects.current_app.open_resource")
+@patch("app.api.prospects.close_db")
+@patch("app.api.prospects.get_db")
+def test_get_prospect_value_passes_player_id_filter(
+    mock_get_db, mock_close_db, mock_open_resource, client
+):
+    mock_open_resource.return_value.__enter__.return_value.read.return_value = "SELECT ..."
+    mock_con = MagicMock()
+    mock_cursor = MagicMock()
+    mock_cursor.fetchone.return_value = None
+    mock_con.cursor.return_value.__enter__.return_value = mock_cursor
+    mock_get_db.return_value = mock_con
+
+    client.get("/api/prospects/42")
+
+    call_args = mock_cursor.execute.call_args_list[0]
+    assert call_args.args[1] == {
+        "team_id": None, "position": None, "level": None, "player_id": 42,
+    }

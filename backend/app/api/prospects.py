@@ -183,7 +183,8 @@ def get_prospects():
 
         with con.cursor() as cursor:
             cursor.execute(
-                sql, {"team_id": team_id, "position": position, "level": level}
+                sql,
+                {"team_id": team_id, "position": position, "level": level, "player_id": None},
             )
             rows = cursor.fetchall()
 
@@ -207,5 +208,50 @@ def get_prospects():
                 )
 
         return jsonify(prospects)
+    finally:
+        close_db()
+
+
+@bp.route("/<int:player_id>", methods=["GET"])
+def get_prospect_value(player_id):
+    """
+    Retrieve a single player's FV-based prospect value (ticket 0071), for
+    the player page to show in place of 0056's contract-based surplus value
+    whenever the player qualifies as a prospect (0043's definition) --
+    reuses `get_prospects.sql` with its `player_id` filter rather than a
+    parallel single-player query.
+
+    Args:
+        player_id (int): The unique ID of the player.
+
+    Returns:
+        JSON response:
+            - {"is_prospect": false} if the player doesn't currently
+              qualify as a prospect (the frontend should fall back to
+              GET /api/players/<id>/surplus-value in this case).
+            - {"is_prospect": true, "available": ..., "fv": ...,
+              "surplus_value": ..., "expected_war": ..., "star_odds": ...,
+              "current_fv": ..., "mlb_promotion_ready": ...} otherwise --
+              same "value" shape as each row of GET /api/prospects,
+              flattened to the top level. "available" can still be false
+              (missing rating data) even when "is_prospect" is true.
+    """
+    con = get_db()
+    try:
+        sql_path = os.path.join("db", "sql_scripts", "api", "get_prospects.sql")
+        with current_app.open_resource(sql_path, "r") as f:
+            sql = f.read()
+
+        with con.cursor() as cursor:
+            cursor.execute(
+                sql,
+                {"team_id": None, "position": None, "level": None, "player_id": player_id},
+            )
+            row = cursor.fetchone()
+
+        if row is None:
+            return jsonify({"is_prospect": False})
+
+        return jsonify({"is_prospect": True, **_value_for(row)})
     finally:
         close_db()

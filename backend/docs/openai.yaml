@@ -977,6 +977,56 @@ paths:
                           items:
                             type: object
 
+  /api/prospects/{player_id}:
+    get:
+      summary: Retrieve a single player's FV-based prospect value
+      description: |
+        Ticket 0071: reuses get_prospects.sql (scoped to one player via its
+        player_id filter) so the player page can show 0068's FV-based
+        prospect value in place of 0056's contract-based surplus value
+        whenever the player currently qualifies as a prospect (ticket
+        0043's definition).
+      tags: [Prospects]
+      parameters:
+        - in: path
+          name: player_id
+          required: true
+          schema:
+            type: integer
+          description: The player's id
+      responses:
+        '200':
+          description: |
+            {"is_prospect": false} if the player doesn't currently qualify
+            as a prospect (the caller should fall back to
+            GET /api/players/{player_id}/surplus-value in that case).
+            Otherwise the same "value" shape as each row of
+            GET /api/prospects, flattened to the top level alongside
+            "is_prospect": true. "available" can still be false (missing
+            rating data) even when "is_prospect" is true.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  is_prospect:
+                    type: boolean
+                  available:
+                    type: boolean
+                  fv:
+                    type: integer
+                  surplus_value:
+                    type: integer
+                  expected_war:
+                    type: number
+                  star_odds:
+                    type: number
+                  current_fv:
+                    type: integer
+                  mlb_promotion_ready:
+                    type: boolean
+                    description: Present only when level != 1.
+
 components:
   securitySchemes:
     AdminToken:

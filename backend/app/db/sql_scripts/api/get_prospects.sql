@@ -19,11 +19,15 @@
 -- same explicit-position-gate convention get_player_rating_trends.sql uses
 -- rather than relying on which side happens to have rows.
 --
--- team_id/position/level are optional filters (NULL = no filter on that
--- dimension). team_id scopes to a single org: the given MLB team itself
--- plus every affiliate whose parent_team_id points at it, same org-scoping
--- as get_org_depth_chart.sql -- not restricted to a level-1 team_id here
--- since a caller may also want to scope to a single affiliate team directly.
+-- team_id/position/level/player_id are optional filters (NULL = no filter
+-- on that dimension). team_id scopes to a single org: the given MLB team
+-- itself plus every affiliate whose parent_team_id points at it, same
+-- org-scoping as get_org_depth_chart.sql -- not restricted to a level-1
+-- team_id here since a caller may also want to scope to a single affiliate
+-- team directly. player_id (ticket 0071) scopes to a single player -- used
+-- by GET /api/prospects/<player_id> to answer "is this specific player a
+-- prospect" without pulling an org's whole list, reusing this same query
+-- rather than a parallel single-player one.
 WITH prospects AS (
     SELECT
         p.player_id, p.first_name, p.last_name, p.position, p.bats,
@@ -44,6 +48,7 @@ WITH prospects AS (
       AND (%(team_id)s IS NULL OR p.team_id = %(team_id)s OR t.parent_team_id = %(team_id)s)
       AND (%(position)s IS NULL OR p.position = %(position)s)
       AND (%(level)s IS NULL OR t.level = %(level)s)
+      AND (%(player_id)s IS NULL OR p.player_id = %(player_id)s)
 ),
 latest_rating AS (
     SELECT pr.player_id, MAX(pr.rating_date) AS rating_date
