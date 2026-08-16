@@ -199,8 +199,13 @@ data readiness, not by the epic's original grouping:
    minor-league level/affiliate half is now filed as
    [0062](0062-team-level-affiliate-schema-migration.md) (needed for
    steps 6, 8). Unblocks steps 6–8.
-6. **Prospect Pipeline** (0043) — needs level/affiliate data from step 5,
-   plus reuses 0044's trend layer from step 1.
+6. **Prospect Pipeline** (0043) — level/affiliate data from step 5 now
+   closed (0062/0063), reuses 0044's trend layer from step 1, and its own
+   FV/value methodology (FanGraphs Future Value framework, replicated
+   against this app's ratings data) is broken into
+   [0068](0068-prospect-fv-value-calculation.md)/
+   [0069](0069-prospect-query-layer-api.md)/
+   [0070](0070-prospect-pipeline-frontend.md) — In-Progress.
 7. **Contract & Arbitration Analyzer** (0042) — needs contract/salary data
    from step 5; no reduced-scope fallback exists.
 8. **Trade Target Finder** (0041) full scope — layers in contract/injury/
@@ -219,7 +224,16 @@ its minor-league level/affiliate half as 0062, both drawn below):
 [x] 0044 Player Development Monitor
       |
       v
-[ ] 0043 Prospect Pipeline ----------------------+
+[~] 0043 Prospect Pipeline (epic tracker) --------+
+      |                                          |
+      v                                          |
+[x] 0068 Prospect FV/value calculation             |
+      |                                          |
+      v                                          |
+[ ] 0069 Prospect query layer + API               |
+      |                                          |
+      v                                          |
+[ ] 0070 Prospect Pipeline frontend               |
                                                   |
 [x] 0062 Team level/affiliate schema+migration    |
       |                                          |
@@ -277,7 +291,7 @@ its minor-league level/affiliate half as 0062, both drawn below):
 | [0041](0041-trade-target-finder.md) | Trade Target Finder (epic tracker) | feat | Open | — |
 | [0039](0039-roster-optimization-org-depth.md) | Roster Optimization & Organizational Depth (epic tracker) | feat | Closed | 0062 |
 | [0040](0040-defensive-optimization.md) | Defensive Optimization (epic tracker) | feat | Open | 0039 |
-| [0043](0043-prospect-pipeline.md) | Prospect Pipeline (epic tracker) | feat | Open | 0044 |
+| [0043](0043-prospect-pipeline.md) | Prospect Pipeline (epic tracker) | feat | In-Progress | 0044 |
 | [0042](0042-contract-arbitration-analyzer.md) | Contract & Arbitration Analyzer (epic tracker) | feat | Closed | 0053, 0054 |
 | [0038](0038-gm-command-center.md) | GM Command Center (epic tracker) | feat | Open | 0039, 0042, 0043 |
 | [0065](0065-gm-org-selection-theming.md) | GM organization selection + app-wide color theming | feat | Open | — |
@@ -343,11 +357,23 @@ player regardless of games actually played there, before scoping
 
 ### Tool: Prospect Pipeline
 
-[0043](0043-prospect-pipeline.md) — blocked on the same minor-league
-level/affiliate data gap as Roster Optimization's org-depth slice (resolve
-once, not twice), and its "development trajectory" scope is intended to
-reuse Player Development Monitor's trend layer rather than reimplement
-snapshot-diffing. Sequenced after both.
+[0043](0043-prospect-pipeline.md) — the minor-league level/affiliate gap it
+shared with Roster Optimization's org-depth slice is closed (0062/0063),
+and its "development trajectory" scope reuses Player Development Monitor's
+trend layer (0050) rather than reimplementing snapshot-diffing. Its
+prospect-value methodology replicates FanGraphs' Future Value framework
+against this app's own talent/current ratings data (full derivation in
+0043's Design choices), broken into
+[0068](0068-prospect-fv-value-calculation.md) (calc module),
+[0069](0069-prospect-query-layer-api.md) (query layer + API), and
+[0070](0070-prospect-pipeline-frontend.md) (frontend view) — same
+sequential-layering convention as 0050/0051/0052 and 0062/0063/0064.
+
+| # | Title | Tag | Status | Depends on |
+|---|-------|-----|--------|------------|
+| [0068](0068-prospect-fv-value-calculation.md) | Prospect FV/value calculation module | feat | Closed | — |
+| [0069](0069-prospect-query-layer-api.md) | Prospect query layer + API route | feat | Open | 0068 |
+| [0070](0070-prospect-pipeline-frontend.md) | Prospect Pipeline frontend view | feat | Open | 0069 |
 
 ### Tool: Contract & Arbitration Analyzer
 
