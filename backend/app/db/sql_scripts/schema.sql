@@ -2,6 +2,7 @@ DROP TABLE IF EXISTS processed_heaps;
 DROP TABLE IF EXISTS players_similarity;
 DROP TABLE IF EXISTS players_run_value;
 DROP TABLE IF EXISTS players_pitching_run_value;
+DROP TABLE IF EXISTS players_prospect_value;
 DROP TABLE IF EXISTS players_fielding_expected;
 DROP TABLE IF EXISTS players_fielding_position_talent;
 DROP TABLE IF EXISTS players_fielding_position;
@@ -418,6 +419,27 @@ CREATE TABLE players_pitching_run_value (
   baserunning_runs FLOAT,
   total_runs FLOAT,
   WAR FLOAT,
+  FOREIGN KEY (rating_id) REFERENCES players_rating(rating_id)
+);
+
+-- Player Prospect Value (ticket 0075) --
+-- FV/surplus-value/star-odds/risk-tag from ticket 0068's talent-ceiling +
+-- current-form calc, persisted per heap (rating_id) for the league-wide
+-- leaderboard (ticket 0074/0076) rather than recomputed at request time --
+-- same pattern players_run_value/players_pitching_run_value already use
+-- for BatterProjection/PitcherProjection output. mlb_promotion_ready is
+-- deliberately not stored here -- it depends on the player's current team
+-- level, which the leaderboard query re-joins fresh at read time anyway
+-- (see 0075's Design choices), so a stored level-dependent boolean would
+-- go stale between heaps for no benefit.
+CREATE TABLE players_prospect_value (
+  rating_id INT PRIMARY KEY,
+  fv INT,
+  surplus_value INT,
+  expected_war FLOAT,
+  star_odds FLOAT,
+  current_fv INT,
+  risk_tag VARCHAR(1),
   FOREIGN KEY (rating_id) REFERENCES players_rating(rating_id)
 );
 

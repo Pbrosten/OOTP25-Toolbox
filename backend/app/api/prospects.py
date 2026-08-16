@@ -3,12 +3,7 @@ import logging
 
 from flask import Blueprint, jsonify, current_app, request
 from app.db.connection import get_db, close_db
-from app.player_projection.prospect_value import (
-    build_batter_talent_projection_input,
-    build_pitcher_talent_projection_input,
-    calculate_hitter_prospect_value,
-    calculate_pitcher_prospect_value,
-)
+from app.player_projection.prospect_value import calculate_prospect_value_from_row
 from app.player_projection.development_alerts import get_development_alerts
 
 bp = Blueprint("prospects", __name__, url_prefix="/api/prospects")
@@ -31,84 +26,16 @@ def _int_or_none(value):
     return int(value) if value is not None else None
 
 
-def _batter_projection_inputs(row):
-    """Returns (talent_input, current_input) for a position player -- see
-    ticket 0068's build_batter_talent_projection_input for which columns
-    come from talent vs. current tables."""
-    player_row = {
-        "player_id": row["player_id"], "birth_date": row["birth_date"],
-        "position": row["position"], "bats": row["bats"],
-        "prone_overall": row["prone_overall"],
-    }
-    rating_row = {"rating_id": row["rating_id"], "rating_date": row["rating_date"]}
-    batting_talent_row = {
-        "babip": row["bat_babip_talent"], "gap": row["bat_gap_talent"],
-        "eye": row["bat_eye_talent"], "power": row["bat_power_talent"],
-        "strikeouts": row["bat_strikeouts_talent"],
-    }
-    basepath_row = {
-        "speed": row["speed"], "steal": row["steal"],
-        "baserunning": row["baserunning"],
-    }
-    fielding_position_talent_row = {
-        f"pos{i}": row[f"pos{i}_talent"] for i in range(2, 10)
-    }
-
-    talent_input = build_batter_talent_projection_input(
-        player_row, rating_row, batting_talent_row, basepath_row,
-        fielding_position_talent_row,
-    )
-    current_input = {
-        **player_row, **rating_row,
-        "babip": row["bat_babip"], "gap": row["bat_gap"], "eye": row["bat_eye"],
-        "power": row["bat_power"], "strikeouts": row["bat_strikeouts"],
-        **basepath_row,
-        **{f"pos{i}": row[f"pos{i}"] for i in range(2, 10)},
-    }
-    return talent_input, current_input
-
-
-def _pitcher_projection_inputs(row):
-    """Returns (talent_input, current_input) for a pitcher -- see ticket
-    0068's build_pitcher_talent_projection_input for which columns come
-    from talent vs. current tables."""
-    player_row = {"prone_overall": row["prone_overall"]}
-    rating_row = {"rating_id": row["rating_id"]}
-    pitching_row = {
-        "role": row["pitch_role"], "stamina": row["pitch_stamina"],
-        "hold": row["pitch_hold"],
-    }
-    pitching_talent_row = {
-        "stuff": row["pitch_stuff_talent"], "control": row["pitch_control_talent"],
-        "pbabip": row["pitch_pbabip_talent"], "hra": row["pitch_hra_talent"],
-    }
-
-    talent_input = build_pitcher_talent_projection_input(
-        player_row, rating_row, pitching_row, pitching_talent_row,
-    )
-    current_input = {
-        **rating_row, **pitching_row, **player_row,
-        "stuff": row["pitch_stuff"], "control": row["pitch_control"],
-        "pbabip": row["pitch_pbabip"], "hra": row["pitch_hra"],
-    }
-    return talent_input, current_input
-
-
 def _value_for(row):
-    """Runs ticket 0068's calc for whichever side matches players.position
-    (same explicit-position-gate convention as get_player_rating_trends.sql
-    -- a two-way player is scored on their listed-position side only, not
-    both). Returns {"available": False} for missing ratings or any
-    projection failure (mirrors app/db/projection.py's
-    process_player/process_pitcher, which also treat a projection error as
-    "no result" rather than a hard failure)."""
+    """Runs ticket 0068's calc (via the shared
+    calculate_prospect_value_from_row(), promoted to prospect_value.py in
+    ticket 0075 so the heap-processing persistence step can reuse it too).
+    Returns {"available": False} for missing ratings or any projection
+    failure (mirrors app/db/projection.py's process_player/process_pitcher,
+    which also treat a projection error as "no result" rather than a hard
+    failure)."""
     try:
-        if row["position"] == "P":
-            talent_input, current_input = _pitcher_projection_inputs(row)
-            result = calculate_pitcher_prospect_value(talent_input, current_input)
-        else:
-            talent_input, current_input = _batter_projection_inputs(row)
-            result = calculate_hitter_prospect_value(talent_input, current_input)
+        result = calculate_prospect_value_from_row(row)
     except Exception as e:
         logger.warning(f"Prospect value calc failed for player {row['player_id']}: {e}")
         result = None

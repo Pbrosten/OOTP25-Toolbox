@@ -13,6 +13,9 @@ from app.player_projection.prospect_value import (
     _apply_risk_modifier,
     build_batter_talent_projection_input,
     build_pitcher_talent_projection_input,
+    batter_projection_inputs_from_row,
+    pitcher_projection_inputs_from_row,
+    calculate_prospect_value_from_row,
     calculate_hitter_prospect_value,
     calculate_pitcher_prospect_value,
 )
@@ -192,6 +195,93 @@ def test_build_pitcher_talent_input_sources_correctly():
     assert result["role"] == 11
     assert result["stamina"] == 45
     assert result["hold"] == 45
+
+
+# === row-slicing wrappers (ticket 0075: promoted from app/api/prospects.py
+# so app/db/projection.py's heap-processing step can share them) ===
+
+
+def _wide_row(**overrides):
+    """Matches get_prospects.sql's/get_prospect_value_inputs.sql's shared
+    column shape (both SQL scripts select these same column names)."""
+    row = {
+        "player_id": 1, "position": "SS", "bats": "R",
+        "birth_date": "2003-01-01", "prone_overall": 50,
+        "rating_id": "R001", "rating_date": "2025-09-01",
+        "bat_babip": 50, "bat_gap": 50, "bat_eye": 50, "bat_power": 50,
+        "bat_strikeouts": 50,
+        "bat_babip_talent": 70, "bat_gap_talent": 70, "bat_eye_talent": 70,
+        "bat_power_talent": 70, "bat_strikeouts_talent": 70,
+        "speed": 50, "steal": 50, "baserunning": 50,
+        **{f"pos{i}": 50 for i in range(2, 10)},
+        **{f"pos{i}_talent": 60 for i in range(2, 10)},
+        "pitch_role": None, "pitch_stuff": None, "pitch_control": None,
+        "pitch_pbabip": None, "pitch_hra": None, "pitch_stamina": None,
+        "pitch_hold": None, "pitch_stuff_talent": None,
+        "pitch_control_talent": None, "pitch_pbabip_talent": None,
+        "pitch_hra_talent": None,
+    }
+    row.update(overrides)
+    return row
+
+
+def test_batter_projection_inputs_from_row_sources_correctly():
+    talent_input, current_input = batter_projection_inputs_from_row(_wide_row())
+    assert talent_input["babip"] == 70
+    assert talent_input["pos6"] == 60
+    assert talent_input["speed"] == 50  # no talent equivalent -- stays current
+    assert current_input["babip"] == 50
+    assert current_input["pos6"] == 50
+
+
+def test_pitcher_projection_inputs_from_row_sources_correctly():
+    row = _wide_row(
+        position="P", pitch_role=11, pitch_stuff=50, pitch_control=50,
+        pitch_pbabip=50, pitch_hra=50, pitch_stamina=45, pitch_hold=45,
+        pitch_stuff_talent=65, pitch_control_talent=65,
+        pitch_pbabip_talent=65, pitch_hra_talent=65,
+    )
+    talent_input, current_input = pitcher_projection_inputs_from_row(row)
+    assert talent_input["stuff"] == 65
+    assert talent_input["stamina"] == 45  # no talent equivalent -- stays current
+    assert current_input["stuff"] == 50
+
+
+def test_calculate_prospect_value_from_row_dispatches_by_position():
+    hitter_result = calculate_prospect_value_from_row(_wide_row(position="SS"))
+    assert hitter_result is not None
+    assert "fv" in hitter_result
+
+    pitcher_row = _wide_row(
+        position="P", pitch_role=11, pitch_stuff=50, pitch_control=50,
+        pitch_pbabip=50, pitch_hra=50, pitch_stamina=50, pitch_hold=50,
+        pitch_stuff_talent=70, pitch_control_talent=70,
+        pitch_pbabip_talent=70, pitch_hra_talent=70,
+    )
+    pitcher_result = calculate_prospect_value_from_row(pitcher_row)
+    assert pitcher_result is not None
+    assert "fv" in pitcher_result
+
+
+def test_calculate_prospect_value_from_row_missing_pitching_row_is_none():
+    # Real case found running update-db league-wide: a position='P' player
+    # with no matching players_pitching row at this heap (pitch_role NULL
+    # from the LEFT JOIN) -- must return None cleanly, not raise
+    # PitcherProjection's "Unrecognized pitcher role" ValueError.
+    row = _wide_row(position="P")  # pitch_role stays None (fixture default)
+    assert calculate_prospect_value_from_row(row) is None
+
+
+def test_calculate_prospect_value_from_row_missing_batting_row_is_none():
+    # Real case found running update-db league-wide: a position player
+    # with no matching players_batting and/or players_batting_talent row
+    # at this heap -- must return None cleanly, not raise BatterProjection's
+    # KeyError(None) (which stringifies to the unhelpful message "None").
+    no_current = _wide_row(position="SS", bat_babip=None)
+    assert calculate_prospect_value_from_row(no_current) is None
+
+    no_talent = _wide_row(position="SS", bat_babip_talent=None)
+    assert calculate_prospect_value_from_row(no_talent) is None
 
 
 # === end-to-end wiring (real BatterProjection/PitcherProjection) ===

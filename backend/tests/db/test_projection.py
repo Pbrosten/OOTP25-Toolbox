@@ -44,6 +44,69 @@ def test_process_player_exception(mock_batter_proj):
     assert "Error processing player 789" in mock_logger.warning.call_args[0][0]
 
 
+@patch("app.db.projection.calculate_prospect_value_from_row")
+def test_process_prospect_success(mock_calc, app):
+    fake_row = {"player_id": 5, "rating_id": 123, "position": "SS"}
+    mock_calc.return_value = {
+        "fv": 55, "surplus_value": 55_000_000, "expected_war": 8.0,
+        "star_odds": 17.5, "current_fv": 40, "risk_tag": "+",
+    }
+
+    with app.app_context():
+        result = projection_module.process_prospect(fake_row)
+
+    mock_calc.assert_called_once_with(fake_row)
+    assert result == {
+        "prospect_value": {
+            "rating_id": 123, "fv": 55, "surplus_value": 55_000_000,
+            "expected_war": 8.0, "star_odds": 17.5, "current_fv": 40,
+            "risk_tag": "+",
+        }
+    }
+
+
+@patch("app.db.projection.calculate_prospect_value_from_row", return_value=None)
+def test_process_prospect_none_result_logs_warning(mock_calc):
+    fake_row = {"player_id": 5, "rating_id": 456, "position": "SS"}
+
+    with patch("app.db.projection.logger") as mock_logger:
+        result = projection_module.process_prospect(fake_row)
+
+    assert result is None
+    mock_logger.warning.assert_called_once_with("No prospect value result for player: 5")
+
+
+@patch("app.db.projection.calculate_prospect_value_from_row", side_effect=Exception("fail"))
+def test_process_prospect_exception(mock_calc):
+    fake_row = {"player_id": 5, "rating_id": 789, "position": "SS"}
+
+    with patch("app.db.projection.logger") as mock_logger:
+        result = projection_module.process_prospect(fake_row)
+
+    assert result is None
+    mock_logger.warning.assert_called_once()
+    assert "Error processing prospect value for player 5" in mock_logger.warning.call_args[0][0]
+
+
+def test_update_prospect_value_batches_final_commits_and_returns_rows_written():
+    mock_db = MagicMock()
+    mock_cursor = MagicMock()
+    mock_cursor.rowcount = 3
+    mock_db.cursor.return_value.__enter__.return_value = mock_cursor
+    mock_batches = {"prospect_value": [{"rating_id": 1}]}
+
+    batches, rows_written = projection_module.update_prospect_value_batches(
+        mock_batches, db=mock_db, final=True
+    )
+
+    mock_cursor.executemany.assert_called_once_with(
+        projection_module.prospect_value_proj_scripts["prospect_value"], [{"rating_id": 1}]
+    )
+    mock_db.commit.assert_called_once()
+    assert batches is None
+    assert rows_written == 3
+
+
 def test_update_projection_batches_final_commits_and_returns_rows_written():
     # update_projection_batches returns (batches_or_None, rows_written) when
     # inject/final -- see docs/tickets/0016.

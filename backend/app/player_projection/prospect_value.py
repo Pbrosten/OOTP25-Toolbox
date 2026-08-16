@@ -217,6 +217,114 @@ def build_pitcher_talent_projection_input(
     }
 
 
+def batter_projection_inputs_from_row(row):
+    """Slices a wide SQL row (get_prospects.sql's or ticket 0075's
+    get_prospect_value_inputs.sql's column shape -- both use the same
+    bat_*/bat_*_talent/speed/steal/baserunning/posN/posN_talent naming) into
+    (talent_input, current_input) for a position player. Promoted here
+    (ticket 0075) from app/api/prospects.py's private helper of the same
+    shape, so both the API route and the heap-processing persistence step
+    (app/db/projection.py) share one implementation."""
+    player_row = {
+        "player_id": row["player_id"], "birth_date": row["birth_date"],
+        "position": row["position"], "bats": row["bats"],
+        "prone_overall": row["prone_overall"],
+    }
+    rating_row = {"rating_id": row["rating_id"], "rating_date": row["rating_date"]}
+    batting_talent_row = {
+        "babip": row["bat_babip_talent"], "gap": row["bat_gap_talent"],
+        "eye": row["bat_eye_talent"], "power": row["bat_power_talent"],
+        "strikeouts": row["bat_strikeouts_talent"],
+    }
+    basepath_row = {
+        "speed": row["speed"], "steal": row["steal"],
+        "baserunning": row["baserunning"],
+    }
+    fielding_position_talent_row = {
+        f"pos{i}": row[f"pos{i}_talent"] for i in range(2, 10)
+    }
+
+    talent_input = build_batter_talent_projection_input(
+        player_row, rating_row, batting_talent_row, basepath_row,
+        fielding_position_talent_row,
+    )
+    current_input = {
+        **player_row, **rating_row,
+        "babip": row["bat_babip"], "gap": row["bat_gap"], "eye": row["bat_eye"],
+        "power": row["bat_power"], "strikeouts": row["bat_strikeouts"],
+        **basepath_row,
+        **{f"pos{i}": row[f"pos{i}"] for i in range(2, 10)},
+    }
+    return talent_input, current_input
+
+
+def pitcher_projection_inputs_from_row(row):
+    """Pitcher equivalent of batter_projection_inputs_from_row() -- same
+    promotion, same pitch_*/pitch_*_talent column naming shared by
+    get_prospects.sql and get_prospect_value_inputs.sql."""
+    player_row = {"prone_overall": row["prone_overall"]}
+    rating_row = {"rating_id": row["rating_id"]}
+    pitching_row = {
+        "role": row["pitch_role"], "stamina": row["pitch_stamina"],
+        "hold": row["pitch_hold"],
+    }
+    pitching_talent_row = {
+        "stuff": row["pitch_stuff_talent"], "control": row["pitch_control_talent"],
+        "pbabip": row["pitch_pbabip_talent"], "hra": row["pitch_hra_talent"],
+    }
+
+    talent_input = build_pitcher_talent_projection_input(
+        player_row, rating_row, pitching_row, pitching_talent_row,
+    )
+    current_input = {
+        **rating_row, **pitching_row, **player_row,
+        "stuff": row["pitch_stuff"], "control": row["pitch_control"],
+        "pbabip": row["pitch_pbabip"], "hra": row["pitch_hra"],
+    }
+    return talent_input, current_input
+
+
+def calculate_prospect_value_from_row(row):
+    """Runs the calc for whichever side matches players.position (same
+    explicit-position-gate convention get_player_rating_trends.sql uses --
+    a two-way player is scored on their listed-position side only). Shared
+    by app/api/prospects.py (live, per-request) and app/db/projection.py's
+    process_prospect() (per-heap, persisted -- ticket 0075). Doesn't catch
+    exceptions itself -- callers wrap this the same way
+    process_player/process_pitcher already wrap BatterProjection/
+    PitcherProjection, logging and treating a failure as "no result"
+    rather than crashing the whole batch/request.
+
+    Real cases found running update-db league-wide (ticket 0075), both the
+    same class of sparse-data gap as 0069's Mason Brassfield/Boston Kellner
+    finding, not a real error -- a player with no matching rating-side row
+    at this heap at all:
+    - position = 'P' with no players_pitching row (role comes back NULL
+      from the LEFT JOIN in get_prospects.sql/get_prospect_value_inputs.sql).
+      PitcherProjection itself raises ValueError("Unrecognized pitcher
+      role...") for a None role.
+    - A position player with no players_batting and/or no
+      players_batting_talent row (bat_babip/bat_babip_talent come back
+      NULL the same way). BatterProjection's rating lookups
+      (self.bat_constants.loc[rating, feature]) raise KeyError(None) for a
+      None rating -- str(KeyError(None)) renders as the literally
+      unhelpful message "None", which is what actually surfaced in the
+      logs (ticket 0075's live verification).
+    Both would otherwise surface as a misleading "Error processing..."
+    warning at the caller for an entirely predictable, checkable
+    condition -- short-circuited here to a clean "not available" instead.
+    """
+    if row["position"] == "P":
+        if row.get("pitch_role") is None:
+            return None
+        talent_input, current_input = pitcher_projection_inputs_from_row(row)
+        return calculate_pitcher_prospect_value(talent_input, current_input)
+    if row.get("bat_babip") is None or row.get("bat_babip_talent") is None:
+        return None
+    talent_input, current_input = batter_projection_inputs_from_row(row)
+    return calculate_hitter_prospect_value(talent_input, current_input)
+
+
 def calculate_hitter_prospect_value(talent_input, current_input):
     """talent_input/current_input: BatterProjection-shaped dicts.
     talent_input is built via build_batter_talent_projection_input();

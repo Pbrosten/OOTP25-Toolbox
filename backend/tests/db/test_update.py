@@ -119,6 +119,31 @@ def test_fetch_projection_inputs_returns_rows_as_dicts(app):
     assert result == [{"id": 1}, {"id": 2}]
 
 
+def test_fetch_prospect_value_inputs_returns_rows_as_dicts(app):
+    sql_content = "SELECT * FROM players;"
+    mock_file = MagicMock()
+    mock_file.read.return_value = sql_content
+
+    mock_cursor = MagicMock()
+    mock_cursor.rowcount = 2
+    mock_cursor.fetchall.return_value = [{"id": 1}, {"id": 2}]
+    db = MagicMock()
+    db.cursor.return_value.__enter__.return_value = mock_cursor
+
+    with app.app_context():
+        with patch("app.db.update.current_app.open_resource") as mock_open:
+            mock_open.return_value.__enter__.return_value = mock_file
+            result = update_module.fetch_prospect_value_inputs(["dump", "2023", "08"], db)
+
+    expected_path = os.path.join(
+        "db", "sql_scripts", "migration", "get_prospect_value_inputs.sql"
+    )
+    mock_open.assert_called_once_with(expected_path, "r")
+    mock_cursor.execute.assert_called_once_with("SELECT * FROM players")
+    db.commit.assert_called_once()
+    assert result == [{"id": 1}, {"id": 2}]
+
+
 @patch("app.db.update.process_player", side_effect=lambda p: {"id": p["id"], "value": 42})
 @patch("app.db.update.cpu_count", return_value=1)
 @patch("app.db.update.Pool")
@@ -154,7 +179,38 @@ def test_insert_projections(mock_update):
     assert rows_inserted == 40
 
 
+@patch("app.db.update.process_prospect", side_effect=lambda p: {"id": p["id"], "value": 42})
+@patch("app.db.update.cpu_count", return_value=1)
+@patch("app.db.update.Pool")
+def test_project_prospects(mock_pool_cls, mock_cpu, mock_proc):
+    mock_pool = mock_pool_cls.return_value.__enter__.return_value
+    mock_pool.imap_unordered.return_value = ({"id": i, "value": 42} for i in range(10))
+
+    prospects = [{"id": i} for i in range(10)]
+    results = update_module.project_prospects(prospects)
+
+    assert len(results) == 10
+    assert all("value" in r for r in results)
+
+
+@patch("app.db.update.update_prospect_value_batches")
+def test_insert_prospect_values(mock_update):
+    mock_update.return_value = ({"prospect_value": []}, 10)
+    db = MagicMock()
+    prospect_values = [{"id": i} for i in range(2500)]
+    rows_inserted = update_module.insert_prospect_values(prospect_values, db, batch_size=1000)
+
+    # 4 calls: 3 for chunks (2500 / 1000), 1 final
+    assert mock_update.call_count == 4
+    assert mock_update.call_args_list[0][1]['inject'] is True
+    assert mock_update.call_args_list[-1][1]['final'] is True
+    assert rows_inserted == 40
+
+
 @patch("app.db.update.mark_heap_processed")
+@patch("app.db.update.insert_prospect_values", return_value=5)
+@patch("app.db.update.project_prospects", return_value=[{"id": 11}])
+@patch("app.db.update.fetch_prospect_value_inputs", return_value=[{"id": 11}])
 @patch("app.db.update.insert_pitcher_projections", return_value=3)
 @patch("app.db.update.project_pitchers", return_value=[{"id": 9}])
 @patch("app.db.update.fetch_pitcher_projection_inputs", return_value=[{"id": 9}])
@@ -169,6 +225,7 @@ def test_process_single_heap_short(
     mock_extract, mock_connect, mock_load, mock_migration_short,
     mock_fetch, mock_project, mock_insert,
     mock_fetch_pitchers, mock_project_pitchers, mock_insert_pitchers,
+    mock_fetch_prospects, mock_project_prospects, mock_insert_prospects,
     mock_mark_processed,
 ):
     mock_staging_db = MagicMock()
@@ -192,9 +249,13 @@ def test_process_single_heap_short(
     mock_project_pitchers.assert_called_once_with([{"id": 9}])
     mock_insert_pitchers.assert_called_once_with([{"id": 9}], db)
 
+    mock_fetch_prospects.assert_called_once_with(["dump", "2023", "08"], db)
+    mock_project_prospects.assert_called_once_with([{"id": 11}])
+    mock_insert_prospects.assert_called_once_with([{"id": 11}], db)
+
     mock_mark_processed.assert_called_once_with(db, ["dump", "2023", "08"], True)
 
-    assert counts == {"ratings_inserted": 42, "players_updated": 0, "projections_inserted": 10}
+    assert counts == {"ratings_inserted": 42, "players_updated": 0, "projections_inserted": 15}
 
 
 @patch("app.db.update.mark_heap_processed")

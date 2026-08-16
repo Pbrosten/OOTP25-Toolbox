@@ -1,6 +1,7 @@
 import logging
 
 from app.player_projection import BatterProjection, PitcherProjection
+from app.player_projection.prospect_value import calculate_prospect_value_from_row
 
 logger = logging.getLogger("app.db.projection")
 
@@ -39,6 +40,22 @@ pitching_proj_scripts = {
     """,
 }
 
+# Ticket 0075: single-table equivalent of proj_scripts/pitching_proj_scripts,
+# persisting ticket 0068's FV/value calc for the league-wide leaderboard
+# (0074/0076) instead of recomputing it at request time. Kept as its own
+# one-key dict (rather than inlining a plain list-batching helper) to
+# reuse the exact same batches/inject/final contract
+# update_projection_batches()/update_pitching_projection_batches() already
+# establish -- app/db/update.py's insert_prospect_values() calls this the
+# same way insert_projections()/insert_pitcher_projections() do.
+prospect_value_proj_scripts = {
+    "prospect_value": """
+        INSERT IGNORE INTO players_prospect_value
+        (rating_id, fv, surplus_value, expected_war, star_odds, current_fv, risk_tag)
+        VALUES (%(rating_id)s, %(fv)s, %(surplus_value)s, %(expected_war)s, %(star_odds)s, %(current_fv)s, %(risk_tag)s)
+    """,
+}
+
 
 def process_player(player):
     try:
@@ -62,6 +79,40 @@ def process_pitcher(pitcher):
     except Exception as e:
         logger.warning(f"Error processing pitcher {pitcher.get('rating_id')}: {e}")
         return None
+
+
+def process_prospect(row):
+    """Ticket 0075: heap-processing equivalent of app/api/prospects.py's
+    _value_for() -- runs the same shared calculate_prospect_value_from_row()
+    (prospect_value.py) but persists the result instead of returning it
+    from a request. Same try/except-and-log convention as process_player/
+    process_pitcher -- a projection failure or missing input is "no
+    result" for this player, not a fatal error for the whole heap.
+
+    row: a get_prospect_value_inputs.sql row (same shape get_prospects.sql
+    produces, position-gated the same way).
+    """
+    try:
+        result = calculate_prospect_value_from_row(row)
+    except Exception as e:
+        logger.warning(f"Error processing prospect value for player {row.get('player_id')}: {e}")
+        return None
+
+    if result is None:
+        logger.warning(f"No prospect value result for player: {row.get('player_id')}")
+        return None
+
+    return {
+        "prospect_value": {
+            "rating_id": row["rating_id"],
+            "fv": result["fv"],
+            "surplus_value": result["surplus_value"],
+            "expected_war": result["expected_war"],
+            "star_odds": result["star_odds"],
+            "current_fv": result["current_fv"],
+            "risk_tag": result["risk_tag"],
+        }
+    }
 
 
 def update_projection_batches(
@@ -131,6 +182,38 @@ def update_pitching_projection_batches(
             if batches[key]:
                 with db.cursor() as cursor:
                     cursor.executemany(pitching_proj_scripts[key], batches[key])
+                    rows_written += cursor.rowcount
+        db.commit()
+
+        if inject:
+            return {k: [] for k in batches}, rows_written
+
+        return None, rows_written
+
+    return batches
+
+
+def update_prospect_value_batches(
+    batches, projections=None, db=None, inject=False, final=False
+):
+    """Prospect-value equivalent of update_projection_batches() (ticket
+    0075) -- single "prospect_value" key, one target table
+    (players_prospect_value). See update_projection_batches() for the
+    batches/inject/final contract.
+    """
+    if projections:
+        for projection in projections:
+            for key in batches:
+                value = projection.get(key)
+                if value is not None:
+                    batches[key].append(value)
+
+    if inject or final:
+        rows_written = 0
+        for key in batches:
+            if batches[key]:
+                with db.cursor() as cursor:
+                    cursor.executemany(prospect_value_proj_scripts[key], batches[key])
                     rows_written += cursor.rowcount
         db.commit()
 
