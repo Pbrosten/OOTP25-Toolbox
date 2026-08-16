@@ -48,5 +48,14 @@ function goToProspects() {
         </option>
       </select>
     </div>
+
+    <!-- League-wide leaderboard (ticket 0074/0077): a separate, unfiltered
+         ranking rather than an org-scoped one, so it's a distinct link
+         here rather than a select option. -->
+    <div class="mt-4 text-sm">
+      <router-link to="/prospects/leaderboard" class="text-teal-700 hover:underline">
+        View league-wide leaderboard →
+      </router-link>
+    </div>
   </div>
 </template>

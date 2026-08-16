@@ -61,7 +61,7 @@ def _leaderboard_row(**overrides):
     row = {
         "player_id": 1, "first_name": "Alice", "last_name": "Ace",
         "position": "SS", "age": 20, "team_id": 5, "team_abbr": "AAA",
-        "level": 2, "parent_team_id": 1, "mlb_service_years": 0,
+        "org_abbr": "COL", "level": 2, "parent_team_id": 1, "mlb_service_years": 0,
         "fv": 60, "surplus_value": 82_000_000, "expected_war": 12.5,
         "star_odds": 33.0, "current_fv": 40, "risk_tag": "+",
     }
@@ -367,6 +367,7 @@ def test_leaderboard_response_shape(mock_get_db, mock_close_db, mock_open_resour
     entry = body["top_overall"]["results"][0]
     assert entry["value"]["available"] is True
     assert entry["value"]["fv"] == 60
+    assert entry["org_abbr"] == "COL"
     assert "trend" not in entry
     assert body["top_by_position"]["SS"][0]["player_id"] == 1
     assert body["top_by_level"]["2"][0]["player_id"] == 1
@@ -472,7 +473,7 @@ def test_leaderboard_default_page_size(
 
     body = client.get("/api/prospects?leaderboard=1").get_json()
 
-    assert body["top_overall"]["page_size"] == 50
+    assert body["top_overall"]["page_size"] == 20
 
 
 @patch("app.api.prospects.current_app.open_resource")

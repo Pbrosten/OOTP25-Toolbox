@@ -33,16 +33,31 @@ const PITCHER_GROUPS = new Set(['SP', 'RP', 'TWP'])
 const loading = ref(true)
 const error = ref(null)
 const depthChart = ref(null)
+const prospects = ref([])
 
 async function fetchDepthChart() {
   loading.value = true
   error.value = null
   try {
-    const response = await fetch(`/api/teams/${props.id}/depth-chart`)
-    if (response.ok) {
-      depthChart.value = await response.json()
+    const [depthChartRes, prospectsRes] = await Promise.all([
+      fetch(`/api/teams/${props.id}/depth-chart`),
+      // Ticket 0078: A/High-A and Rookie/Complex (COUNT_ONLY_LEVELS) get a
+      // top-10 prospect ranking below their count tiles, using 0068's
+      // talent-ceiling FV calc -- current-rating WAR (what the count-only
+      // levels were built around, ticket 0064) isn't a meaningful ranking
+      // signal that far from MLB-readiness, but FV specifically is. Reuses
+      // the existing org-scoped GET /api/prospects (0069) as-is, no
+      // backend changes -- one extra request, sorted/grouped client-side
+      // the same way ProspectPipeline.vue already sorts its own fetch.
+      fetch(`/api/prospects?team_id=${props.id}`),
+    ])
+    if (depthChartRes.ok) {
+      depthChart.value = await depthChartRes.json()
     } else {
       error.value = 'Team not found.'
+    }
+    if (prospectsRes.ok) {
+      prospects.value = await prospectsRes.json()
     }
   } catch (err) {
     error.value = 'Failed to load depth chart.'
@@ -52,6 +67,21 @@ async function fetchDepthChart() {
 }
 
 onMounted(fetchDepthChart)
+
+// Top-10 prospects per count-only level (ticket 0078), ranked by fv desc /
+// surplus_value desc as tiebreak -- one combined list per level, not
+// broken out by position (per user's explicit choice, distinct from how
+// the WAR-ranked levels above are grouped).
+const topProspectsByLevel = computed(() => {
+  const byLevel = {}
+  for (const level of COUNT_ONLY_LEVELS) {
+    byLevel[level] = prospects.value
+      .filter((p) => p.level === level && p.value.available)
+      .sort((a, b) => b.value.fv - a.value.fv || b.value.surplus_value - a.value.surplus_value)
+      .slice(0, 10)
+  }
+  return byLevel
+})
 
 const levels = computed(() => {
   if (!depthChart.value) return []
@@ -97,6 +127,20 @@ function warClass(war) {
   if (war === null || war === undefined) return 'text-gray-400'
   return Number(war) >= 0 ? 'text-teal-700' : 'text-red-600'
 }
+
+// FV badge tiering (ticket 0078) -- same convention as ProspectPipeline.vue
+// (0070/0072): no "bad" tier, even a low-ceiling prospect is a real asset.
+function fvClass(fv) {
+  if (fv >= 55) return 'bg-teal-50 text-teal-900'
+  if (fv >= 45) return 'bg-gray-100 text-gray-800'
+  return 'bg-amber-50 text-amber-900'
+}
+
+function riskTagTitle(riskTag) {
+  if (riskTag === '-') return 'Higher risk: still far from his talent ceiling'
+  if (riskTag === '+') return 'Lower risk: already close to his talent ceiling'
+  return undefined
+}
 </script>
 
 <template>
@@ -128,17 +172,62 @@ function warClass(war) {
           <TabPanel v-for="level in levels" :key="level">
             <!-- A/Rookie (levels 4, 6): roster counts only, no WAR ranking
                  (ticket 0064 -- current-rating WAR isn't meaningful that
-                 far from MLB-readiness). -->
-            <div v-if="COUNT_ONLY_LEVELS.has(level)" class="flex flex-wrap gap-3">
-              <div
-                v-for="group in sortedGroups(depthChart.levels[String(level)])"
-                :key="group"
-                class="bg-white rounded-lg shadow-sm border border-gray-200 px-4 py-3 min-w-[90px] text-center"
-              >
-                <div class="text-xs font-semibold text-gray-500 uppercase tracking-wide">{{ group }}</div>
-                <div class="text-2xl font-bold text-gray-800">{{ depthChart.levels[String(level)][group] }}</div>
+                 far from MLB-readiness). A top-10 prospect ranking (ticket
+                 0078) is added below, using 0068's talent-ceiling FV calc
+                 instead -- the signal 0064 was missing at the time. -->
+            <template v-if="COUNT_ONLY_LEVELS.has(level)">
+              <div class="flex flex-wrap gap-3">
+                <div
+                  v-for="group in sortedGroups(depthChart.levels[String(level)])"
+                  :key="group"
+                  class="bg-white rounded-lg shadow-sm border border-gray-200 px-4 py-3 min-w-[90px] text-center"
+                >
+                  <div class="text-xs font-semibold text-gray-500 uppercase tracking-wide">{{ group }}</div>
+                  <div class="text-2xl font-bold text-gray-800">{{ depthChart.levels[String(level)][group] }}</div>
+                </div>
               </div>
-            </div>
+
+              <div class="mt-6">
+                <h2 class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3">Top 10 Prospects</h2>
+                <div v-if="topProspectsByLevel[level]?.length === 0" class="text-gray-500 text-sm">
+                  No ranked prospects at this level.
+                </div>
+                <table v-else class="w-full max-w-2xl text-sm bg-white rounded-lg shadow-sm border border-gray-200">
+                  <tbody>
+                    <tr
+                      v-for="(prospect, index) in topProspectsByLevel[level]"
+                      :key="prospect.player_id"
+                      class="even:bg-gray-50 border-t border-gray-100 first:border-t-0"
+                    >
+                      <td class="px-3 py-2 text-gray-400 w-6">{{ index + 1 }}</td>
+                      <td class="px-3 py-2">
+                        <router-link
+                          :to="`/players/${prospect.player_id}`"
+                          class="hover:underline hover:text-teal-800 font-medium"
+                        >
+                          {{ prospect.first_name }} {{ prospect.last_name }}
+                        </router-link>
+                        <ArrowUpCircleIcon
+                          v-if="prospect.value.mlb_promotion_ready"
+                          class="inline-block h-4 w-4 text-teal-600 align-text-bottom"
+                          title="MLB promotion ready: current-form projection already grades as a bench player/backend starter or better"
+                        />
+                      </td>
+                      <td class="px-3 py-2 text-gray-400 text-xs whitespace-nowrap">{{ prospect.position }}</td>
+                      <td class="px-3 py-2">
+                        <span
+                          class="px-2 py-0.5 rounded-full text-xs font-semibold"
+                          :class="fvClass(prospect.value.fv)"
+                          :title="riskTagTitle(prospect.value.risk_tag)"
+                        >
+                          {{ prospect.value.fv }}<template v-if="prospect.value.risk_tag"> {{ prospect.value.risk_tag }}</template>
+                        </span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </template>
 
             <!-- MLB/AAA/AA (levels 1, 2, 3): WAR-ranked player lists, two
                  columns -- position players on the left, pitchers (SP/RP)

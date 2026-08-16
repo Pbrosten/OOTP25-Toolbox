@@ -345,6 +345,15 @@ organizational-fit filter.
 | [0062](0062-team-level-affiliate-schema-migration.md) | Ingest team level and parent-org data | feat | Closed | — |
 | [0063](0063-roster-depth-chart-query-api.md) | Roster depth-chart query layer + API route | feat | Closed | 0062 |
 | [0064](0064-roster-depth-chart-frontend.md) | Roster depth-chart frontend view | feat | Closed | 0063 |
+| [0078](0078-depth-chart-top-prospects-low-levels.md) | Top-10 prospect rankings at A/High-A and Rookie/Complex on the Org Depth Chart | feat | Closed | 0064, 0069 |
+
+0064 deliberately left A/High-A and Rookie/Complex (levels 4/6) as plain
+roster-count tiles, since current-ratings WAR wasn't a meaningful ranking
+signal that far from MLB-readiness and a real talent-based alternative
+would have meant building a whole parallel projection methodology.
+[0078](0078-depth-chart-top-prospects-low-levels.md), filed once the
+Prospect Pipeline epic supplied exactly that (0068's talent-ceiling FV
+calc), replaces those tiles with a real top-10 ranking.
 
 ### Tool: Defensive Optimization
 
@@ -405,7 +414,7 @@ same sequential-layering convention as 0068/0069/0070 itself.
 | [0074](0074-league-wide-prospect-leaderboard.md) | League-wide prospect leaderboard (epic tracker) | feat | In-Progress | 0069, 0072 |
 | [0075](0075-persist-prospect-value-per-heap.md) | Persist prospect FV/value per heap | feat | Closed | — |
 | [0076](0076-leaderboard-query-layer-api.md) | Leaderboard query layer + API | feat | Closed | 0075 |
-| [0077](0077-leaderboard-frontend-view.md) | Leaderboard frontend view | feat | Open | 0076 |
+| [0077](0077-leaderboard-frontend-view.md) | Leaderboard frontend view | feat | Closed | 0076 |
 
 ### Tool: Contract & Arbitration Analyzer
 

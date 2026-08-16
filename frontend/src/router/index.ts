@@ -7,6 +7,7 @@ import TeamPicker from '@/views/TeamPicker.vue'
 import TeamDepthChart from '@/views/TeamDepthChart.vue'
 import ProspectPipelinePicker from '@/views/ProspectPipelinePicker.vue'
 import ProspectPipeline from '@/views/ProspectPipeline.vue'
+import ProspectLeaderboard from '@/views/ProspectLeaderboard.vue'
 
 const routes = [
   { path: '/', component: LandingPage },
@@ -17,6 +18,7 @@ const routes = [
   { path: '/teams/:id/depth-chart', component: TeamDepthChart, props: true },
   { path: '/prospects', component: ProspectPipelinePicker },
   { path: '/teams/:id/prospects', component: ProspectPipeline, props: true },
+  { path: '/prospects/leaderboard', component: ProspectLeaderboard },
 ]
 
 const router = createRouter({

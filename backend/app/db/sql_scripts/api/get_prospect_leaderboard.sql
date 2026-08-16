@@ -33,9 +33,16 @@ WITH prospect_candidates AS (
             ELSE t.level
         END AS level,
         t.abbr AS team_abbr, t.parent_team_id,
+        -- org_abbr (user request): the parent MLB organization's
+        -- abbreviation, not the player's own immediate affiliate team --
+        -- a level-1 team's own parent_team_id is always 0 (confirmed
+        -- against real data, never NULL), meaning "no parent, this team
+        -- IS the org," so org_team's own team_id is used in that case.
+        org_t.abbr AS org_abbr,
         st.mlb_service_years
     FROM players p
     JOIN teams t ON t.team_id = p.team_id
+    JOIN teams org_t ON org_t.team_id = IF(t.parent_team_id = 0, t.team_id, t.parent_team_id)
     LEFT JOIN players_service_time st ON st.player_id = p.player_id
     WHERE p.retired = 0
       AND t.team_id != 999
@@ -66,7 +73,8 @@ rating AS (
 )
 SELECT
     pl.player_id, pl.first_name, pl.last_name, pl.position, pl.age,
-    pl.team_id, pl.team_abbr, pl.level, pl.parent_team_id, pl.mlb_service_years,
+    pl.team_id, pl.team_abbr, pl.org_abbr, pl.level, pl.parent_team_id,
+    pl.mlb_service_years,
     pv.fv, pv.surplus_value, pv.expected_war, pv.star_odds, pv.current_fv, pv.risk_tag
 FROM prospects pl
 JOIN rating r ON r.player_id = pl.player_id

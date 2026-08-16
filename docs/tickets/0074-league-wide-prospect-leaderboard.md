@@ -79,7 +79,7 @@ Mirrors the layering 0043's own epic used (0068 → 0069 → 0070):
 [x] 0076 Leaderboard query layer + API (?leaderboard=1 mode, pagination)
       |
       v
-[ ] 0077 Leaderboard frontend view
+[x] 0077 Leaderboard frontend view
 
 [~] = In-Progress   [ ] = Open   [x] = Closed
 ```

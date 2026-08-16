@@ -30,9 +30,10 @@ def _int_or_none(value):
 
 
 # Ticket 0076: league-wide leaderboard mode (?leaderboard=1). Top-overall
-# is paginated at this page size by default; top-by-position/top-by-level
-# are fixed-size sections, no pagination needed for either.
-LEADERBOARD_DEFAULT_PAGE_SIZE = 50
+# is paginated at this page size by default (user request -- originally
+# 50); top-by-position/top-by-level are fixed-size sections, no pagination
+# needed for either.
+LEADERBOARD_DEFAULT_PAGE_SIZE = 20
 LEADERBOARD_SECTION_SIZE = 10
 
 
@@ -68,6 +69,12 @@ def _leaderboard_entry(row):
         "age": row["age"],
         "team_id": row["team_id"],
         "team_abbr": row["team_abbr"],
+        # org_abbr (user request): the parent MLB organization's
+        # abbreviation, not the player's own immediate affiliate team --
+        # see get_prospect_leaderboard.sql's own comment for how it's
+        # resolved. Only present in leaderboard mode (get_prospects.sql's
+        # live-compute path doesn't select it).
+        "org_abbr": row["org_abbr"],
         "level": row["level"],
         "parent_team_id": row["parent_team_id"],
         "mlb_service_years": row["mlb_service_years"],
@@ -204,7 +211,7 @@ def get_prospects():
           mode (see above).
         - page, page_size (int, optional; leaderboard mode only): paginate
           the top_overall section. Defaults to page 1,
-          LEADERBOARD_DEFAULT_PAGE_SIZE (50) per page.
+          LEADERBOARD_DEFAULT_PAGE_SIZE (20) per page.
 
     Returns:
         Default mode -- JSON response: a list of objects, one per
