@@ -39,6 +39,7 @@ const expectedSurplusValue = ref(0)
 const expectedWar = ref(0)
 const starOdds = ref(0)
 const mlbPromotionReady = ref<boolean | null>(null)
+const riskTag = ref<'+' | '-' | null>(null)
 
 const loading = ref(true)
 const error = ref<string | null>(null)
@@ -63,6 +64,7 @@ async function fetchValue() {
         expectedWar.value = prospectData.expected_war
         starOdds.value = prospectData.star_odds
         mlbPromotionReady.value = prospectData.mlb_promotion_ready ?? null
+        riskTag.value = prospectData.risk_tag ?? null
       }
       return
     }
@@ -105,6 +107,15 @@ function fvClass(grade: number): string {
   if (grade >= 55) return 'bg-teal-50 text-teal-900'
   if (grade >= 45) return 'bg-gray-100 text-gray-800'
   return 'bg-amber-50 text-amber-900'
+}
+
+// Development-risk tag tooltip (ticket 0072): explains the "+"/"-" next to
+// the FV grade -- how close current-form ability already is to the talent
+// ceiling, independent of injury risk. Same wording as ProspectPipeline.vue.
+function riskTagTitle(tag: '+' | '-' | null): string | undefined {
+  if (tag === '-') return 'Higher risk: still far from his talent ceiling'
+  if (tag === '+') return 'Lower risk: already close to his talent ceiling'
+  return undefined
 }
 
 // Whole-dollar figures at this scale (six-to-nine digits) are unreadable
@@ -154,9 +165,10 @@ function formatPercent(value: number): string {
           <div
             class="flex-none w-16 h-16 rounded flex flex-col items-center justify-center"
             :class="fvClass(fv)"
+            :title="riskTagTitle(riskTag)"
           >
             <div class="text-xs opacity-70">FV</div>
-            <div class="font-semibold text-lg">{{ fv }}</div>
+            <div class="font-semibold text-lg">{{ fv }}<template v-if="riskTag"> {{ riskTag }}</template></div>
           </div>
           <div class="flex-1 px-3 py-2 rounded bg-gray-50 text-center">
             <div class="text-gray-500">Expected Surplus Value</div>

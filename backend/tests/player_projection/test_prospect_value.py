@@ -4,8 +4,13 @@ from app.player_projection.prospect_value import (
     HITTER_WAR_TO_FV,
     PITCHER_WAR_TO_FV,
     PROMOTION_READY_FV_FLOOR,
+    RISK_TAG_HIGH_GAP,
+    RISK_TAG_LOW_GAP,
+    RISK_TAG_MODIFIERS,
     _war_to_fv,
     _fv_to_value,
+    _risk_tag,
+    _apply_risk_modifier,
     build_batter_talent_projection_input,
     build_pitcher_talent_projection_input,
     calculate_hitter_prospect_value,
@@ -78,6 +83,61 @@ def test_fv_to_value_below_35_is_zero():
     assert _fv_to_value(20, "pitcher") == {
         "surplus_value": 0, "expected_war": 0.0, "star_odds": 0.0,
     }
+
+
+# === _risk_tag (ticket 0072) ===
+
+
+def test_risk_tag_large_gap_is_negative():
+    assert _risk_tag(fv=70, current_fv=40) == "-"  # gap 30 >= RISK_TAG_HIGH_GAP
+    assert _risk_tag(fv=60, current_fv=40) == "-"  # gap 20, exactly the boundary
+
+
+def test_risk_tag_small_gap_is_positive():
+    assert _risk_tag(fv=55, current_fv=50) == "+"  # gap 5, exactly the boundary
+    assert _risk_tag(fv=50, current_fv=50) == "+"  # gap 0, already at ceiling
+    assert _risk_tag(fv=45, current_fv=50) == "+"  # negative gap (current > ceiling)
+
+
+def test_risk_tag_middle_gap_is_untagged():
+    assert _risk_tag(fv=55, current_fv=40) is None  # gap 15, between the two thresholds
+
+
+def test_risk_tag_thresholds_are_module_constants():
+    # Guards against the boundary tests above silently drifting out of sync
+    # if the thresholds are ever tuned.
+    assert RISK_TAG_HIGH_GAP == 20
+    assert RISK_TAG_LOW_GAP == 5
+
+
+# === _apply_risk_modifier (ticket 0072 post-close correction) ===
+
+
+def test_apply_risk_modifier_discounts_negative_tag():
+    base = {"surplus_value": 100_000_000, "expected_war": 5.0, "star_odds": 50.0}
+    result = _apply_risk_modifier(base, "-")
+    assert result["surplus_value"] == round(100_000_000 * RISK_TAG_MODIFIERS["-"])
+    assert result["star_odds"] == round(50.0 * RISK_TAG_MODIFIERS["-"], 1)
+    # expected_war is a pure ceiling number -- never modified.
+    assert result["expected_war"] == 5.0
+
+
+def test_apply_risk_modifier_boosts_positive_tag():
+    base = {"surplus_value": 100_000_000, "expected_war": 5.0, "star_odds": 50.0}
+    result = _apply_risk_modifier(base, "+")
+    assert result["surplus_value"] == round(100_000_000 * RISK_TAG_MODIFIERS["+"])
+    assert result["star_odds"] == round(50.0 * RISK_TAG_MODIFIERS["+"], 1)
+
+
+def test_apply_risk_modifier_untagged_is_unchanged():
+    base = {"surplus_value": 100_000_000, "expected_war": 5.0, "star_odds": 50.0}
+    assert _apply_risk_modifier(base, None) == base
+
+
+def test_apply_risk_modifier_star_odds_capped_at_100():
+    base = {"surplus_value": 195_000_000, "expected_war": 27.5, "star_odds": 95.0}
+    result = _apply_risk_modifier(base, "+")  # 95.0 * 1.10 = 104.5, would exceed 100
+    assert result["star_odds"] == 100.0
 
 
 # === input builders ===
@@ -180,6 +240,28 @@ def test_calculate_hitter_prospect_value_promotion_ready_flag():
     assert result["mlb_promotion_ready"] is True
 
 
+def test_calculate_hitter_prospect_value_includes_risk_tag():
+    close_to_ceiling = calculate_hitter_prospect_value(_batter_input(50), _batter_input(50))
+    assert close_to_ceiling["risk_tag"] == "+"
+
+    far_from_ceiling = calculate_hitter_prospect_value(_batter_input(80), _batter_input(20))
+    assert far_from_ceiling["risk_tag"] == "-"
+
+
+def test_calculate_hitter_prospect_value_risk_tag_modifies_surplus_and_star_odds():
+    close_to_ceiling = calculate_hitter_prospect_value(_batter_input(50), _batter_input(50))
+    base = _fv_to_value(close_to_ceiling["fv"], "hitter")
+    assert close_to_ceiling["risk_tag"] == "+"
+    assert close_to_ceiling["surplus_value"] == round(base["surplus_value"] * RISK_TAG_MODIFIERS["+"])
+    # expected_war is never modified -- stays the pure ceiling number.
+    assert close_to_ceiling["expected_war"] == base["expected_war"]
+
+    far_from_ceiling = calculate_hitter_prospect_value(_batter_input(80), _batter_input(20))
+    base_far = _fv_to_value(far_from_ceiling["fv"], "hitter")
+    assert far_from_ceiling["risk_tag"] == "-"
+    assert far_from_ceiling["surplus_value"] == round(base_far["surplus_value"] * RISK_TAG_MODIFIERS["-"])
+
+
 def test_calculate_pitcher_prospect_value_sp_returns_result():
     result = calculate_pitcher_prospect_value(
         _pitcher_input(60, role=11), _pitcher_input(60, role=11)
@@ -187,6 +269,28 @@ def test_calculate_pitcher_prospect_value_sp_returns_result():
     assert result is not None
     assert result["fv"] in {fv for _, fv in PITCHER_WAR_TO_FV}
     assert "surplus_value" in result
+
+
+def test_calculate_pitcher_prospect_value_includes_risk_tag():
+    close_to_ceiling = calculate_pitcher_prospect_value(
+        _pitcher_input(50, role=11), _pitcher_input(50, role=11)
+    )
+    assert close_to_ceiling["risk_tag"] == "+"
+
+    far_from_ceiling = calculate_pitcher_prospect_value(
+        _pitcher_input(80, role=11), _pitcher_input(20, role=11)
+    )
+    assert far_from_ceiling["risk_tag"] == "-"
+
+
+def test_calculate_pitcher_prospect_value_risk_tag_modifies_surplus_and_star_odds():
+    far_from_ceiling = calculate_pitcher_prospect_value(
+        _pitcher_input(80, role=11), _pitcher_input(20, role=11)
+    )
+    base_far = _fv_to_value(far_from_ceiling["fv"], "pitcher")
+    assert far_from_ceiling["risk_tag"] == "-"
+    assert far_from_ceiling["surplus_value"] == round(base_far["surplus_value"] * RISK_TAG_MODIFIERS["-"])
+    assert far_from_ceiling["expected_war"] == base_far["expected_war"]
 
 
 @pytest.mark.parametrize("role", [12, 13])

@@ -90,6 +90,39 @@ def test_get_prospects_hitter_available(mock_get_db, mock_close_db, mock_open_re
     assert prospect["trend"] == {"direction": "flat", "alerts": []}
 
 
+def _fv30_row(**overrides):
+    # Bottom-of-scale ratings across the board -- both talent and current
+    # -- to guarantee an "Up & Down" FV 30 grade (see HITTER_WAR_TO_FV).
+    row = _prospect_row(
+        bat_babip=20, bat_gap=20, bat_eye=20, bat_power=20, bat_strikeouts=20,
+        bat_babip_talent=20, bat_gap_talent=20, bat_eye_talent=20,
+        bat_power_talent=20, bat_strikeouts_talent=20,
+        speed=20, steal=20, baserunning=20,
+        **{f"pos{i}": 20 for i in range(2, 10)},
+        **{f"pos{i}_talent": 20 for i in range(2, 10)},
+    )
+    row.update(overrides)
+    return row
+
+
+@patch("app.api.prospects.current_app.open_resource")
+@patch("app.api.prospects.close_db")
+@patch("app.api.prospects.get_db")
+def test_get_prospects_excludes_fv30_players(
+    mock_get_db, mock_close_db, mock_open_resource, client
+):
+    mock_open_resource.return_value.__enter__.return_value.read.return_value = "SELECT ..."
+    # No trend fetchall calls expected -- the row is excluded before
+    # _trend_for runs, so only the initial get_prospects.sql fetchall fires.
+    _mock_db(mock_get_db, [_fv30_row()], trend_rows_per_player=[])
+
+    response = client.get("/api/prospects")
+
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body == []
+
+
 @patch("app.api.prospects.current_app.open_resource")
 @patch("app.api.prospects.close_db")
 @patch("app.api.prospects.get_db")
@@ -235,6 +268,25 @@ def test_get_prospect_value_is_a_prospect(
     assert body["available"] is True
     assert "fv" in body
     assert "mlb_promotion_ready" in body  # level=2 in _prospect_row()
+
+
+@patch("app.api.prospects.current_app.open_resource")
+@patch("app.api.prospects.close_db")
+@patch("app.api.prospects.get_db")
+def test_get_prospect_value_excludes_fv30_player(
+    mock_get_db, mock_close_db, mock_open_resource, client
+):
+    mock_open_resource.return_value.__enter__.return_value.read.return_value = "SELECT ..."
+    mock_con = MagicMock()
+    mock_cursor = MagicMock()
+    mock_cursor.fetchone.return_value = _fv30_row()
+    mock_con.cursor.return_value.__enter__.return_value = mock_cursor
+    mock_get_db.return_value = mock_con
+
+    response = client.get("/api/prospects/1")
+
+    assert response.status_code == 200
+    assert response.get_json() == {"is_prospect": False}
 
 
 @patch("app.api.prospects.current_app.open_resource")

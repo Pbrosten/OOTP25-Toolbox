@@ -389,8 +389,8 @@ correction notes.
 | [0069](0069-prospect-query-layer-api.md) | Prospect query layer + API route | feat | Closed | 0068 |
 | [0070](0070-prospect-pipeline-frontend.md) | Prospect Pipeline frontend view | feat | Closed | 0069 |
 | [0071](0071-align-player-page-surplus-value-with-fv.md) | Align player-page surplus value with FV-based prospect value | feat | Closed | 0056, 0068 |
-| [0072](0072-prospect-risk-adjustment.md) | Risk-adjust FV/surplus value for high-potential/low-overall prospects | feat | Open | 0068 |
-| [0073](0073-prospect-pipeline-org-theming.md) | Org color theming for the Prospect Pipeline page | feat | Open | 0070 |
+| [0072](0072-prospect-risk-adjustment.md) | Risk-adjust FV/surplus value for high-potential/low-overall prospects | feat | Closed | 0068 |
+| [0073](0073-prospect-pipeline-org-theming.md) | Org color theming for the Prospect Pipeline page | feat | Closed | 0070 |
 
 ### Tool: Contract & Arbitration Analyzer
 

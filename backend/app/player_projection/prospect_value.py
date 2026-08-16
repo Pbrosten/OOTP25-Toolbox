@@ -75,6 +75,57 @@ FV_TO_VALUE_HALF_TIERS = {
 # gating on that is the caller's (ticket 0069) responsibility.
 PROMOTION_READY_FV_FLOOR = 40
 
+# Development-risk tag (ticket 0072, user request): a "+"/"-" badge next to
+# the FV grade showing how close a prospect's current-form ability already
+# is to his talent ceiling -- a visible signal the GM can see and judge for
+# themselves. Explicitly independent of prone_overall's existing
+# injury-risk concept (0059's INJURY_MULTIPLIERS) per user clarification --
+# "far from ceiling" and "injury-prone" aren't folded together here.
+#
+# Thresholds are a placeholder, tunable later against real outcomes (same
+# convention as 0056's age-decline curve/0059's injury multipliers): FV
+# tiers step in 5s/10s (see HITTER_WAR_TO_FV/PITCHER_WAR_TO_FV), so a
+# >=20-point gap is roughly 2-3+ tiers of distance-to-ceiling ("-", risky),
+# and a <=5-point gap means current form is already at or one tier from the
+# ceiling grade ("+", safer bet). Anything in between gets no tag --
+# most prospects, not worth flagging either way.
+RISK_TAG_HIGH_GAP = 20
+RISK_TAG_LOW_GAP = 5
+
+# Post-close correction (user request): the tag now also scales
+# surplus_value/star_odds, on top of (not instead of) staying visible as a
+# tag -- fv/expected_war stay pure ceiling numbers, unmodified, per this
+# ticket's original distinction between "what he could become" (ceiling,
+# untouched) and "what he's worth right now, given how likely that is"
+# (the dollar/probability outputs, which this modifier scales). Values are
+# a placeholder, tunable later, same convention as RISK_TAG_HIGH_GAP/
+# RISK_TAG_LOW_GAP above.
+RISK_TAG_MODIFIERS = {
+    "+": 1.10,  # already close to ceiling -- small premium
+    "-": 0.70,  # still far from ceiling -- real discount
+    None: 1.0,
+}
+
+
+def _risk_tag(fv, current_fv):
+    gap = fv - current_fv
+    if gap >= RISK_TAG_HIGH_GAP:
+        return "-"
+    if gap <= RISK_TAG_LOW_GAP:
+        return "+"
+    return None
+
+
+def _apply_risk_modifier(value, risk_tag):
+    modifier = RISK_TAG_MODIFIERS[risk_tag]
+    return {
+        **value,
+        "surplus_value": round(value["surplus_value"] * modifier),
+        # Capped at 100% -- a premium on an already-high base (e.g. FV 70's
+        # 87.5%) shouldn't produce a nonsensical probability above certain.
+        "star_odds": min(round(value["star_odds"] * modifier, 1), 100.0),
+    }
+
 
 def _war_to_fv(war, tiers):
     top_min, top_fv = tiers[0]
@@ -184,14 +235,16 @@ def calculate_hitter_prospect_value(talent_input, current_input):
 
     fv = _war_to_fv(talent_war, HITTER_WAR_TO_FV)
     current_fv = _war_to_fv(current_war, HITTER_WAR_TO_FV)
+    risk_tag = _risk_tag(fv, current_fv)
 
     return {
         "talent_war": talent_war,
         "fv": fv,
-        **_fv_to_value(fv, "hitter"),
+        **_apply_risk_modifier(_fv_to_value(fv, "hitter"), risk_tag),
         "current_war": current_war,
         "current_fv": current_fv,
         "mlb_promotion_ready": current_fv >= PROMOTION_READY_FV_FLOOR,
+        "risk_tag": risk_tag,
     }
 
 
@@ -209,12 +262,14 @@ def calculate_pitcher_prospect_value(talent_input, current_input):
 
     fv = _war_to_fv(talent_war, PITCHER_WAR_TO_FV)
     current_fv = _war_to_fv(current_war, PITCHER_WAR_TO_FV)
+    risk_tag = _risk_tag(fv, current_fv)
 
     return {
         "talent_war": talent_war,
         "fv": fv,
-        **_fv_to_value(fv, "pitcher"),
+        **_apply_risk_modifier(_fv_to_value(fv, "pitcher"), risk_tag),
         "current_war": current_war,
         "current_fv": current_fv,
         "mlb_promotion_ready": current_fv >= PROMOTION_READY_FV_FLOOR,
+        "risk_tag": risk_tag,
     }

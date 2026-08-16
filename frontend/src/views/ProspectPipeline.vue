@@ -10,20 +10,29 @@ const props = defineProps({
 // Complex -- 5 never appears). Duplicated from TeamDepthChart.vue rather
 // than shared -- same per-file convention that component already
 // established for this exact lookup.
+//
+// 0 (ticket 0073 post-close correction, user report -- Cris Ortega): not a
+// real teams.level value -- GET /api/prospects overrides a player's
+// displayed level to 0 when he's parked at a real MLB team_id with no
+// actual roster assignment (an international-complex signee OOTP has no
+// real "Int'l Complex" team to place him on). Sorted last -- developmentally
+// earlier than even Rookie/Complex.
 const LEVEL_LABELS = {
   1: 'MLB',
   2: 'AAA',
   3: 'AA',
   4: 'A / High-A',
   6: 'Rookie / Complex',
+  0: "Int'l Complex",
 }
+const LEVEL_ORDER = [1, 2, 3, 4, 6, 0]
 
 const POSITION_ORDER = ['C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF', 'DH', 'P']
 
 const loading = ref(true)
 const error = ref(null)
 const prospects = ref([])
-const teamName = ref('')
+const team = ref(null)
 
 const levelFilter = ref('')
 const positionFilter = ref('')
@@ -42,8 +51,7 @@ async function fetchProspects() {
 
     if (teamsRes.ok) {
       const teams = await teamsRes.json()
-      const team = teams.find((t) => String(t.team_id) === String(props.id))
-      teamName.value = team ? `${team.name} ${team.nickname}` : ''
+      team.value = teams.find((t) => String(t.team_id) === String(props.id)) || null
     }
   } catch (err) {
     error.value = err.message || 'Failed to load prospects.'
@@ -56,7 +64,7 @@ onMounted(fetchProspects)
 
 const levels = computed(() => {
   const present = new Set(prospects.value.map((p) => p.level))
-  return [1, 2, 3, 4, 6].filter((lvl) => present.has(lvl))
+  return LEVEL_ORDER.filter((lvl) => present.has(lvl))
 })
 
 const positions = computed(() => {
@@ -64,9 +72,24 @@ const positions = computed(() => {
   return POSITION_ORDER.filter((pos) => present.has(pos))
 })
 
+const teamName = computed(() => (team.value ? `${team.value.name} ${team.value.nickname}` : ''))
+
+// Org color theming (ticket 0073): the MLB team's own real colors, same
+// convention as TeamDepthChart.vue (ticket 0064) -- applied to this page
+// only, not an app-wide theme selector.
+const teamColors = computed(() => ({
+  '--team-bg': team.value?.background_color || '#0f766e',
+  '--team-text': team.value?.text_color || '#ffffff',
+}))
+
 const filteredProspects = computed(() => {
   let rows = prospects.value
-  if (levelFilter.value) rows = rows.filter((p) => String(p.level) === String(levelFilter.value))
+  // levelFilter.value !== '' (not a truthy check): level 0 ("Int'l
+  // Complex", ticket 0073) is a real, selectable filter value that's
+  // otherwise falsy and indistinguishable from the "All Levels" default.
+  if (levelFilter.value !== '') {
+    rows = rows.filter((p) => String(p.level) === String(levelFilter.value))
+  }
   if (positionFilter.value) rows = rows.filter((p) => p.position === positionFilter.value)
 
   // Prospects with no available FV/value (RP-role, or missing rating data
@@ -107,14 +130,26 @@ function fvClass(fv) {
   if (fv >= 45) return 'bg-gray-100 text-gray-800'
   return 'bg-amber-50 text-amber-900'
 }
+
+// Development-risk tag tooltip (ticket 0072): explains the "+"/"-" next to
+// the FV grade -- how close the player's current-form ability already is
+// to his talent ceiling, independent of injury risk.
+function riskTagTitle(riskTag) {
+  if (riskTag === '-') return 'Higher risk: still far from his talent ceiling'
+  if (riskTag === '+') return 'Lower risk: already close to his talent ceiling'
+  return undefined
+}
 </script>
 
 <template>
-  <div class="max-w-6xl mx-auto p-6">
+  <div class="max-w-6xl mx-auto p-6" :style="teamColors">
     <div v-if="loading" class="text-gray-500">Loading...</div>
     <div v-else-if="error" class="text-red-500">{{ error }}</div>
     <div v-else>
-      <h1 class="text-xl font-bold rounded-lg px-4 py-3 mb-6 bg-teal-700 text-white">
+      <h1
+        class="text-xl font-bold rounded-lg px-4 py-3 mb-6"
+        style="background-color: var(--team-bg); color: var(--team-text);"
+      >
         {{ teamName || `Org ${id}` }} — Prospect Pipeline
       </h1>
 
@@ -178,8 +213,12 @@ function fvClass(fv) {
 
               <template v-if="prospect.value.available">
                 <td class="px-3 py-2">
-                  <span class="px-2 py-0.5 rounded-full text-xs font-semibold" :class="fvClass(prospect.value.fv)">
-                    {{ prospect.value.fv }}
+                  <span
+                    class="px-2 py-0.5 rounded-full text-xs font-semibold"
+                    :class="fvClass(prospect.value.fv)"
+                    :title="riskTagTitle(prospect.value.risk_tag)"
+                  >
+                    {{ prospect.value.fv }}<template v-if="prospect.value.risk_tag"> {{ prospect.value.risk_tag }}</template>
                   </span>
                 </td>
                 <td class="px-3 py-2 font-medium">{{ formatMoney(prospect.value.surplus_value) }}</td>

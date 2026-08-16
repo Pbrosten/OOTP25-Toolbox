@@ -33,44 +33,51 @@ onMounted(async () => {
     // showed "Failed to load batting stats." on every pitcher's page.
     // A TWP (ticket 0067) has real batting stats despite position === 'P',
     // so also fetch batting for them.
-    if (playerDetails.value?.position !== 'P' || playerDetails.value?.is_twp) {
-      const statsRes = await fetch(`/api/players/${props.playerId}/career/batting`)
-      if (statsRes.ok) {
-        const rawStats = await statsRes.json()
-        // The API returns SQL SUM() results as JSON strings (e.g. "ab": "558"),
-        // not numbers. Left uncoerced, "+" on these fields concatenates
-        // instead of adding wherever a formula chains more than one of them
-        // (e.g. calcSlg's h+d+... produced six-digit "stats" instead of a
-        // real quotient). Normalize once here so every consumer below --
-        // per-row calc functions and the totals sum() alike -- works with
-        // real numbers.
-        const numericKeys = ['pa', 'ab', 'r', 'h', 'hr', 'sb', 'bb', 'hp', 'sf', 'd', 't']
-        battingStats.value = rawStats.map((row: any) => {
-          const normalized = { ...row }
-          for (const key of numericKeys) normalized[key] = Number(row[key])
-          return normalized
-        })
-      } else {
-        error.value = 'Failed to load batting stats.'
+    //
+    // is_international_complex (ticket 0073): an int'l-complex signee has
+    // no career rows at all yet (real case, not a data gap) -- skip both
+    // fetches entirely rather than surfacing a "Failed to load ... stats"
+    // error for a state that isn't actually an error.
+    if (!playerDetails.value?.is_international_complex) {
+      if (playerDetails.value?.position !== 'P' || playerDetails.value?.is_twp) {
+        const statsRes = await fetch(`/api/players/${props.playerId}/career/batting`)
+        if (statsRes.ok) {
+          const rawStats = await statsRes.json()
+          // The API returns SQL SUM() results as JSON strings (e.g. "ab": "558"),
+          // not numbers. Left uncoerced, "+" on these fields concatenates
+          // instead of adding wherever a formula chains more than one of them
+          // (e.g. calcSlg's h+d+... produced six-digit "stats" instead of a
+          // real quotient). Normalize once here so every consumer below --
+          // per-row calc functions and the totals sum() alike -- works with
+          // real numbers.
+          const numericKeys = ['pa', 'ab', 'r', 'h', 'hr', 'sb', 'bb', 'hp', 'sf', 'd', 't']
+          battingStats.value = rawStats.map((row: any) => {
+            const normalized = { ...row }
+            for (const key of numericKeys) normalized[key] = Number(row[key])
+            return normalized
+          })
+        } else {
+          error.value = 'Failed to load batting stats.'
+        }
       }
-    }
 
-    // A TWP's position isn't always 'P' (confirmed real case: Shohei
-    // Ohtani is 'DH' but has real career pitching stats) -- also fetch
-    // pitching for a detected TWP, same fix shape as the batting fetch
-    // above.
-    if (playerDetails.value?.position === 'P' || playerDetails.value?.is_twp) {
-      const pitchingRes = await fetch(`/api/players/${props.playerId}/career/pitching`)
-      if (pitchingRes.ok) {
-        const rawPitching = await pitchingRes.json()
-        const numericKeys = ['w', 'l', 's', 'g', 'gs', 'outs', 'k', 'bb', 'ha', 'er']
-        pitchingStats.value = rawPitching.map((row: any) => {
-          const normalized = { ...row }
-          for (const key of numericKeys) normalized[key] = Number(row[key])
-          return normalized
-        })
-      } else {
-        error.value = 'Failed to load pitching stats.'
+      // A TWP's position isn't always 'P' (confirmed real case: Shohei
+      // Ohtani is 'DH' but has real career pitching stats) -- also fetch
+      // pitching for a detected TWP, same fix shape as the batting fetch
+      // above.
+      if (playerDetails.value?.position === 'P' || playerDetails.value?.is_twp) {
+        const pitchingRes = await fetch(`/api/players/${props.playerId}/career/pitching`)
+        if (pitchingRes.ok) {
+          const rawPitching = await pitchingRes.json()
+          const numericKeys = ['w', 'l', 's', 'g', 'gs', 'outs', 'k', 'bb', 'ha', 'er']
+          pitchingStats.value = rawPitching.map((row: any) => {
+            const normalized = { ...row }
+            for (const key of numericKeys) normalized[key] = Number(row[key])
+            return normalized
+          })
+        } else {
+          error.value = 'Failed to load pitching stats.'
+        }
       }
     }
 
@@ -257,7 +264,10 @@ defineExpose({
         <span class="text-lg text-teal-800">|</span>  Age: ##</div>
     </p>
 
-    <template v-if="playerDetails && (playerDetails.position !== 'P' || playerDetails.is_twp)">
+    <template
+      v-if="playerDetails && !playerDetails.is_international_complex
+        && (playerDetails.position !== 'P' || playerDetails.is_twp)"
+    >
       <h2 class="text-2xl font-semibold mb-4">
         Career Batting Stats
         <span v-if="playerDetails">
@@ -332,7 +342,10 @@ defineExpose({
       </table>
     </template>
 
-    <template v-if="playerDetails && (playerDetails.position === 'P' || playerDetails.is_twp)">
+    <template
+      v-if="playerDetails && !playerDetails.is_international_complex
+        && (playerDetails.position === 'P' || playerDetails.is_twp)"
+    >
       <h2 class="text-2xl font-semibold mb-4">
         Career Pitching Stats
         <span v-if="playerDetails">

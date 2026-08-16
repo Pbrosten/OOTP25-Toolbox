@@ -132,6 +132,11 @@ def get_player_details_by_id(player_id):
         - age
         - batting stats for last three seasons
         - aggregate batting stats
+        - is_international_complex (ticket 0073): true if the player is
+          parked at a real MLB team_id with no actual roster assignment
+          (an international-complex signee OOTP has no real team for) --
+          drives the frontend skipping the Career Stats section, which
+          would otherwise 404 for a player with no career rows at all yet.
 
     Args:
         player_id (int): The ID of the player to retrieve.

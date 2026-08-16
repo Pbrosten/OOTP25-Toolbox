@@ -28,11 +28,34 @@
 -- by GET /api/prospects/<player_id> to answer "is this specific player a
 -- prospect" without pulling an org's whole list, reusing this same query
 -- rather than a parallel single-player one.
-WITH prospects AS (
+--
+-- level = 0 (ticket 0073 post-close correction, user report -- Cris
+-- Ortega): a player parked at a real level-1 team_id with no real MLB (or
+-- even minor-league) roster assignment -- confirmed real case, a
+-- 17-year-old international-complex signee whose org has no actual
+-- "International Complex" team to assign him to in this save (same root
+-- cause get_org_depth_chart.sql's is_active/is_on_secondary check already
+-- excludes from the level-1 roster, ticket 0064's post-close correction).
+-- The Prospect Pipeline's job is different from the depth chart's --
+-- these players should stay listed as prospects, not be silently dropped,
+-- but shouldn't be mislabeled "MLB" -- so instead of excluding them, their
+-- *displayed* level is overridden to a synthetic 0 ("Int'l Complex" in the
+-- frontend), never a real teams.level value (confirmed: teams.level only
+-- ever holds NULL/1/2/3/4/5/6 in this save). The level *filter* below
+-- applies to this same overridden value (via the outer prospects CTE, not
+-- prospect_candidates), so ?level=0 actually finds these players too.
+WITH prospect_candidates AS (
     SELECT
         p.player_id, p.first_name, p.last_name, p.position, p.bats,
         p.birth_date, p.age, p.prone_overall, p.team_id,
-        t.level, t.abbr AS team_abbr, t.parent_team_id,
+        CASE
+            WHEN t.level = 1
+                 AND COALESCE(st.is_active, 0) = 0
+                 AND COALESCE(st.is_on_secondary, 0) = 0
+            THEN 0
+            ELSE t.level
+        END AS level,
+        t.abbr AS team_abbr, t.parent_team_id,
         st.mlb_service_years
     FROM players p
     JOIN teams t ON t.team_id = p.team_id
@@ -47,8 +70,11 @@ WITH prospects AS (
       )
       AND (%(team_id)s IS NULL OR p.team_id = %(team_id)s OR t.parent_team_id = %(team_id)s)
       AND (%(position)s IS NULL OR p.position = %(position)s)
-      AND (%(level)s IS NULL OR t.level = %(level)s)
       AND (%(player_id)s IS NULL OR p.player_id = %(player_id)s)
+),
+prospects AS (
+    SELECT * FROM prospect_candidates
+    WHERE %(level)s IS NULL OR level = %(level)s
 ),
 latest_rating AS (
     SELECT pr.player_id, MAX(pr.rating_date) AS rating_date

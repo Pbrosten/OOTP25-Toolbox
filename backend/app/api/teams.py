@@ -19,9 +19,9 @@ COUNT_ONLY_LEVELS = {4, 6}
 @bp.route("", methods=["GET"])
 def get_mlb_teams():
     """
-    Retrieve every real MLB team, for the depth-chart team picker (ticket
-    0064) -- the only place today that needs to list teams rather than
-    look one up by id.
+    Retrieve every real MLB team, for the depth-chart/prospect-pipeline
+    team pickers (tickets 0064/0070) -- the only places today that need to
+    list teams rather than look one up by id.
 
     `level = 1` alone isn't enough: this save also tags 4 exhibition teams
     (AL/NL All-Stars, AL/NL Future Stars) as level 1, none of which have a
@@ -29,16 +29,23 @@ def get_mlb_teams():
     `city_id != 0`, the reliable "is this a real team" signal (division_id/
     league_id alone aren't -- real teams share division_id = 0 too).
 
+    background_color/text_color (ticket 0073): the org's real colors, so
+    `ProspectPipeline.vue` can theme its header the same way
+    `TeamDepthChart.vue` already does from `get_org_depth_chart.sql` --
+    added here rather than a new endpoint since this route already reads
+    from `teams` and every consumer of this list (both pickers) already
+    fetches it regardless.
+
     Returns:
-        JSON response: a list of {team_id, name, abbr, nickname}, sorted
-        by name.
+        JSON response: a list of {team_id, name, abbr, nickname,
+        background_color, text_color}, sorted by name.
     """
     con = get_db()
     try:
         with con.cursor() as cursor:
             cursor.execute(
-                "SELECT team_id, name, abbr, nickname FROM teams "
-                "WHERE level = 1 AND city_id != 0 ORDER BY name"
+                "SELECT team_id, name, abbr, nickname, background_color, text_color "
+                "FROM teams WHERE level = 1 AND city_id != 0 ORDER BY name"
             )
             rows = cursor.fetchall()
         return jsonify(rows)

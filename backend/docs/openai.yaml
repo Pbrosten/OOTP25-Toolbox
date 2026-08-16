@@ -766,7 +766,7 @@ paths:
         Returns every level-1 team that is also a real franchise (has a
         real city -- excludes this save's 4 exhibition teams: AL/NL
         All-Stars, AL/NL Future Stars, see ticket 0062/0064), sorted by
-        name. Used by the depth-chart team picker.
+        name. Used by the depth-chart and prospect-pipeline team pickers.
       tags: [Teams]
       responses:
         '200':
@@ -785,6 +785,11 @@ paths:
                     abbr:
                       type: string
                     nickname:
+                      type: string
+                    background_color:
+                      type: string
+                      description: The team's real color (ticket 0073), for frontend theming.
+                    text_color:
                       type: string
 
   /api/teams/{team_id}/depth-chart:
@@ -885,7 +890,8 @@ paths:
         value, and MLB-promotion readiness are computed by replicating
         FanGraphs' Future Value framework against this app's own
         talent/current ratings (ticket 0068); development trend reuses
-        ticket 0050/0051's rating-delta/alert layer.
+        ticket 0050/0051's rating-delta/alert layer. Excludes FV 30
+        ("Up & Down") players entirely (ticket 0072 follow-up).
       tags: [Prospects]
       parameters:
         - in: query
@@ -962,6 +968,11 @@ paths:
                         current_fv:
                           type: integer
                           description: FV grade off the player's *current* (not talent) ratings.
+                        risk_tag:
+                          type: string
+                          nullable: true
+                          enum: ["+", "-"]
+                          description: Ticket 0072 -- "-" if fv is >= 20 points above current_fv (far from talent ceiling), "+" if within 5 points, null otherwise. Independent of prone_overall injury risk.
                         mlb_promotion_ready:
                           type: boolean
                           description: Present only when level != 1 -- true if current_fv >= 40 ("Bench Player"/"Backend starter" or better).
@@ -1023,6 +1034,11 @@ paths:
                     type: number
                   current_fv:
                     type: integer
+                  risk_tag:
+                    type: string
+                    nullable: true
+                    enum: ["+", "-"]
+                    description: Ticket 0072 -- see GET /api/prospects' value.risk_tag.
                   mlb_promotion_ready:
                     type: boolean
                     description: Present only when level != 1.
