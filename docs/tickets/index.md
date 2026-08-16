@@ -230,7 +230,7 @@ its minor-league level/affiliate half as 0062, both drawn below):
 [x] 0068 Prospect FV/value calculation             |
       |                                          |
       v                                          |
-[ ] 0069 Prospect query layer + API               |
+[x] 0069 Prospect query layer + API               |
       |                                          |
       v                                          |
 [ ] 0070 Prospect Pipeline frontend               |
@@ -372,7 +372,7 @@ sequential-layering convention as 0050/0051/0052 and 0062/0063/0064.
 | # | Title | Tag | Status | Depends on |
 |---|-------|-----|--------|------------|
 | [0068](0068-prospect-fv-value-calculation.md) | Prospect FV/value calculation module | feat | Closed | — |
-| [0069](0069-prospect-query-layer-api.md) | Prospect query layer + API route | feat | Open | 0068 |
+| [0069](0069-prospect-query-layer-api.md) | Prospect query layer + API route | feat | Closed | 0068 |
 | [0070](0070-prospect-pipeline-frontend.md) | Prospect Pipeline frontend view | feat | Open | 0069 |
 
 ### Tool: Contract & Arbitration Analyzer

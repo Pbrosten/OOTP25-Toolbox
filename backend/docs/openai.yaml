@@ -873,6 +873,109 @@ paths:
                   error:
                     type: string
 
+  /api/prospects:
+    get:
+      summary: Retrieve every prospect-eligible player
+      description: |
+        Returns every player currently on a non-MLB affiliate
+        (teams.level != 1), plus just-debuted MLB rookies with zero
+        recorded MLB service (players_service_time.mlb_service_years = 0)
+        -- see ticket 0043's Design choices for the full "prospect"
+        definition. Each prospect's Future Value (FV) grade, surplus
+        value, and MLB-promotion readiness are computed by replicating
+        FanGraphs' Future Value framework against this app's own
+        talent/current ratings (ticket 0068); development trend reuses
+        ticket 0050/0051's rating-delta/alert layer.
+      tags: [Prospects]
+      parameters:
+        - in: query
+          name: team_id
+          schema:
+            type: integer
+          required: false
+          description: Scope to a single org -- the given MLB team plus every affiliate whose parent_team_id points at it.
+        - in: query
+          name: position
+          schema:
+            type: string
+          required: false
+          description: Scope to a single players.position (e.g. "SS", "P").
+        - in: query
+          name: level
+          schema:
+            type: integer
+          required: false
+          description: Scope to a single teams.level (1 = MLB, 2 = AAA, 3 = AA, 4 = A/High-A, 6 = Rookie/Complex).
+      responses:
+        '200':
+          description: List of prospects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    player_id:
+                      type: integer
+                    first_name:
+                      type: string
+                    last_name:
+                      type: string
+                    position:
+                      type: string
+                    age:
+                      type: integer
+                    team_id:
+                      type: integer
+                    team_abbr:
+                      type: string
+                    level:
+                      type: integer
+                    parent_team_id:
+                      type: integer
+                      nullable: true
+                    mlb_service_years:
+                      type: integer
+                      nullable: true
+                    value:
+                      type: object
+                      description: |
+                        {"available": false} for an RP-role prospect
+                        (ticket 0068's FV table is starters-only) or a
+                        player with no usable rating data.
+                      properties:
+                        available:
+                          type: boolean
+                        fv:
+                          type: integer
+                          description: 20-80 Future Value grade off the player's talent-ceiling projection.
+                        surplus_value:
+                          type: integer
+                          description: Expected surplus value in dollars, looked up by FV grade.
+                        expected_war:
+                          type: number
+                        star_odds:
+                          type: number
+                          description: Percent chance of a multi-4+-WAR-season "star" outcome, by FV grade.
+                        current_fv:
+                          type: integer
+                          description: FV grade off the player's *current* (not talent) ratings.
+                        mlb_promotion_ready:
+                          type: boolean
+                          description: Present only when level != 1 -- true if current_fv >= 40 ("Bench Player"/"Backend starter" or better).
+                    trend:
+                      type: object
+                      properties:
+                        direction:
+                          type: string
+                          enum: [up, down, mixed, flat]
+                        alerts:
+                          type: array
+                          description: Ticket 0051's per-category development alerts (see /api/players/ratings/{player_id}/trends/alerts).
+                          items:
+                            type: object
+
 components:
   securitySchemes:
     AdminToken:
