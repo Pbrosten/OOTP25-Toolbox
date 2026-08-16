@@ -1,7 +1,7 @@
 # 0043 — Prospect Pipeline
 
 - **Tag:** feat
-- **Status:** In-Progress
+- **Status:** Closed
 - **Depends on:** [0044](0044-player-development-monitor.md)
 - **Blocks:** [0038](0038-gm-command-center.md)
 

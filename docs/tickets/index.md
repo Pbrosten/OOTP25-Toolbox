@@ -224,7 +224,7 @@ its minor-league level/affiliate half as 0062, both drawn below):
 [x] 0044 Player Development Monitor
       |
       v
-[~] 0043 Prospect Pipeline (epic tracker) --------+
+[x] 0043 Prospect Pipeline (epic tracker) --------+
       |                                          |
       v                                          |
 [x] 0068 Prospect FV/value calculation             |
@@ -291,7 +291,7 @@ its minor-league level/affiliate half as 0062, both drawn below):
 | [0041](0041-trade-target-finder.md) | Trade Target Finder (epic tracker) | feat | Open | — |
 | [0039](0039-roster-optimization-org-depth.md) | Roster Optimization & Organizational Depth (epic tracker) | feat | Closed | 0062 |
 | [0040](0040-defensive-optimization.md) | Defensive Optimization (epic tracker) | feat | Open | 0039 |
-| [0043](0043-prospect-pipeline.md) | Prospect Pipeline (epic tracker) | feat | In-Progress | 0044 |
+| [0043](0043-prospect-pipeline.md) | Prospect Pipeline (epic tracker) | feat | Closed | 0044 |
 | [0042](0042-contract-arbitration-analyzer.md) | Contract & Arbitration Analyzer (epic tracker) | feat | Closed | 0053, 0054 |
 | [0038](0038-gm-command-center.md) | GM Command Center (epic tracker) | feat | Open | 0039, 0042, 0043 |
 | [0065](0065-gm-org-selection-theming.md) | GM organization selection + app-wide color theming | feat | Open | — |
