@@ -108,16 +108,19 @@ def test_get_prospects_mlb_level_omits_promotion_ready(
 @patch("app.api.prospects.current_app.open_resource")
 @patch("app.api.prospects.close_db")
 @patch("app.api.prospects.get_db")
-def test_get_prospects_rp_role_not_available(
+def test_get_prospects_rp_role_available(
     mock_get_db, mock_close_db, mock_open_resource, client
 ):
+    # RP is no longer excluded (ticket 0068 post-close correction, user
+    # request) -- their own smaller workload baseline penalizes them
+    # naturally rather than needing a hard exclusion.
     mock_open_resource.return_value.__enter__.return_value.read.return_value = "SELECT ..."
     _mock_db(mock_get_db, [_pitcher_row(pitch_role=12)])
 
     response = client.get("/api/prospects")
 
     body = response.get_json()
-    assert body[0]["value"] == {"available": False}
+    assert body[0]["value"]["available"] is True
 
 
 @patch("app.api.prospects.current_app.open_resource")

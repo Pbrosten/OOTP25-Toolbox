@@ -87,8 +87,8 @@ def _value_for(row):
     """Runs ticket 0068's calc for whichever side matches players.position
     (same explicit-position-gate convention as get_player_rating_trends.sql
     -- a two-way player is scored on their listed-position side only, not
-    both). Returns {"available": False} for RP prospects, missing ratings,
-    or any projection failure (mirrors app/db/projection.py's
+    both). Returns {"available": False} for missing ratings or any
+    projection failure (mirrors app/db/projection.py's
     process_player/process_pitcher, which also treat a projection error as
     "no result" rather than a hard failure)."""
     try:
@@ -165,9 +165,11 @@ def get_prospects():
              value: {available, fv, surplus_value, expected_war, star_odds,
                       current_fv, mlb_promotion_ready?},
              trend: {direction, alerts}}.
-            value.available is false for RP-role prospects (ticket 0068's
-            starters-only FV table) or any player with no usable rating
-            data. mlb_promotion_ready is only present at level != 1.
+            value.available is false only for a player with no usable
+            rating data (RP prospects get a real value -- ticket 0068's
+            FV table applies to both SP and RP, a reliever's own smaller
+            workload naturally produces a lower WAR/FV rather than needing
+            exclusion). mlb_promotion_ready is only present at level != 1.
     """
     team_id = _int_or_none(request.args.get("team_id"))
     position = request.args.get("position")

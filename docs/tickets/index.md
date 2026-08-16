@@ -205,7 +205,7 @@ data readiness, not by the epic's original grouping:
    against this app's ratings data) is broken into
    [0068](0068-prospect-fv-value-calculation.md)/
    [0069](0069-prospect-query-layer-api.md)/
-   [0070](0070-prospect-pipeline-frontend.md) — In-Progress.
+   [0070](0070-prospect-pipeline-frontend.md) — Closed.
 7. **Contract & Arbitration Analyzer** (0042) — needs contract/salary data
    from step 5; no reduced-scope fallback exists.
 8. **Trade Target Finder** (0041) full scope — layers in contract/injury/
@@ -233,7 +233,7 @@ its minor-league level/affiliate half as 0062, both drawn below):
 [x] 0069 Prospect query layer + API               |
       |                                          |
       v                                          |
-[ ] 0070 Prospect Pipeline frontend               |
+[x] 0070 Prospect Pipeline frontend               |
                                                   |
 [x] 0062 Team level/affiliate schema+migration    |
       |                                          |
@@ -367,13 +367,30 @@ against this app's own talent/current ratings data (full derivation in
 [0068](0068-prospect-fv-value-calculation.md) (calc module),
 [0069](0069-prospect-query-layer-api.md) (query layer + API), and
 [0070](0070-prospect-pipeline-frontend.md) (frontend view) — same
-sequential-layering convention as 0050/0051/0052 and 0062/0063/0064.
+sequential-layering convention as 0050/0051/0052 and 0062/0063/0064. Three
+follow-ups filed from a real user review of 0070 against live data:
+[0071](0071-align-player-page-surplus-value-with-fv.md) (player-page
+surplus value currently shows the 0056 contract-based number, which is
+almost always "not available" for a prospect, instead of 0068's FV-based
+one), [0072](0072-prospect-risk-adjustment.md) (FV/surplus value/star odds
+don't yet discount for a large gap between a prospect's talent ceiling and
+current-form ability -- a real risk signal 0068 already computes but
+doesn't use for value), and
+[0073](0073-prospect-pipeline-org-theming.md) (the Prospect Pipeline page
+doesn't yet carry the selected org's real colors the way 0064's depth
+chart does). The age gate that same review surfaced (a 32-year-old
+optioned-down veteran showing as a "prospect") was small enough to fix
+directly rather than file a ticket for -- see 0043/0069's post-close
+correction notes.
 
 | # | Title | Tag | Status | Depends on |
 |---|-------|-----|--------|------------|
 | [0068](0068-prospect-fv-value-calculation.md) | Prospect FV/value calculation module | feat | Closed | — |
 | [0069](0069-prospect-query-layer-api.md) | Prospect query layer + API route | feat | Closed | 0068 |
-| [0070](0070-prospect-pipeline-frontend.md) | Prospect Pipeline frontend view | feat | Open | 0069 |
+| [0070](0070-prospect-pipeline-frontend.md) | Prospect Pipeline frontend view | feat | Closed | 0069 |
+| [0071](0071-align-player-page-surplus-value-with-fv.md) | Align player-page surplus value with FV-based prospect value | feat | Open | 0056, 0068 |
+| [0072](0072-prospect-risk-adjustment.md) | Risk-adjust FV/surplus value for high-potential/low-overall prospects | feat | Open | 0068 |
+| [0073](0073-prospect-pipeline-org-theming.md) | Org color theming for the Prospect Pipeline page | feat | Open | 0070 |
 
 ### Tool: Contract & Arbitration Analyzer
 

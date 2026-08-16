@@ -93,3 +93,20 @@ level:
 **Files involved:**
 - `backend/app/player_projection/prospect_value.py` (new)
 - `backend/tests/player_projection/test_prospect_value.py` (new)
+
+## 4. Post-close correction: RP exclusion removed (user request)
+
+After closing, a real-data review (via 0070) found ~27% of a full org's
+pitching prospects (56/210, Philadelphia) coming back "not available" due
+to the RP exclusion above — all real relievers, working as designed, but
+high enough volume that the user asked to remove the exclusion rather than
+keep it. Rationale: `PitcherProjection`'s own role-specific baseline
+constants (`ROLE_CONSTANTS` in `pitcher.py` — RP's ~300 PA baseline vs.
+SP's ~750, ~0.03 replacement-runs/IP vs. ~0.12) already produce a
+meaningfully lower annual WAR for a reliever at equivalent ratings, so
+applying the same starters-calibrated `PITCHER_WAR_TO_FV` table to RP
+naturally sorts them into lower FV tiers rather than needing a hard
+exclusion — verified in code:
+`test_calculate_pitcher_prospect_value_rp_produces_lower_war_than_sp_at_same_ratings`.
+`calculate_pitcher_prospect_value` no longer special-cases
+`players_pitching.role`; every pitcher gets a real FV/value now.

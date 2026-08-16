@@ -11,7 +11,7 @@ signal.
 """
 
 from .batter import BatterProjection
-from .pitcher import PitcherProjection, ROLE_MAP
+from .pitcher import PitcherProjection
 
 # === WAR -> FV lookup tables (ticket 0043 Design choices) ===
 # Descending (min_war, fv) tiers. The top tier is matched with a strict '>'
@@ -30,8 +30,12 @@ HITTER_WAR_TO_FV = [
     (float("-inf"), 30),  # Up & Down
 ]
 
-# Starters-only -- the source table was built from a starters sample (50+ IP).
-# See calculate_pitcher_prospect_value()'s RP exclusion.
+# Source table was built from a starters sample (50+ IP) -- applied to
+# relievers too (ticket 0068 post-close correction, user request): RP's own
+# much smaller workload (ROLE_CONSTANTS in pitcher.py: ~300 PA baseline vs.
+# SP's ~750, ~0.03 replacement-runs/IP vs. ~0.12) already drives a lower
+# annual WAR through PitcherProjection on its own, so relievers naturally
+# land in the lower FV tiers rather than needing a hard exclusion.
 PITCHER_WAR_TO_FV = [
     (7.0, 80),   # Ace / #1
     (5.0, 70),   # #2 starter
@@ -192,16 +196,12 @@ def calculate_hitter_prospect_value(talent_input, current_input):
 
 
 def calculate_pitcher_prospect_value(talent_input, current_input):
-    """Pitcher equivalent of calculate_hitter_prospect_value(). Returns None
-    ("not available") for RP-role prospects -- PITCHER_WAR_TO_FV is built
-    from a starters-only sample (see ticket 0043's Design choices), so
-    applying it to relievers would misrepresent their value rather than
-    approximate it -- as well as for missing input, same as the hitter
-    version.
+    """Pitcher equivalent of calculate_hitter_prospect_value(). Applies to
+    both SP and RP -- see PITCHER_WAR_TO_FV's comment for why no RP
+    exclusion/adjustment is needed. Returns None ("not available") only for
+    missing input, same as the hitter version.
     """
     if talent_input is None or current_input is None:
-        return None
-    if ROLE_MAP.get(current_input.get("role")) != "SP":
         return None
 
     talent_war = PitcherProjection(talent_input).calc_expected_stats()["pitching_value"]["WAR"]

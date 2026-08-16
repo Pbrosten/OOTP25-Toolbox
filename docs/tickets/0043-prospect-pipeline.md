@@ -44,13 +44,20 @@ outstanding/judgment-call questions).
   (`backend/app/db/sql_scripts/api/get_org_depth_chart.sql`, from
   [0063](0063-roster-depth-chart-query-api.md)) already exists to reuse for
   "organizational depth at position" instead of building a parallel query.
-- **Resolved — "prospect" definition.** A player is a prospect if
-  `teams.level != 1` (currently on any non-MLB affiliate), OR `teams.level
-  == 1 AND players_service_time.mlb_service_years == 0` (catches a
-  just-debuted rookie who's still prospect-relevant for trade/roster
-  purposes). Uses data from 0062 and
+- **Resolved — "prospect" definition.** A player is a prospect if `age <
+  26` **AND** (`teams.level != 1` (currently on any non-MLB affiliate), OR
+  `teams.level == 1 AND players_service_time.mlb_service_years == 0`
+  (catches a just-debuted rookie who's still prospect-relevant for trade/
+  roster purposes)). Uses data from 0062 and
   [0053](0053-contract-service-time-schema.md)/[0054](0054-contract-service-time-migration.md),
   both already ingested.
+  - **Post-close correction to 0069 (user report):** the age gate was
+    added after 0069 shipped without one -- level/service-time alone let a
+    veteran journeyman briefly optioned back to AAA (real case: a
+    32-year-old reliever) show up as a "prospect." `age < 26` is an
+    additional gate on top of, not instead of, the level/service-time
+    check. Implemented directly in `get_prospects.sql`, no new ticket
+    (user's explicit call).
 - **Resolved — development trajectory reuses 0044's trend layer.**
   [0044](0044-player-development-monitor.md)'s sliding-3-heap-lookback
   delta computation ([0050](0050-rating-trend-query-layer.md)) is a direct
@@ -114,13 +121,17 @@ outstanding/judgment-call questions).
     70). FV grades below 35 (i.e. 20/30 — "Org guy"/"Up & Down") get $0
     surplus value rather than an invented number, consistent with the
     primer's own framing that these tiers carry no real trade value.
-  - **Relief pitchers excluded from FV/value scoring this pass.** The
-    pitcher WAR→FV table is explicitly built from a starters-only sample
-    (50+ IP). Rather than misapplying a starter-calibrated table to
-    relievers or inventing an unsourced correction, RP-role prospects
-    (`players_pitching.role`, per 0037's existing SP/RP split) return "not
-    available" for FV/value. Revisit if a reliever-specific source table
-    surfaces later.
+  - **Relief pitchers: no exclusion, no separate table (post-close
+    correction to this original decision, user request).** Originally
+    excluded from FV/value scoring — see 0068's post-close correction
+    section for the full reversal. A real-data review found ~27% of a
+    full org's pitching prospects coming back "not available" this way;
+    reconsidered because `PitcherProjection`'s own role-specific baseline
+    constants (RP's much smaller PA/IP workload) already produce a
+    meaningfully lower annual WAR for a reliever than a starter at
+    equivalent ratings, so applying the same starters-calibrated
+    `PITCHER_WAR_TO_FV` table to RP naturally sorts them into lower FV
+    tiers rather than needing a hard exclusion.
   - **This is a new, separate calculation from 0042/0056's contract
     surplus value** — that model nets a *signed contract's* actual salary
     against WAR and needs `players_contract`/`players_service_time`,

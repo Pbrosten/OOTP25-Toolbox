@@ -190,11 +190,25 @@ def test_calculate_pitcher_prospect_value_sp_returns_result():
 
 
 @pytest.mark.parametrize("role", [12, 13])
-def test_calculate_pitcher_prospect_value_rp_is_not_available(role):
+def test_calculate_pitcher_prospect_value_rp_returns_result(role):
+    # RP is no longer excluded (ticket 0068 post-close correction, user
+    # request) -- their own smaller workload baseline penalizes them
+    # naturally rather than needing a hard exclusion.
     result = calculate_pitcher_prospect_value(
         _pitcher_input(80, role=role), _pitcher_input(80, role=role)
     )
-    assert result is None
+    assert result is not None
+    assert "surplus_value" in result
+
+
+def test_calculate_pitcher_prospect_value_rp_produces_lower_war_than_sp_at_same_ratings():
+    sp = calculate_pitcher_prospect_value(
+        _pitcher_input(60, role=11), _pitcher_input(60, role=11)
+    )
+    rp = calculate_pitcher_prospect_value(
+        _pitcher_input(60, role=12), _pitcher_input(60, role=12)
+    )
+    assert rp["talent_war"] < sp["talent_war"]
 
 
 def test_calculate_pitcher_prospect_value_missing_input_is_none():

@@ -941,9 +941,10 @@ paths:
                     value:
                       type: object
                       description: |
-                        {"available": false} for an RP-role prospect
-                        (ticket 0068's FV table is starters-only) or a
-                        player with no usable rating data.
+                        {"available": false} only for a player with no
+                        usable rating data -- RP-role prospects get a real
+                        value too (their own smaller workload naturally
+                        produces a lower WAR/FV, no exclusion needed).
                       properties:
                         available:
                           type: boolean

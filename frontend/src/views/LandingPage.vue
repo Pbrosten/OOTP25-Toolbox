@@ -15,6 +15,11 @@ const tools = [
     title: 'Roster Depth Chart',
     description: 'Browse an org\'s rosters',
     route: '/teams'
+  },
+  {
+    title: 'Prospect Pipeline',
+    description: 'Farm system Future Value and trade-value rankings',
+    route: '/prospects'
   }
 ]
 

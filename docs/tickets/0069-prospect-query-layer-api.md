@@ -21,6 +21,13 @@ Resolved in 0043 — implementation-level restatement:
   (`teams.level = 1` AND `players_service_time.mlb_service_years = 0`),
   joined the same way [0063](0063-roster-depth-chart-query-api.md)'s org
   query already joins `players` → `teams`.
+  - **Post-close correction (user report, verified live via
+    `/teams/21/prospects` -- Philadelphia):** level/service-time alone let
+    a veteran journeyman briefly optioned back to AAA/A show up as a
+    "prospect" -- real case, Zach Pop, age 32, level 3 (AA). Added `p.age
+    < 26` as an additional filter in `get_prospects.sql`'s `prospects` CTE
+    (on top of, not instead of, the level/service-time check). No schema/
+    API contract change -- same response shape, just a narrower row set.
 - **Organizational depth at position:** reuse
   `get_org_depth_chart.sql` (0063) rather than a parallel query — this
   ticket's own SQL only needs to add the prospect-definition filter and

@@ -5,6 +5,12 @@
 -- "All-Star" teams, ticket 0062) and team_id = 999 (Free Agents) are
 -- excluded -- not real affiliates, same convention as get_org_depth_chart.sql.
 --
+-- Post-close correction (user report): the level/service-time definition
+-- alone let a veteran journeyman sent back down to AAA (e.g. a 32-year-old
+-- reliever) show up as a "prospect" -- age < 26 added as an additional
+-- gate, on top of (not instead of) the level/service-time check above, so
+-- a rostered MLB regular briefly optioned down still isn't miscategorized.
+--
 -- Returns one row per prospect's latest rating, with every raw column
 -- ticket 0068's calc module needs to build both a talent-ceiling and a
 -- current-form projection input. Both batting-side and pitching-side
@@ -30,6 +36,7 @@ WITH prospects AS (
     WHERE p.retired = 0
       AND t.team_id != 999
       AND t.level != 5
+      AND p.age < 26
       AND (
           t.level != 1
           OR COALESCE(st.mlb_service_years, 0) = 0
