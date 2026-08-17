@@ -103,6 +103,21 @@ target_cat AS (
   FROM players_pitch_repertoire AS pr
   WHERE pr.rating_id = %(rating_id)s
   GROUP BY pr.rating_id
+),
+
+-- Potential (ticket 0086): same target category averages, but off each
+-- pitch's talent_grade (already ingested onto players_pitch_repertoire
+-- itself -- no new table needed here unlike the other potential columns
+-- in this file).
+target_cat_talent AS (
+  SELECT
+    pr.rating_id,
+    AVG(CASE WHEN pr.pitch_type IN ('fastball', 'sinker', 'cutter') THEN pr.talent_grade END) AS fastball_grade,
+    AVG(CASE WHEN pr.pitch_type IN ('slider', 'curveball', 'knucklecurve') THEN pr.talent_grade END) AS breaking_grade,
+    AVG(CASE WHEN pr.pitch_type IN ('changeup', 'splitter', 'forkball', 'circlechange', 'knuckleball', 'screwball') THEN pr.talent_grade END) AS offspeed_grade
+  FROM players_pitch_repertoire AS pr
+  WHERE pr.rating_id = %(rating_id)s
+  GROUP BY pr.rating_id
 )
 
 SELECT
@@ -306,6 +321,168 @@ SELECT
     )
    ) AS velocity_percentile,
 
+  -- Potential percentiles (ticket 0086): target's *_talent value/grade,
+  -- ranked against the same current-population CTEs above. stamina/hold/
+  -- velocity have no talent counterpart in players_pitching_talent, so
+  -- they get no *_potential column. LEFT JOINed below -- a missing
+  -- talent row degrades to NULL, same convention as the other percentile
+  -- queries.
+  ROUND(
+    (
+      SELECT COUNT(*) * 1.0
+      FROM value_filtered
+      WHERE pitching_runs < target_val_talent.pitching_runs AND pitching_runs IS NOT NULL
+    ) * 100  /
+    (
+      SELECT COUNT(*) FROM value_filtered WHERE pitching_runs IS NOT NULL
+    )
+   ) AS pitching_runs_percentile_potential,
+
+  CASE WHEN target_cat_talent.fastball_grade IS NOT NULL THEN ROUND(
+    (
+      SELECT COUNT(*) * 1.0
+      FROM pitch_category_filtered
+      WHERE fastball_grade < target_cat_talent.fastball_grade AND fastball_grade IS NOT NULL
+    ) * 100  /
+    (
+      SELECT COUNT(*) FROM pitch_category_filtered WHERE fastball_grade IS NOT NULL
+    )
+   ) END AS fastball_grade_percentile_potential,
+
+  CASE WHEN target_cat_talent.breaking_grade IS NOT NULL THEN ROUND(
+    (
+      SELECT COUNT(*) * 1.0
+      FROM pitch_category_filtered
+      WHERE breaking_grade < target_cat_talent.breaking_grade AND breaking_grade IS NOT NULL
+    ) * 100  /
+    (
+      SELECT COUNT(*) FROM pitch_category_filtered WHERE breaking_grade IS NOT NULL
+    )
+   ) END AS breaking_grade_percentile_potential,
+
+  CASE WHEN target_cat_talent.offspeed_grade IS NOT NULL THEN ROUND(
+    (
+      SELECT COUNT(*) * 1.0
+      FROM pitch_category_filtered
+      WHERE offspeed_grade < target_cat_talent.offspeed_grade AND offspeed_grade IS NOT NULL
+    ) * 100  /
+    (
+      SELECT COUNT(*) FROM pitch_category_filtered WHERE offspeed_grade IS NOT NULL
+    )
+   ) END AS offspeed_grade_percentile_potential,
+
+  ROUND(
+    (
+      SELECT COUNT(*) * 1.0
+      FROM value_filtered
+      WHERE baserunning_runs < target_val_talent.baserunning_runs AND baserunning_runs IS NOT NULL
+    ) * 100  /
+    (
+      SELECT COUNT(*) FROM value_filtered WHERE baserunning_runs IS NOT NULL
+    )
+   ) AS baserunning_runs_percentile_potential,
+
+  ROUND(
+    (
+      SELECT COUNT(*) * 1.0
+      FROM value_filtered
+      WHERE total_runs < target_val_talent.total_runs AND total_runs IS NOT NULL
+    ) * 100  /
+    (
+      SELECT COUNT(*) FROM value_filtered WHERE total_runs IS NOT NULL
+    )
+   ) AS total_runs_percentile_potential,
+
+  ROUND(
+    (
+      SELECT COUNT(*) * 1.0
+      FROM value_filtered
+      WHERE WAR < target_val_talent.WAR AND WAR IS NOT NULL
+    ) * 100  /
+    (
+      SELECT COUNT(*) FROM value_filtered WHERE WAR IS NOT NULL
+    )
+   ) AS war_percentile_potential,
+
+  -- Projection based potential percentiles (lower ERA/BA/wOBA-against is
+  -- better -- comparisons inverted, same direction as the current ones).
+  ROUND(
+    (
+      SELECT COUNT(*) * 1.0
+      FROM expected_filtered
+      WHERE ERA > target_exp_talent.ERA AND ERA IS NOT NULL
+    ) * 100  /
+    (
+      SELECT COUNT(*) FROM expected_filtered WHERE ERA IS NOT NULL
+    )
+   ) AS era_percentile_potential,
+
+  ROUND(
+    (
+      SELECT COUNT(*) * 1.0
+      FROM expected_filtered
+      WHERE BA > target_exp_talent.BA AND BA IS NOT NULL
+    ) * 100  /
+    (
+      SELECT COUNT(*) FROM expected_filtered WHERE BA IS NOT NULL
+    )
+   ) AS xba_percentile_potential,
+
+  ROUND(
+    (
+      SELECT COUNT(*) * 1.0
+      FROM expected_filtered
+      WHERE wOBA > target_exp_talent.wOBA AND wOBA IS NOT NULL
+    ) * 100  /
+    (
+      SELECT COUNT(*) FROM expected_filtered WHERE wOBA IS NOT NULL
+    )
+   ) AS xwoba_percentile_potential,
+
+  ROUND(
+    (
+      SELECT COUNT(*) * 1.0
+      FROM ratings_filtered
+      WHERE stuff < target_rate_talent.stuff AND stuff IS NOT NULL
+    ) * 100  /
+    (
+      SELECT COUNT(*) FROM ratings_filtered WHERE stuff IS NOT NULL
+    )
+   ) AS stuff_percentile_potential,
+
+  ROUND(
+    (
+      SELECT COUNT(*) * 1.0
+      FROM ratings_filtered
+      WHERE control < target_rate_talent.control AND control IS NOT NULL
+    ) * 100  /
+    (
+      SELECT COUNT(*) FROM ratings_filtered WHERE control IS NOT NULL
+    )
+   ) AS control_percentile_potential,
+
+  ROUND(
+    (
+      SELECT COUNT(*) * 1.0
+      FROM ratings_filtered
+      WHERE pbabip < target_rate_talent.pbabip AND pbabip IS NOT NULL
+    ) * 100  /
+    (
+      SELECT COUNT(*) FROM ratings_filtered WHERE pbabip IS NOT NULL
+    )
+   ) AS pbabip_percentile_potential,
+
+  ROUND(
+    (
+      SELECT COUNT(*) * 1.0
+      FROM ratings_filtered
+      WHERE hra < target_rate_talent.hra AND hra IS NOT NULL
+    ) * 100  /
+    (
+      SELECT COUNT(*) FROM ratings_filtered WHERE hra IS NOT NULL
+    )
+   ) AS hra_percentile_potential,
+
   -- Raw values alongside each percentile above, for display next to the
   -- percentile bar (Savant-style raw-value column) -- only for genuine
   -- projected statistics (PitcherProjection output), not raw game ratings
@@ -325,10 +502,19 @@ SELECT
   -- velocity-band convention) rather than an abstract 20-80 grade borrowing
   -- an unrelated outcome-stat's name -- so it gets a raw value too, mapped
   -- to an MPH band in the frontend (PitcherPercentiles.vue's VELOCITY_MAP).
-  target_rate.velocity AS velocity_value
+  target_rate.velocity AS velocity_value,
+
+  target_val_talent.pitching_runs AS pitching_runs_value_potential,
+  target_exp_talent.ERA AS era_value_potential,
+  target_exp_talent.BA AS xba_value_potential,
+  target_exp_talent.wOBA AS xwoba_value_potential
 
 FROM players_pitching_expected AS target_exp
 JOIN players_pitching AS target_rate ON target_exp.rating_id = target_rate.rating_id
 JOIN players_pitching_run_value AS target_val ON target_exp.rating_id = target_val.rating_id
 LEFT JOIN target_cat ON target_exp.rating_id = target_cat.rating_id
+LEFT JOIN target_cat_talent ON target_exp.rating_id = target_cat_talent.rating_id
+LEFT JOIN players_pitching_expected_talent AS target_exp_talent ON target_exp.rating_id = target_exp_talent.rating_id
+LEFT JOIN players_pitching_run_value_talent AS target_val_talent ON target_exp.rating_id = target_val_talent.rating_id
+LEFT JOIN players_pitching_talent AS target_rate_talent ON target_exp.rating_id = target_rate_talent.rating_id
 WHERE target_exp.rating_id = %(rating_id)s;

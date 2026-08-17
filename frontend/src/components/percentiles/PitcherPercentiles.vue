@@ -11,7 +11,6 @@ import { CheckIcon, ChevronUpDownIcon } from '@heroicons/vue/20/solid'
 import PercentileBar from './PercentileBar.vue'
 
 const props = defineProps<{ playerId: number, leagueId: number | null }>()
-const leagueId = props.leagueId ?? 203
 
 // Labels follow Baseball Savant's percentile-ranking conventions
 // (https://baseballsavant.mlb.com/savant-player/<id>?stats=statcast-r-pitching-mlb).
@@ -100,22 +99,16 @@ const xStatsPitch = ref<any>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
 
-const isMlb = leagueId === 203
-
 const years = ref<any>(null)
 const selectedYear = ref(null)
 
 onMounted(() => {
-  if (isMlb) {
-    fetchPercentiles()
-  } else {
-    loading.value = false
-  }
+  fetchPercentiles()
   getYears()
 })
 
 watch(selectedYear, async (newYear) => {
-  if (newYear && isMlb) {
+  if (newYear) {
     await fetchPercentiles(newYear.rating_id)
   }
 })
@@ -164,6 +157,16 @@ function getStatValue(key: string): string | undefined {
   if (key === 'era_percentile') return num.toFixed(2)
   if (key === 'pitching_runs_percentile') return num.toFixed(1)
   return String(Math.round(num))
+}
+
+// Ticket 0086: mechanical `${key}_potential` lookup, same convention as
+// BatterPercentiles.vue's getPotentialPercentile(). A key with no
+// talent-grade counterpart (stamina/hold/velocity have none in
+// players_pitching_talent) just resolves to undefined -> null, same
+// "no shadow" outcome as the current percentile already being the ceiling.
+function getPotentialPercentile(key: string): number | null {
+  const raw = xStatsPitch.value?.[`${key}_potential`]
+  return raw === null || raw === undefined ? null : Number(raw)
 }
 
 function formatYear(dateString: string): string {
@@ -259,11 +262,7 @@ function isValidPercentile(value: any): boolean {
         </Listbox>
       </div>
 
-      <p v-if="!isMlb" class="text-sm text-gray-600">
-        Percentile comparisons are only available for MLB players.
-      </p>
-
-      <div v-if='isMlb && xStatsPitch'>
+      <div v-if='xStatsPitch'>
         <div class="relative w-full h-10">
           <div class="absolute inset-x-0 bottom-1.25 h-0.5 bg-team"></div>
 
@@ -282,11 +281,16 @@ function isValidPercentile(value: any): boolean {
           <div></div>
         </div>
         <template v-for="[key, value] in sortedEntries(xStatsPitch, valueOrder)" :key="key">
-          <PercentileBar :label="getStatLabel(key)" :percentile="Number(value)" :value="getStatValue(key)" />
+          <PercentileBar
+            :label="getStatLabel(key)"
+            :percentile="Number(value)"
+            :value="getStatValue(key)"
+            :potential-percentile="getPotentialPercentile(key)"
+          />
         </template>
       </div>
 
-      <div v-if='isMlb && xStatsPitch'>
+      <div v-if='xStatsPitch'>
         <div class="relative w-full h-10">
           <div class="absolute inset-x-0 bottom-1.25 h-0.5 bg-team"></div>
 
@@ -305,7 +309,12 @@ function isValidPercentile(value: any): boolean {
           <div></div>
         </div>
         <template v-for="[key, value] in sortedEntries(xStatsPitch, pitchingOrder)" :key="key">
-          <PercentileBar :label="getStatLabel(key)" :percentile="Number(value)" :value="getStatValue(key)" />
+          <PercentileBar
+            :label="getStatLabel(key)"
+            :percentile="Number(value)"
+            :value="getStatValue(key)"
+            :potential-percentile="getPotentialPercentile(key)"
+          />
         </template>
       </div>
     </div>

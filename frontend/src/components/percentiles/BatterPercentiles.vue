@@ -11,7 +11,6 @@ import { CheckIcon, ChevronUpDownIcon } from '@heroicons/vue/20/solid'
 import PercentileBar from './PercentileBar.vue'
 
 const props = defineProps<{ playerId: number, leagueId: number | null }>()
-const leagueId = props.leagueId ?? 203
 const positionGroupFields = {
   catcher: [
     'catcher_arm_percentile',
@@ -95,22 +94,16 @@ const xStatsField = ref<any>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
 
-const isMlb = leagueId === 203
-
 const years = ref<any>(null)
 const selectedYear = ref(null)
 
 onMounted(() => {
-  if (isMlb) {
-    fetchPercentiles()
-  } else {
-    loading.value = false
-  }
+  fetchPercentiles()
   getYears()
 })
 
 watch(selectedYear, async (newYear) => {
-  if (newYear && isMlb) {
+  if (newYear) {
     await fetchPercentiles(newYear.rating_id)
   }
 })
@@ -156,6 +149,18 @@ function getStatValue(source: any, key: string): string | undefined {
   const num = Number(raw)
   if (RATE_VALUE_KEYS.has(key)) return num.toFixed(3).replace(/^0\./, '.')
   return num.toFixed(1)
+}
+
+// Ticket 0086: every *_potential percentile column the backend adds is
+// named mechanically off its current-percentile key (`${key}_potential`,
+// e.g. xba_percentile -> xba_percentile_potential, barrel_rate ->
+// barrel_rate_potential) -- no per-key map needed, unlike VALUE_KEY_MAP
+// above. A key with no potential counterpart (e.g. catcher_arm_percentile,
+// which has no talent-grade data at all) just looks up undefined here,
+// same "no shadow" outcome as when it's <= the current percentile.
+function getPotentialPercentile(source: any, key: string): number | null {
+  const raw = source?.[`${key}_potential`]
+  return raw === null || raw === undefined ? null : Number(raw)
 }
 
 function formatYear(dateString: string): string {
@@ -293,11 +298,7 @@ const filteredFieldingPercentiles = computed(() => {
         </Listbox>
       </div>
 
-      <p v-if="!isMlb" class="text-sm text-gray-600">
-        Percentile comparisons are only available for MLB players.
-      </p>
-
-      <div v-if='isMlb && xStatsBat'>
+      <div v-if='xStatsBat'>
         <div class="relative w-full h-10">
           <div class="absolute inset-x-0 bottom-1.25 h-0.5 bg-team"></div>
 
@@ -316,11 +317,16 @@ const filteredFieldingPercentiles = computed(() => {
           <div></div>
         </div>
         <template v-for="[key, value] in sortedEntries(xStatsValue, valueOrder)" :key="key">
-          <PercentileBar :label="getStatLabel(key)" :percentile="Number(value)" :value="getStatValue(xStatsValue, key)" />
+          <PercentileBar
+            :label="getStatLabel(key)"
+            :percentile="Number(value)"
+            :value="getStatValue(xStatsValue, key)"
+            :potential-percentile="getPotentialPercentile(xStatsValue, key)"
+          />
         </template>
       </div>
 
-      <div v-if='isMlb && xStatsBat'>
+      <div v-if='xStatsBat'>
         <div class="relative w-full h-10">
           <div class="absolute inset-x-0 bottom-1.25 h-0.5 bg-team"></div>
 
@@ -339,11 +345,16 @@ const filteredFieldingPercentiles = computed(() => {
           <div></div>
         </div>
         <template v-for="[key, value] in sortedEntries(xStatsBat, battingOrder)" :key="key">
-          <PercentileBar :label="getStatLabel(key)" :percentile="Number(value)" :value="getStatValue(xStatsBat, key)" />
+          <PercentileBar
+            :label="getStatLabel(key)"
+            :percentile="Number(value)"
+            :value="getStatValue(xStatsBat, key)"
+            :potential-percentile="getPotentialPercentile(xStatsBat, key)"
+          />
         </template>
       </div>
 
-      <div v-if='isMlb && Object.keys(filteredFieldingPercentiles).length > 0'>
+      <div v-if='Object.keys(filteredFieldingPercentiles).length > 0'>
         <div class="relative w-full h-10">
           <div class="absolute inset-x-0 bottom-1.25 h-0.5 bg-team"></div>
 
@@ -362,11 +373,16 @@ const filteredFieldingPercentiles = computed(() => {
           <div></div>
         </div>
         <template v-for="[key, value] in sortedEntries(filteredFieldingPercentiles, fieldOrder)" :key="key">
-          <PercentileBar :label="getStatLabel(key)" :percentile="Number(value)" :value="getStatValue(xStatsField, key)" />
+          <PercentileBar
+            :label="getStatLabel(key)"
+            :percentile="Number(value)"
+            :value="getStatValue(xStatsField, key)"
+            :potential-percentile="getPotentialPercentile(xStatsField, key)"
+          />
         </template>
       </div>
 
-      <div v-if='isMlb && xStatsRun'>
+      <div v-if='xStatsRun'>
         <div class="relative w-full h-10">
           <div class="absolute inset-x-0 bottom-1.25 h-0.5 bg-team"></div>
 

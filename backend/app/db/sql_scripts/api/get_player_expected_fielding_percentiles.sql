@@ -83,9 +83,25 @@ target_value AS (
       WHEN 'CF' THEN pfe.`CF`
       WHEN 'RF' THEN pfe.`RF`
       WHEN 'DH' THEN pfe.`DH`
-    END AS fielding_value
+    END AS fielding_value,
+    -- Potential (ticket 0086): same effective_position lookup against
+    -- players_fielding_expected_talent. LEFT JOINed -- a missing talent
+    -- row (e.g. process_player()'s potential run failed for this rating)
+    -- degrades to NULL, same convention as the other percentile queries.
+    CASE tp.effective_position
+      WHEN 'C' THEN pfet.`C`
+      WHEN '1B' THEN pfet.`1B`
+      WHEN '2B' THEN pfet.`2B`
+      WHEN '3B' THEN pfet.`3B`
+      WHEN 'SS' THEN pfet.`SS`
+      WHEN 'LF' THEN pfet.`LF`
+      WHEN 'CF' THEN pfet.`CF`
+      WHEN 'RF' THEN pfet.`RF`
+      WHEN 'DH' THEN pfet.`DH`
+    END AS fielding_value_potential
   FROM target_player_grouped tp
   JOIN players_fielding_expected pfe ON tp.rating_id = pfe.rating_id
+  LEFT JOIN players_fielding_expected_talent pfet ON tp.rating_id = pfet.rating_id
 ),
 
 cohort AS (
@@ -199,6 +215,20 @@ SELECT
       SELECT COUNT(*) FROM cohort
     )
   ) END AS fielding_value_percentile,
+
+  -- Potential (ticket 0086): the target's talent fielding_value, ranked
+  -- against the same current-population `cohort` CTE above. No potential
+  -- data exists for the catcher_arm/infield_arm/etc. "tool" grades below
+  -- -- only the positional (pos1-pos9) grades have a talent table -- so
+  -- those percentiles have no *_potential counterpart.
+  CASE WHEN t.position_group = 'dh' OR t.fielding_value_potential IS NULL THEN NULL ELSE ROUND(
+    100.0 * (
+      SELECT COUNT(*) FROM cohort c
+      WHERE c.fielding_value < t.fielding_value_potential
+    ) / (
+      SELECT COUNT(*) FROM cohort
+    )
+  ) END AS fielding_value_percentile_potential,
 
   CASE
     WHEN t.position_group = 'catcher' THEN ROUND(

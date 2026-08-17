@@ -211,10 +211,12 @@ data readiness, not by the epic's original grouping:
 8. **Trade Target Finder** (0041) full scope — layers in contract/injury/
    organizational-fit filters once step 5's data and 0039's depth-chart
    output exist.
-9. **GM Command Center** (0038) — aggregates 0039 + 0042 + 0043 output, so
-   it has the least value built first; sequenced last. Also needs its own
-   "current team" concept resolved (no session/team-selection exists
-   anywhere in the app today) — see 0038's Design choices.
+9. **GM Command Center** (0038) — aggregates 0039 + 0042 + 0043 output;
+   its "current team" gap was resolved by 0065. Now unblocked and broken
+   into sub-tickets 0079–0085 (five widget tickets + Action Queue +
+   dashboard shell) — see 0038's Approach. Standings/projected-record and
+   injuries remain out of scope, blocked on data this app still doesn't
+   ingest.
 
 Ticket-level dependency graph (matches the table's "Depends on" column
 below; step-5's contract/salary/service-time half is filed as 0053/0054,
@@ -269,18 +271,32 @@ its minor-league level/affiliate half as 0062, both drawn below):
       v                                          |
 [x] 0042 Contract & Arbitration Analyzer --------+
                                                   |
+[x] 0065 GM Org Selection + Theming -------------+
+                                                  |
                                                   v
-                                       [ ] 0038 GM Command Center
+                                    [~] 0038 GM Command Center (epic tracker)
+                                                  |
+                     +--------------+-------------+-------------+--------------+
+                     v              v             v             v              v
+               [ ] 0079        [ ] 0080      [ ] 0081      [ ] 0082        [ ] 0083
+               team WAR         over/under    roster        contract/       prospect
+               aggregate        performers    weaknesses/   arbitration     promotion
+               widget           widget        surpluses     decisions       opportunities
+                                               widget        widget          widget
+                     |              |             |             |              |
+                     +--------------+-------------+-------------+--------------+
+                                                  |
+                                                  v
+                                       [ ] 0084 Action Queue
+                                                  |
+                                                  v
+                                       [ ] 0085 Dashboard shell
+                                           (replaces LandingPage.vue)
 
 [ ] 0041 Trade Target Finder — standalone, omitted above (reduced v1 has no
     ticket dependencies; full-scope layering is data/output-gated per the
     build-order list, not a hard ticket dependency — same convention as
     0035/0036/0037 being left out of the pitcher-projection epic's diagram).
-
-[x] 0065 GM Org Selection + Theming — standalone, omitted above (resolves
-    the "current team" gap 0038/0039 both flagged, but scoped narrowly to
-    selection + theming, not the full Command Center dashboard; no ticket
-    depends on it yet).
 
 [x] = Closed   [ ] = Open   [~] = In-Progress
 ```
@@ -293,7 +309,15 @@ its minor-league level/affiliate half as 0062, both drawn below):
 | [0040](0040-defensive-optimization.md) | Defensive Optimization (epic tracker) | feat | Open | 0039 |
 | [0043](0043-prospect-pipeline.md) | Prospect Pipeline (epic tracker) | feat | Closed | 0044 |
 | [0042](0042-contract-arbitration-analyzer.md) | Contract & Arbitration Analyzer (epic tracker) | feat | Closed | 0053, 0054 |
-| [0038](0038-gm-command-center.md) | GM Command Center (epic tracker) | feat | Open | 0039, 0042, 0043 |
+| [0038](0038-gm-command-center.md) | GM Command Center (epic tracker) | feat | In-Progress | 0039, 0042, 0043, 0065 |
+| [0079](0079-dashboard-team-war-widget.md) | Command Center: team WAR aggregate widget | feat | Open | — |
+| [0080](0080-dashboard-over-underperformers-widget.md) | Command Center: over/underperformers widget | feat | Open | — |
+| [0081](0081-dashboard-roster-weaknesses-widget.md) | Command Center: roster weaknesses/surpluses widget | feat | Open | — |
+| [0082](0082-dashboard-contract-arbitration-widget.md) | Command Center: contract & arbitration decisions widget | feat | Open | — |
+| [0083](0083-dashboard-prospect-promotion-widget.md) | Command Center: prospect promotion opportunities widget | feat | Open | — |
+| [0084](0084-dashboard-action-queue.md) | Command Center: Action Queue | feat | Open | 0079, 0080, 0081, 0082, 0083 |
+| [0085](0085-gm-command-center-dashboard.md) | GM Command Center dashboard shell | feat | Open | 0079, 0080, 0081, 0082, 0083, 0084 |
+| [0086](0086-prospect-percentile-bars-potential-shadow.md) | Prospect percentile bars + current-vs-potential shadow | feat | Open | — |
 | [0065](0065-gm-org-selection-theming.md) | GM organization selection + app-wide color theming | feat | Closed | — |
 
 ### Tool: Player Development Monitor

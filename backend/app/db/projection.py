@@ -25,6 +25,24 @@ proj_scripts = {
         (rating_id, batting_runs, basepath_runs, fielding_runs, total_runs, WAR)
         VALUES (%(rating_id)s, %(wRAA)s, %(BR_runs)s, %(Def_runs)s, %(Total_runs)s, %(WAR)s)
     """,
+    # Ticket 0086: same shape as offense/defense/value above, populated
+    # from a second BatterProjection run with talent (ceiling) grades
+    # substituted for current ones -- see process_player().
+    "offense_talent": """
+        INSERT IGNORE INTO players_batting_expected_talent
+        (rating_id, PA, AB, H, `1B`, `2B`, `3B`, HR, BB, HBP, K, AVG, OBP, SLG, wOBA)
+        VALUES (%(rating_id)s, %(PA)s, %(AB)s, %(H)s, %(_1B)s, %(_2B)s, %(_3B)s, %(HR)s, %(BB)s, %(HBP)s, %(K)s, %(AVG)s, %(OBP)s, %(SLG)s, %(wOBA)s)
+    """,
+    "defense_talent": """
+        INSERT IGNORE INTO players_fielding_expected_talent
+        (rating_id, C, `1B`, `2B`, `3B`, SS, LF, CF, RF, DH)
+        VALUES (%(rating_id)s, %(C)s, %(_1B)s, %(_2B)s, %(_3B)s, %(SS)s, %(LF)s, %(CF)s, %(RF)s, %(DH)s)
+    """,
+    "value_talent": """
+        INSERT IGNORE INTO players_run_value_talent
+        (rating_id, batting_runs, basepath_runs, fielding_runs, total_runs, WAR)
+        VALUES (%(rating_id)s, %(wRAA)s, %(BR_runs)s, %(Def_runs)s, %(Total_runs)s, %(WAR)s)
+    """,
 }
 
 pitching_proj_scripts = {
@@ -35,6 +53,19 @@ pitching_proj_scripts = {
     """,
     "pitching_value": """
         INSERT IGNORE INTO players_pitching_run_value
+        (rating_id, pitching_runs, baserunning_runs, total_runs, WAR)
+        VALUES (%(rating_id)s, %(pitching_runs)s, %(baserunning_runs)s, %(total_runs)s, %(WAR)s)
+    """,
+    # Ticket 0086: same shape as pitching/pitching_value above, populated
+    # from a second PitcherProjection run with talent (ceiling) grades
+    # substituted for current ones -- see process_pitcher().
+    "pitching_talent": """
+        INSERT IGNORE INTO players_pitching_expected_talent
+        (rating_id, PA, AB, H, HR, BB, HBP, K, BA, OBP, wOBA, IP, GS, G, RA9, ERA)
+        VALUES (%(rating_id)s, %(PA)s, %(AB)s, %(H)s, %(HR)s, %(BB)s, %(HBP)s, %(K)s, %(BA)s, %(OBP)s, %(wOBA)s, %(IP)s, %(GS)s, %(G)s, %(RA9)s, %(ERA)s)
+    """,
+    "pitching_value_talent": """
+        INSERT IGNORE INTO players_pitching_run_value_talent
         (rating_id, pitching_runs, baserunning_runs, total_runs, WAR)
         VALUES (%(rating_id)s, %(pitching_runs)s, %(baserunning_runs)s, %(total_runs)s, %(WAR)s)
     """,
@@ -63,10 +94,43 @@ def process_player(player):
         result = projector.calc_expected_stats()
         if result is None:
             logger.warning(f"No result for player: {player.get('rating_id')}")
-        return result
+            return None
     except Exception as e:
         logger.warning(f"Error processing player {player.get('rating_id')}: {e}")
         return None
+
+    # Ticket 0086: a second BatterProjection run with players_batting_talent/
+    # players_fielding_position_talent's ceiling grades (get_projection_
+    # inputs.sql's t_* columns) substituted for the current ones, feeding
+    # the "potential" percentile bars. A failure here shouldn't drop the
+    # player's real current-rating projection above, so it's a separate
+    # try/except that just omits the *_talent keys on failure.
+    try:
+        talent_input = {
+            **player,
+            "babip": player.get("t_babip"),
+            "gap": player.get("t_gap"),
+            "eye": player.get("t_eye"),
+            "strikeouts": player.get("t_strikeouts"),
+            "power": player.get("t_power"),
+            "pos2": player.get("t_pos2"),
+            "pos3": player.get("t_pos3"),
+            "pos4": player.get("t_pos4"),
+            "pos5": player.get("t_pos5"),
+            "pos6": player.get("t_pos6"),
+            "pos7": player.get("t_pos7"),
+            "pos8": player.get("t_pos8"),
+            "pos9": player.get("t_pos9"),
+        }
+        talent_result = BatterProjection(talent_input).calc_expected_stats()
+        if talent_result is not None:
+            result["offense_talent"] = talent_result["offense"]
+            result["defense_talent"] = talent_result["defense"]
+            result["value_talent"] = talent_result["value"]
+    except Exception as e:
+        logger.warning(f"Error computing potential projection for player {player.get('rating_id')}: {e}")
+
+    return result
 
 
 def process_pitcher(pitcher):
@@ -75,10 +139,31 @@ def process_pitcher(pitcher):
         result = projector.calc_expected_stats()
         if result is None:
             logger.warning(f"No result for pitcher: {pitcher.get('rating_id')}")
-        return result
+            return None
     except Exception as e:
         logger.warning(f"Error processing pitcher {pitcher.get('rating_id')}: {e}")
         return None
+
+    # Ticket 0086: second PitcherProjection run with players_pitching_
+    # talent's ceiling grades (get_pitcher_projection_inputs.sql's t_*
+    # columns) substituted for the current ones. Same isolated try/except
+    # as process_player() above.
+    try:
+        talent_input = {
+            **pitcher,
+            "stuff": pitcher.get("t_stuff"),
+            "control": pitcher.get("t_control"),
+            "pbabip": pitcher.get("t_pbabip"),
+            "hra": pitcher.get("t_hra"),
+        }
+        talent_result = PitcherProjection(talent_input).calc_expected_stats()
+        if talent_result is not None:
+            result["pitching_talent"] = talent_result["pitching"]
+            result["pitching_value_talent"] = talent_result["pitching_value"]
+    except Exception as e:
+        logger.warning(f"Error computing potential projection for pitcher {pitcher.get('rating_id')}: {e}")
+
+    return result
 
 
 def process_prospect(row):

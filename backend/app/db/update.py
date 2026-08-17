@@ -279,7 +279,18 @@ def insert_prospect_values(prospect_values, db, batch_size=1000):
 
 
 def insert_projections(projections, db, batch_size=1000):
-    batches = {key: [] for key in ("offense", "basepath", "defense", "value")}
+    batches = {
+        key: []
+        for key in (
+            "offense",
+            "basepath",
+            "defense",
+            "value",
+            "offense_talent",
+            "defense_talent",
+            "value_talent",
+        )
+    }
     rows_inserted = 0
     for i in range(0, len(projections), batch_size):
         chunk = projections[i : i + batch_size]
@@ -293,7 +304,15 @@ def insert_projections(projections, db, batch_size=1000):
 
 
 def insert_pitcher_projections(projections, db, batch_size=1000):
-    batches = {key: [] for key in ("pitching", "pitching_value")}
+    batches = {
+        key: []
+        for key in (
+            "pitching",
+            "pitching_value",
+            "pitching_talent",
+            "pitching_value_talent",
+        )
+    }
     rows_inserted = 0
     for i in range(0, len(projections), batch_size):
         chunk = projections[i : i + batch_size]

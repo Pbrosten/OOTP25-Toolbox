@@ -1,17 +1,22 @@
 DROP TABLE IF EXISTS processed_heaps;
 DROP TABLE IF EXISTS players_similarity;
+DROP TABLE IF EXISTS players_run_value_talent;
 DROP TABLE IF EXISTS players_run_value;
+DROP TABLE IF EXISTS players_pitching_run_value_talent;
 DROP TABLE IF EXISTS players_pitching_run_value;
 DROP TABLE IF EXISTS players_prospect_value;
+DROP TABLE IF EXISTS players_fielding_expected_talent;
 DROP TABLE IF EXISTS players_fielding_expected;
 DROP TABLE IF EXISTS players_fielding_position_talent;
 DROP TABLE IF EXISTS players_fielding_position;
 DROP TABLE IF EXISTS players_fielding;
 DROP TABLE IF EXISTS players_basepath_expected;
 DROP TABLE IF EXISTS players_basepath;
+DROP TABLE IF EXISTS players_batting_expected_talent;
 DROP TABLE IF EXISTS players_batting_expected;
 DROP TABLE IF EXISTS players_batting_talent;
 DROP TABLE IF EXISTS players_batting;
+DROP TABLE IF EXISTS players_pitching_expected_talent;
 DROP TABLE IF EXISTS players_pitching_expected;
 DROP TABLE IF EXISTS players_pitching_talent;
 DROP TABLE IF EXISTS players_pitch_repertoire;
@@ -248,6 +253,30 @@ CREATE TABLE players_batting_talent (
   FOREIGN KEY (rating_id) REFERENCES players_rating(rating_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Player Batting Expected (Potential) -- ticket 0086: BatterProjection run
+-- a second time per rating with players_batting_talent/
+-- players_fielding_position_talent substituted for the current-grade
+-- inputs (basepath ratings unchanged -- no talent/ceiling table exists
+-- for speed/steal/baserunning), same shape as players_batting_expected.
+CREATE TABLE players_batting_expected_talent (
+  rating_id INT PRIMARY KEY,
+  PA INT,
+  AB INT,
+  H INT,
+  `1B` INT,
+  `2B` INT,
+  `3B` INT,
+  HR INT,
+  BB INT,
+  HBP INT,
+  K INT,
+  AVG FLOAT,
+  OBP FLOAT,
+  SLG FLOAT,
+  wOBA FLOAT,
+  FOREIGN KEY (rating_id) REFERENCES players_batting_talent(rating_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- Player Pitching --
 CREATE TABLE players_pitching (
   rating_id INT PRIMARY KEY,
@@ -301,6 +330,32 @@ CREATE TABLE players_pitching_talent (
   hp INT,
   wild_pitch INT,
   FOREIGN KEY (rating_id) REFERENCES players_rating(rating_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Player Pitching Expected (Potential) -- ticket 0086: PitcherProjection
+-- run a second time per rating with players_pitching_talent's
+-- stuff/control/pbabip/hra substituted for the current-grade inputs
+-- (stamina/hold have no talent/ceiling counterpart in
+-- players_pitching_talent, so stay at current values), same shape as
+-- players_pitching_expected.
+CREATE TABLE players_pitching_expected_talent (
+  rating_id INT PRIMARY KEY,
+  PA INT,
+  AB INT,
+  H INT,
+  HR INT,
+  BB INT,
+  HBP INT,
+  K INT,
+  BA FLOAT,
+  OBP FLOAT,
+  wOBA FLOAT,
+  IP FLOAT,
+  GS INT,
+  G INT,
+  RA9 FLOAT,
+  ERA FLOAT,
+  FOREIGN KEY (rating_id) REFERENCES players_pitching_talent(rating_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Player Pitch Repertoire --
@@ -394,8 +449,44 @@ CREATE TABLE players_fielding_expected (
   FOREIGN KEY (rating_id) REFERENCES players_fielding_position(rating_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Player Expected Fielding (Potential) -- ticket 0086: same defensive-runs
+-- formula as players_fielding_expected, driven by
+-- players_fielding_position_talent instead of players_fielding_position.
+-- No potential counterpart exists for the catcher_arm/infield_arm/etc.
+-- "tool" grades on players_fielding -- only the positional grades
+-- (pos1-pos9) have a talent table.
+CREATE TABLE players_fielding_expected_talent (
+  rating_id INT PRIMARY KEY,
+  C FLOAT,
+  `1B` FLOAT,
+  `2B` FLOAT,
+  `3B` FLOAT,
+  SS FLOAT,
+  LF FLOAT,
+  CF FLOAT,
+  RF FLOAT,
+  DH FLOAT,
+  FOREIGN KEY (rating_id) REFERENCES players_fielding_position_talent(rating_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- Player Run Value --
 CREATE TABLE players_run_value (
+  rating_id INT PRIMARY KEY,
+  batting_runs FLOAT,
+  basepath_runs FLOAT,
+  fielding_runs FLOAT,
+  total_runs FLOAT,
+  WAR FLOAT,
+  FOREIGN KEY (rating_id) REFERENCES players_rating(rating_id)
+);
+
+-- Player Run Value (Potential) -- ticket 0086: BatterProjection's "value"
+-- output from the same talent-substituted run that produces
+-- players_batting_expected_talent/players_fielding_expected_talent.
+-- basepath_runs is identical to the current row's (no basepath talent
+-- data), batting_runs/fielding_runs/total_runs/WAR move with the
+-- substituted batting/fielding grades.
+CREATE TABLE players_run_value_talent (
   rating_id INT PRIMARY KEY,
   batting_runs FLOAT,
   basepath_runs FLOAT,
@@ -414,6 +505,19 @@ CREATE TABLE players_run_value (
 -- is the Hold-based runs-allowed term. No leverage adjustment on WAR for
 -- relievers -- see ticket 0028's Design choices.
 CREATE TABLE players_pitching_run_value (
+  rating_id INT PRIMARY KEY,
+  pitching_runs FLOAT,
+  baserunning_runs FLOAT,
+  total_runs FLOAT,
+  WAR FLOAT,
+  FOREIGN KEY (rating_id) REFERENCES players_rating(rating_id)
+);
+
+-- Player Pitching Run Value (Potential) -- ticket 0086: PitcherProjection's
+-- "pitching_value" output from the same talent-substituted run that
+-- produces players_pitching_expected_talent. baserunning_runs is
+-- identical to the current row's (hold has no talent counterpart).
+CREATE TABLE players_pitching_run_value_talent (
   rating_id INT PRIMARY KEY,
   pitching_runs FLOAT,
   baserunning_runs FLOAT,

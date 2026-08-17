@@ -21,6 +21,19 @@ export default {
       type: String,
       default: null,
     },
+    // Ticket 0086: this stat's percentile if the player reached their
+    // talent-grade (potential/ceiling) ratings instead of their current
+    // ones. Optional -- most callers won't have one (e.g. a stat with no
+    // talent-grade counterpart at all, like basepath ratings or the
+    // catcher_arm/infield_arm/etc. fielding "tool" grades). Only renders
+    // a shadow when it's a real number strictly greater than `percentile`
+    // -- a prospect already performing at or above their own ceiling
+    // (current == potential, the common case once a player's fully
+    // physically matured) shows no shadow at all.
+    potentialPercentile: {
+      type: Number,
+      default: null,
+    },
   },
   computed: {
     computedColor() {
@@ -50,6 +63,12 @@ export default {
 
       return `rgb(${r}, ${g}, ${b})`
     },
+    showPotentialShadow() {
+      return (
+        typeof this.potentialPercentile === 'number' &&
+        this.potentialPercentile > this.percentile
+      )
+    },
   },
 }
 </script>
@@ -63,9 +82,24 @@ export default {
 
     <!-- Bar container -->
     <div class="relative bg-gray-300 h-5 rounded-md w-full">
+      <!-- Potential (ticket 0086): extends past the current fill out to
+           this player's talent-grade ceiling for this stat, when it's
+           higher than where they currently rank. Painted first (and
+           given its own stacking context via `relative` on the current
+           fill below) so the current fill always renders on top of it. -->
+      <div
+        v-if="showPotentialShadow"
+        class="absolute inset-y-0 left-0 h-full rounded-md bg-gray-500/40"
+        :style="{
+          width: potentialPercentile + '%',
+          boxShadow: 'inset 0 0 6px rgba(0,0,0,0.35)',
+        }"
+        :title="`Potential: ${potentialPercentile}th percentile`"
+      ></div>
+
       <!-- Colored filled bar -->
       <div
-        class="h-full transition-all duration-500 rounded-l-md"
+        class="relative h-full transition-all duration-500 rounded-l-md"
         :style="{
           width: percentile + '%',
           backgroundColor: computedColor

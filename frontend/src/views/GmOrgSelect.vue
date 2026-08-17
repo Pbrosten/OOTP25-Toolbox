@@ -43,6 +43,21 @@ const swatch = computed(() => currentTeam.value?.background_color || '#9ca3af')
           </select>
         </div>
       </div>
+
+      <div class="flex items-center justify-between gap-4 px-4 py-4">
+        <div>
+          <label class="block font-medium">Database Admin</label>
+          <p class="text-sm text-gray-500">
+            Initialize or update the database from new save dumps.
+          </p>
+        </div>
+        <router-link
+          to="/admin"
+          class="px-3 py-2 text-sm font-medium rounded-md bg-team text-team-on-bg hover:opacity-90"
+        >
+          Open Admin Panel
+        </router-link>
+      </div>
     </div>
   </div>
 </template>
