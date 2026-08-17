@@ -16,6 +16,27 @@ export interface Job {
   logs: string[]
 }
 
+export interface LeagueBaseline {
+  id: number
+  computed_at: string
+  window_start_year: number | null
+  window_end_year: number | null
+  lg_woba: number | null
+  lg_pwoba: number | null
+  ra9_baseline: number | null
+  batting_pa_sample: number | null
+  pitching_bf_sample: number | null
+}
+
+export interface MarketBaseline {
+  id: number
+  computed_at: string
+  war_dollar_value: number | null
+  war_dollar_value_sample: number | null
+  recommendation_extend_threshold: number | null
+  threshold_cohort_sample: number | null
+}
+
 export class AdminApiError extends Error {
   status: number
   body: unknown
@@ -63,4 +84,12 @@ export function updateDatabase(): Promise<{ job_id: string }> {
 
 export function getJob(jobId: string): Promise<Job> {
   return adminFetch<Job>(`/jobs/${encodeURIComponent(jobId)}`)
+}
+
+export function getLeagueBaselines(): Promise<LeagueBaseline[]> {
+  return adminFetch<LeagueBaseline[]>('/league-baselines')
+}
+
+export function getMarketBaselines(): Promise<MarketBaseline[]> {
+  return adminFetch<MarketBaseline[]>('/market-baselines')
 }

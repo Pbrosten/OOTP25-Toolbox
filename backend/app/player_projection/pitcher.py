@@ -60,6 +60,17 @@ class PitcherProjection:
     def __init__(self, data: dict):
         self.rating_id = data.get('rating_id')
 
+        # League baseline (ticket 0066): this save's own recalibrated
+        # lg_pwoba/ra9_baseline (app/db/projection.py::
+        # compute_league_baselines), joined onto every projection-input row
+        # by get_pitcher_projection_inputs.sql. Falls back to the hardcoded
+        # real-MLB LG_PWOBA/RA9_BASELINE module constants before the first
+        # long heap has computed one.
+        lg_pwoba = data.get('lg_pwoba')
+        self.lg_pwoba = lg_pwoba if lg_pwoba is not None else LG_PWOBA
+        ra9_baseline = data.get('ra9_baseline')
+        self.ra9_baseline = ra9_baseline if ra9_baseline is not None else RA9_BASELINE
+
         role = ROLE_MAP.get(data.get('role'))
         if role is None:
             raise ValueError(f"Unrecognized pitcher role: {data.get('role')!r}")
@@ -160,8 +171,8 @@ class PitcherProjection:
         # can't be derived without it -- stashed on self so
         # calc_player_values() (ticket 0028) reuses it instead of
         # recomputing. See wiki/Projections.md §3.5.
-        self.runs_prevented = (LG_PWOBA - s['wOBA']) / WOBA_SCALE * s['PA']
-        s['RA9'] = RA9_BASELINE - self.runs_prevented / s['IP'] * 9
+        self.runs_prevented = (self.lg_pwoba - s['wOBA']) / WOBA_SCALE * s['PA']
+        s['RA9'] = self.ra9_baseline - self.runs_prevented / s['IP'] * 9
         s['ERA'] = ERA_MULTIPLIER * s['RA9']
 
     def calc_player_values(self):
@@ -180,7 +191,7 @@ class PitcherProjection:
         innings_per_outing = s['IP'] / self.actual_gs_or_g
         runs_per_win = (
             (
-                (RUNS_PER_WIN_FULL_GAME_IP - innings_per_outing) * RA9_BASELINE +
+                (RUNS_PER_WIN_FULL_GAME_IP - innings_per_outing) * self.ra9_baseline +
                 innings_per_outing * s['RA9']
             ) / RUNS_PER_WIN_FULL_GAME_IP + RUNS_PER_WIN_OFFSET
         ) * RUNS_PER_WIN_SCALE

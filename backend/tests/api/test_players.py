@@ -239,6 +239,10 @@ def _contract_row(**overrides):
         "mlb_service_years": 4,
         "current_year": 2,
         "years": 4,
+        # Ticket 0066: LEFT JOINed from the latest market_baselines row --
+        # NULL/None until the save's first long heap has computed one.
+        "war_dollar_value": None,
+        "recommendation_extend_threshold": None,
     }
     row.update({f"salary{i}": 0 for i in range(15)})
     row["salary1"] = 10_000_000

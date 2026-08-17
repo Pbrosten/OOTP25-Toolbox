@@ -387,6 +387,7 @@ def get_player_surplus_value(player_id):
             # player who is a pitcher and *not* also a hitter.
             is_pitcher=pitching_war is not None and batting_war is None,
             pitching_role=row["pitching_role"],
+            war_dollar_value=row["war_dollar_value"],
         )
         if result is None:
             return jsonify({"available": False})
@@ -398,7 +399,9 @@ def get_player_surplus_value(player_id):
         # otherwise) aren't the "should we tender/extend/non-tender him"
         # decision this label set describes (ticket 0058, per user report).
         if ARB_ELIGIBLE_SERVICE_YEARS <= mlb_service_years < FA_SERVICE_YEARS:
-            response["recommendation"] = recommend_contract_action(result)
+            response["recommendation"] = recommend_contract_action(
+                result, recommendation_extend_threshold=row["recommendation_extend_threshold"]
+            )
 
         return jsonify(response)
     finally:

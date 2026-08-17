@@ -98,6 +98,7 @@ def calculate_surplus_value(
     prone_overall=None,
     is_pitcher=False,
     pitching_role=None,
+    war_dollar_value=None,
 ):
     """
     contract: dict with current_year/years/salary0..salary14, or None if
@@ -109,7 +110,14 @@ def calculate_surplus_value(
     injury-risk discount applied to years beyond the current one -- see
     INJURY_MULTIPLIERS. prone_overall=None (missing rating data) applies no
     discount.
+
+    war_dollar_value (ticket 0066): this save's own recalibrated $/WAR
+    (app/db/update.py::compute_market_constants, re-derived once per long
+    heap from real players_contract data), falling back to the hardcoded
+    WAR_DOLLAR_VALUE module constant when None -- same fallback shape as
+    BatterProjection/PitcherProjection's data.get('lg_woba') pattern.
     """
+    war_dollar_value = war_dollar_value if war_dollar_value is not None else WAR_DOLLAR_VALUE
     # current_year is 0-indexed into salary0..salary14 (confirmed against
     # real players_contract data: a years=N contract's active salary slots
     # are exactly salary0..salary(N-1), and current_year ranges 0..N-1 --
@@ -134,7 +142,7 @@ def calculate_surplus_value(
 
         projected_age = current_age + y
         year_war = base_war - _age_decline(current_age, projected_age)
-        year_value = year_war * WAR_DOLLAR_VALUE
+        year_value = year_war * war_dollar_value
         if y >= 1:
             year_value *= _injury_multiplier(prone_overall, is_pitcher, pitching_role)
 
@@ -181,7 +189,7 @@ def calculate_surplus_value(
     }
 
 
-def recommend_contract_action(result):
+def recommend_contract_action(result, recommendation_extend_threshold=None):
     """
     result: calculate_surplus_value's return value (not None). Two-axis
     decision: years-of-control-remaining x average-surplus-per-year tier,
@@ -193,7 +201,18 @@ def recommend_contract_action(result):
     live option is a *later* projected year reverting to an
     arbitration/pre-arb estimate once that signed year runs out. See
     ticket 0058.
+
+    recommendation_extend_threshold (ticket 0066): this save's own
+    recalibrated $/yr cutoff (app/db/update.py::compute_market_constants),
+    falling back to the hardcoded RECOMMENDATION_EXTEND_THRESHOLD module
+    constant when None.
     """
+    recommendation_extend_threshold = (
+        recommendation_extend_threshold
+        if recommendation_extend_threshold is not None
+        else RECOMMENDATION_EXTEND_THRESHOLD
+    )
+
     years = result["years"]
     years_remaining = len(years)
     avg_surplus = result["total_surplus"] / years_remaining
@@ -201,7 +220,7 @@ def recommend_contract_action(result):
 
     if years_remaining <= 1:
         return "Trade before free agency" if avg_surplus >= 0 else "Let walk"
-    if avg_surplus >= RECOMMENDATION_EXTEND_THRESHOLD:
+    if avg_surplus >= recommendation_extend_threshold:
         return "Extend"
     if avg_surplus >= 0:
         return "Keep short-term"

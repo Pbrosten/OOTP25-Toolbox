@@ -58,6 +58,14 @@ class BatterProjection:
             'Wrecked'
         )
 
+        # League baseline (ticket 0066): this save's own recalibrated
+        # lg_woba (app/db/projection.py::compute_league_baselines), joined
+        # onto every projection-input row by get_projection_inputs.sql.
+        # Falls back to the hardcoded real-MLB LG_WOBA module constant
+        # before the first long heap has computed one.
+        lg_woba = data.get('lg_woba')
+        self.lg_woba = lg_woba if lg_woba is not None else LG_WOBA
+
         # Ratings
         self.babip = data.get('babip')
         self.gap = data.get('gap')
@@ -223,7 +231,7 @@ class BatterProjection:
 
     def calc_player_values(self):
         os = self.offensive_stats
-        self.value['wRAA'] = ((os['wOBA'] - LG_WOBA) / FACTOR_WOBA) * os['PA']
+        self.value['wRAA'] = ((os['wOBA'] - self.lg_woba) / FACTOR_WOBA) * os['PA']
         self.value['BR_runs'] = (
             (os['_1B'] + os['_2B'] + os['BB'] + os['HBP']) *
             (

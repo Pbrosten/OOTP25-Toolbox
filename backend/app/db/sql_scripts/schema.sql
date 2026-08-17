@@ -1,4 +1,6 @@
 DROP TABLE IF EXISTS processed_heaps;
+DROP TABLE IF EXISTS league_baselines;
+DROP TABLE IF EXISTS market_baselines;
 DROP TABLE IF EXISTS players_similarity;
 DROP TABLE IF EXISTS players_run_value_talent;
 DROP TABLE IF EXISTS players_run_value;
@@ -41,6 +43,50 @@ CREATE TABLE processed_heaps (
   is_short BOOLEAN NOT NULL,
   processed_at DATETIME NOT NULL,
   PRIMARY KEY (year, month)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- League baselines (ticket 0066): this save's own league-average wOBA/
+-- opponent-wOBA/RA9, recalibrated once per long/yearly heap from a rolling
+-- 3-season pooled window of real players_career_batting_stats/
+-- players_career_pitching_stats totals (league_id = 203, qualifying rows
+-- only) -- replaces BatterProjection/PitcherProjection's hardcoded
+-- real-MLB LG_WOBA/LG_PWOBA/RA9_BASELINE constants, which understated a
+-- diluted save's actual league average and made a below-real-MLB-average
+-- hitter's negative batting_runs read as a well-above-average percentile.
+-- One row per long heap (history preserved, not overwritten) -- "current"
+-- is the most recent row by id. See docs/tickets/0066.
+CREATE TABLE league_baselines (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  computed_at DATETIME NOT NULL,
+  window_start_year SMALLINT,
+  window_end_year SMALLINT,
+  lg_woba FLOAT,
+  lg_pwoba FLOAT,
+  ra9_baseline FLOAT,
+  batting_pa_sample INT,
+  pitching_bf_sample INT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Market baselines (ticket 0066): this save's own recalibrated
+-- contract_value.py constants -- WAR_DOLLAR_VALUE (median implied $/WAR
+-- across market-rate contracts) and RECOMMENDATION_EXTEND_THRESHOLD (p70
+-- of average-surplus-per-year across a curated cohort) -- re-derived once
+-- per long/yearly heap from real players_contract data crossed with each
+-- player's latest WAR, replacing tickets 0056/0058's original one-time
+-- manual snapshots (which otherwise go stale the moment league_baselines'
+-- recalibration shifts the WAR scale). Separate table from
+-- league_baselines -- different domain (contract/market economics vs.
+-- run-value formula constants) and a materially different derivation path
+-- (a Python simulation via calculate_surplus_value(), not a SQL
+-- aggregate). One row per long heap (history preserved). See
+-- docs/tickets/0066.
+CREATE TABLE market_baselines (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  computed_at DATETIME NOT NULL,
+  war_dollar_value FLOAT,
+  war_dollar_value_sample INT,
+  recommendation_extend_threshold FLOAT,
+  threshold_cohort_sample INT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Teams --
