@@ -297,3 +297,71 @@ def test_get_team_depth_chart_twp_groups_by_twp_even_when_position_not_pitcher(
     assert "TWP" in body["levels"]["1"]
     assert body["levels"]["1"]["TWP"][0]["player_id"] == 15
     assert "DH" not in body["levels"]["1"]
+
+
+# Test GET /api/teams/<id>/war-summary - not an MLB team (level != 1)
+@patch("app.api.teams.get_db")
+@patch("app.api.teams.close_db")
+def test_get_team_war_summary_non_mlb_team_not_found(mock_close_db, mock_get_db, client):
+    mock_con = MagicMock()
+    mock_cursor = MagicMock()
+    mock_cursor.fetchone.return_value = {"level": 2, "city_id": 12345}
+    mock_con.cursor.return_value.__enter__.return_value = mock_cursor
+    mock_get_db.return_value = mock_con
+
+    response = client.get("/api/teams/59/war-summary")
+    assert response.status_code == 404
+
+
+# Test GET /api/teams/<id>/war-summary - level=1 exhibition team (no real
+# city) is not a real team, same exclusion as the depth-chart route.
+@patch("app.api.teams.get_db")
+@patch("app.api.teams.close_db")
+def test_get_team_war_summary_exhibition_team_not_found(mock_close_db, mock_get_db, client):
+    mock_con = MagicMock()
+    mock_cursor = MagicMock()
+    mock_cursor.fetchone.return_value = {"level": 1, "city_id": 0}
+    mock_con.cursor.return_value.__enter__.return_value = mock_cursor
+    mock_get_db.return_value = mock_con
+
+    response = client.get("/api/teams/31/war-summary")
+    assert response.status_code == 404
+
+
+# Test GET /api/teams/<id>/war-summary - unknown team_id
+@patch("app.api.teams.get_db")
+@patch("app.api.teams.close_db")
+def test_get_team_war_summary_unknown_team_not_found(mock_close_db, mock_get_db, client):
+    mock_con = MagicMock()
+    mock_cursor = MagicMock()
+    mock_cursor.fetchone.return_value = None
+    mock_con.cursor.return_value.__enter__.return_value = mock_cursor
+    mock_get_db.return_value = mock_con
+
+    response = client.get("/api/teams/99999/war-summary")
+    assert response.status_code == 404
+
+
+# Test GET /api/teams/<id>/war-summary - real MLB team returns the summed
+# WAR aggregate plus its league power ranking from the query as-is
+# (aggregation/ranking itself lives in SQL).
+@patch("app.api.teams.get_db")
+@patch("app.api.teams.close_db")
+@patch("app.api.teams.current_app.open_resource")
+def test_get_team_war_summary_returns_aggregate_and_rank(
+    mock_open_resource, mock_close_db, mock_get_db, client
+):
+    mock_con = MagicMock()
+    mock_cursor = MagicMock()
+    mock_cursor.fetchone.side_effect = [
+        {"level": 1, "city_id": 58739},
+        {"war": 24.7, "team_rank": 5, "total_teams": 30},
+    ]
+    mock_con.cursor.return_value.__enter__.return_value = mock_cursor
+    mock_get_db.return_value = mock_con
+    mock_open_resource.return_value.__enter__.return_value.read.return_value = "SELECT ..."
+
+    response = client.get("/api/teams/1/war-summary")
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body == {"team_id": 1, "war": 24.7, "rank": 5, "total_teams": 30}

@@ -174,3 +174,71 @@ def get_team_depth_chart(team_id):
         )
     finally:
         close_db()
+
+
+@bp.route("/<int:team_id>/war-summary", methods=["GET"])
+def get_team_war_summary(team_id):
+    """
+    Retrieve an MLB team's current-roster WAR aggregate and its power
+    ranking among all real MLB teams by that same figure (ticket 0079),
+    for the GM Command Center dashboard's headline stat (ticket 0038).
+    Sums players_run_value.WAR (batting) + players_pitching_run_value.WAR
+    (pitching) at each player's latest rating snapshot, two-way players
+    counted for both sides -- same convention as get_org_depth_chart.sql
+    (ticket 0063). MLB (level = 1) roster only -- full-org/affiliate WAR
+    is covered in more detail by ticket 0081's per-position breakdown
+    instead.
+
+    Args:
+        team_id (int): The MLB team's id. Must be a level-1 (MLB) team --
+            an individual affiliate's own team_id is not valid here.
+
+    Returns:
+        JSON response:
+            - 404 if team_id isn't a real level-1 MLB team.
+            - {"team_id": ..., "war": ..., "rank": ..., "total_teams": ...}
+              otherwise, where war is the summed team WAR (0 if the
+              roster has no rated players yet), rank is this team's
+              1-indexed rank by war among all real MLB teams (ties share
+              a rank, per get_team_war_summary.sql's RANK() -- not
+              ROW_NUMBER()), and total_teams is the league size the rank
+              is out of.
+    """
+    con = get_db()
+    try:
+        with con.cursor() as cursor:
+            cursor.execute(
+                "SELECT level, city_id FROM teams WHERE team_id = %(team_id)s",
+                {"team_id": team_id},
+            )
+            team_row = cursor.fetchone()
+
+        # city_id != 0 excludes the save's exhibition teams also tagged
+        # level = 1 -- see get_mlb_teams'/get_team_depth_chart's docstrings.
+        if (
+            team_row is None
+            or team_row["level"] != 1
+            or team_row["city_id"] == 0
+        ):
+            return jsonify({"error": "Team not found"}), 404
+
+        sql_path = os.path.join(
+            "db", "sql_scripts", "api", "get_team_war_summary.sql"
+        )
+        with current_app.open_resource(sql_path, "r") as f:
+            sql = f.read()
+
+        with con.cursor() as cursor:
+            cursor.execute(sql, {"team_id": team_id})
+            row = cursor.fetchone()
+
+        return jsonify(
+            {
+                "team_id": team_id,
+                "war": row["war"],
+                "rank": row["team_rank"],
+                "total_teams": row["total_teams"],
+            }
+        )
+    finally:
+        close_db()
