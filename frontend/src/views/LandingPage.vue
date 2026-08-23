@@ -3,7 +3,9 @@ import { useCurrentTeam } from '@/composables/useCurrentTeam'
 import TeamWarWidget from '@/components/dashboard/TeamWarWidget.vue'
 import RosterWeaknessesWidget from '@/components/dashboard/RosterWeaknessesWidget.vue'
 import ContractDecisionsWidget from '@/components/dashboard/ContractDecisionsWidget.vue'
+import PerformanceDeltasWidget from '@/components/dashboard/PerformanceDeltasWidget.vue'
 import PromotionReadyWidget from '@/components/dashboard/PromotionReadyWidget.vue'
+import ActionQueue from '@/components/dashboard/ActionQueue.vue'
 
 // GM Command Center dashboard shell (ticket 0085), replacing the old
 // ToolCard launcher -- Sidebar.vue already carries tool nav (ticket 0065),
@@ -15,7 +17,7 @@ const { currentTeam } = useCurrentTeam()
 </script>
 
 <template>
-  <div class="p-6 max-w-5xl mx-auto">
+  <div class="p-6 max-w-6xl mx-auto">
     <!-- No org selected (ticket 0085's outstanding design question,
          resolved 2026-08-23): direct to /gm rather than falling back to
          the old tool launcher -- Sidebar.vue already covers that nav. -->
@@ -41,36 +43,37 @@ const { currentTeam } = useCurrentTeam()
         <TeamWarWidget />
       </div>
 
-      <!-- Widget grid: 0080's tile drops in here as it closes.
-           RosterWeaknessesWidget/ContractDecisionsWidget render
-           full-width instead (each has its own internal multi-item list
-           layout that doesn't fit a compact stat-tile grid cell). -->
-      <section class="mb-8">
-        <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-400 mb-3">
-          Roster Insights
-        </h2>
-        <RosterWeaknessesWidget class="mb-4" />
-        <ContractDecisionsWidget class="mb-4" />
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <p class="text-sm text-gray-400 italic">More widgets land here as 0080 closes.</p>
+      <!-- Two-column layout (per the user, 2026-08-23): main content
+           left, ActionQueue as a collapsible feed to the right -- it
+           owns its own header/collapse toggle (see its own comment),
+           not wrapped in a <section> here. -->
+      <div class="flex flex-col lg:flex-row gap-6 items-start">
+        <div class="flex-1 min-w-0">
+          <!-- Roster Insights: 0080/0081/0082's widgets. Each renders
+               full-width -- all three have their own internal multi-item
+               list layout that doesn't fit a compact stat-tile grid cell. -->
+          <section class="mb-8">
+            <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-400 mb-3">
+              Roster Insights
+            </h2>
+            <RosterWeaknessesWidget class="mb-4" />
+            <ContractDecisionsWidget class="mb-4" />
+            <PerformanceDeltasWidget />
+          </section>
+
+          <!-- Prospect Watch: 0083's promotion-ready prospects. -->
+          <section>
+            <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-400 mb-3">
+              Prospect Watch
+            </h2>
+            <PromotionReadyWidget />
+          </section>
         </div>
-      </section>
 
-      <!-- Prospect Watch: 0083's promotion-ready prospects. -->
-      <section class="mb-8">
-        <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-400 mb-3">
-          Prospect Watch
-        </h2>
-        <PromotionReadyWidget />
-      </section>
-
-      <!-- Action Queue (ticket 0084). -->
-      <section>
-        <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-400 mb-3">
-          Action Queue
-        </h2>
-        <p class="text-sm text-gray-400 italic">Lands with ticket 0084.</p>
-      </section>
+        <!-- Action Queue (ticket 0084): aggregates alerts pushed by the
+             widgets to the left via useActionQueue(). -->
+        <ActionQueue />
+      </div>
     </template>
   </div>
 </template>

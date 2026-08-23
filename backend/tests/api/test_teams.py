@@ -1,5 +1,7 @@
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 
 # Test GET /api/teams - MLB team listing for the depth-chart picker
 @patch("app.api.teams.get_db")
@@ -853,3 +855,185 @@ def test_get_team_contract_decisions_filters_independently_per_player(
     response = client.get("/api/teams/1/contract-decisions")
     body = response.get_json()
     assert [p["player_id"] for p in body["players"]] == [2]
+
+
+def _performance_delta_row(**overrides):
+    row = {
+        "player_id": 1,
+        "first_name": "Alice",
+        "last_name": "Ace",
+        "actual_batting_war": 3.0,
+        "actual_pitching_war": None,
+        "projected_war": 1.0,
+        "delta": 2.0,
+    }
+    row.update(overrides)
+    return row
+
+
+# Test GET /api/teams/<id>/performance-deltas - not an MLB team (level != 1)
+@patch("app.api.teams.get_db")
+@patch("app.api.teams.close_db")
+def test_get_team_performance_deltas_non_mlb_team_not_found(mock_close_db, mock_get_db, client):
+    mock_con = MagicMock()
+    mock_cursor = MagicMock()
+    mock_cursor.fetchone.return_value = {"level": 2, "city_id": 12345}
+    mock_con.cursor.return_value.__enter__.return_value = mock_cursor
+    mock_get_db.return_value = mock_con
+
+    response = client.get("/api/teams/59/performance-deltas")
+    assert response.status_code == 404
+
+
+# Test GET /api/teams/<id>/performance-deltas - level=1 exhibition team
+@patch("app.api.teams.get_db")
+@patch("app.api.teams.close_db")
+def test_get_team_performance_deltas_exhibition_team_not_found(mock_close_db, mock_get_db, client):
+    mock_con = MagicMock()
+    mock_cursor = MagicMock()
+    mock_cursor.fetchone.return_value = {"level": 1, "city_id": 0}
+    mock_con.cursor.return_value.__enter__.return_value = mock_cursor
+    mock_get_db.return_value = mock_con
+
+    response = client.get("/api/teams/31/performance-deltas")
+    assert response.status_code == 404
+
+
+# Test GET /api/teams/<id>/performance-deltas - unknown team_id
+@patch("app.api.teams.get_db")
+@patch("app.api.teams.close_db")
+def test_get_team_performance_deltas_unknown_team_not_found(mock_close_db, mock_get_db, client):
+    mock_con = MagicMock()
+    mock_cursor = MagicMock()
+    mock_cursor.fetchone.return_value = None
+    mock_con.cursor.return_value.__enter__.return_value = mock_cursor
+    mock_get_db.return_value = mock_con
+
+    response = client.get("/api/teams/99999/performance-deltas")
+    assert response.status_code == 404
+
+
+# A delta at/above the notable threshold (1.0) is included, overperformer.
+@patch("app.api.teams.get_db")
+@patch("app.api.teams.close_db")
+@patch("app.api.teams.current_app.open_resource")
+def test_get_team_performance_deltas_includes_overperformer(
+    mock_open_resource, mock_close_db, mock_get_db, client
+):
+    mock_con = MagicMock()
+    mock_cursor = MagicMock()
+    mock_cursor.fetchone.return_value = {"level": 1, "city_id": 58739}
+    mock_cursor.fetchall.return_value = [
+        _performance_delta_row(
+            player_id=7, first_name="Ruben", last_name="Santana",
+            actual_batting_war=3.0, projected_war=1.0, delta=2.0,
+        ),
+    ]
+    mock_con.cursor.return_value.__enter__.return_value = mock_cursor
+    mock_get_db.return_value = mock_con
+    mock_open_resource.return_value.__enter__.return_value.read.return_value = "SELECT ..."
+
+    response = client.get("/api/teams/1/performance-deltas")
+    assert response.status_code == 200
+    body = response.get_json()
+    assert len(body["players"]) == 1
+    player = body["players"][0]
+    assert player["player_id"] == 7
+    assert player["actual_war"] == 3.0
+    assert player["projected_war"] == 1.0
+    assert player["delta"] == 2.0
+
+
+# A negative delta at/beyond the threshold is included too, underperformer.
+@patch("app.api.teams.get_db")
+@patch("app.api.teams.close_db")
+@patch("app.api.teams.current_app.open_resource")
+def test_get_team_performance_deltas_includes_underperformer(
+    mock_open_resource, mock_close_db, mock_get_db, client
+):
+    mock_con = MagicMock()
+    mock_cursor = MagicMock()
+    mock_cursor.fetchone.return_value = {"level": 1, "city_id": 58739}
+    mock_cursor.fetchall.return_value = [
+        _performance_delta_row(actual_batting_war=0.5, projected_war=2.0, delta=-1.5),
+    ]
+    mock_con.cursor.return_value.__enter__.return_value = mock_cursor
+    mock_get_db.return_value = mock_con
+    mock_open_resource.return_value.__enter__.return_value.read.return_value = "SELECT ..."
+
+    response = client.get("/api/teams/1/performance-deltas")
+    body = response.get_json()
+    assert len(body["players"]) == 1
+    assert body["players"][0]["delta"] == -1.5
+
+
+# A delta inside the notable threshold is excluded -- not every player
+# with any nonzero delta should show up, only meaningfully large ones.
+@patch("app.api.teams.get_db")
+@patch("app.api.teams.close_db")
+@patch("app.api.teams.current_app.open_resource")
+def test_get_team_performance_deltas_excludes_small_delta(
+    mock_open_resource, mock_close_db, mock_get_db, client
+):
+    mock_con = MagicMock()
+    mock_cursor = MagicMock()
+    mock_cursor.fetchone.return_value = {"level": 1, "city_id": 58739}
+    mock_cursor.fetchall.return_value = [
+        _performance_delta_row(actual_batting_war=1.2, projected_war=1.0, delta=0.2),
+    ]
+    mock_con.cursor.return_value.__enter__.return_value = mock_cursor
+    mock_get_db.return_value = mock_con
+    mock_open_resource.return_value.__enter__.return_value.read.return_value = "SELECT ..."
+
+    response = client.get("/api/teams/1/performance-deltas")
+    assert response.get_json()["players"] == []
+
+
+# Two-way players sum batting + pitching actual WAR into one actual_war
+# figure, same convention as get_team_war_summary.sql.
+@patch("app.api.teams.get_db")
+@patch("app.api.teams.close_db")
+@patch("app.api.teams.current_app.open_resource")
+def test_get_team_performance_deltas_two_way_sums_actual_war(
+    mock_open_resource, mock_close_db, mock_get_db, client
+):
+    mock_con = MagicMock()
+    mock_cursor = MagicMock()
+    mock_cursor.fetchone.return_value = {"level": 1, "city_id": 58739}
+    mock_cursor.fetchall.return_value = [
+        _performance_delta_row(
+            actual_batting_war=1.5, actual_pitching_war=0.8, projected_war=0.3, delta=2.0,
+        ),
+    ]
+    mock_con.cursor.return_value.__enter__.return_value = mock_cursor
+    mock_get_db.return_value = mock_con
+    mock_open_resource.return_value.__enter__.return_value.read.return_value = "SELECT ..."
+
+    response = client.get("/api/teams/1/performance-deltas")
+    assert response.get_json()["players"][0]["actual_war"] == pytest.approx(2.3)
+
+
+# Multiple players are filtered independently, order (delta descending,
+# as the SQL already returns) is preserved through Python's filtering.
+@patch("app.api.teams.get_db")
+@patch("app.api.teams.close_db")
+@patch("app.api.teams.current_app.open_resource")
+def test_get_team_performance_deltas_preserves_sql_order(
+    mock_open_resource, mock_close_db, mock_get_db, client
+):
+    mock_con = MagicMock()
+    mock_cursor = MagicMock()
+    mock_cursor.fetchone.return_value = {"level": 1, "city_id": 58739}
+    mock_cursor.fetchall.return_value = [
+        _performance_delta_row(player_id=1, delta=3.0),
+        _performance_delta_row(player_id=2, delta=1.1),
+        _performance_delta_row(player_id=3, delta=0.1),  # excluded, below threshold
+        _performance_delta_row(player_id=4, delta=-2.0),
+    ]
+    mock_con.cursor.return_value.__enter__.return_value = mock_cursor
+    mock_get_db.return_value = mock_con
+    mock_open_resource.return_value.__enter__.return_value.read.return_value = "SELECT ..."
+
+    response = client.get("/api/teams/1/performance-deltas")
+    body = response.get_json()
+    assert [p["player_id"] for p in body["players"]] == [1, 2, 4]

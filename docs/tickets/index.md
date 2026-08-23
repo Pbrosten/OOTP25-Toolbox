@@ -278,7 +278,7 @@ its minor-league level/affiliate half as 0062, both drawn below):
                                                   |
                      +--------------+-------------+-------------+--------------+
                      v              v             v             v              v
-               [x] 0079        [ ] 0080      [x] 0081      [x] 0082        [x] 0083
+               [x] 0079        [x] 0080      [x] 0081      [x] 0082        [x] 0083
                power            over/under    roster        contract/       prospect
                ranking          performers    weaknesses/   arbitration     promotion
                widget           widget        surpluses     decisions       opportunities
@@ -287,7 +287,7 @@ its minor-league level/affiliate half as 0062, both drawn below):
                      +--------------+-------------+-------------+--------------+
                                                   |
                                                   v
-                                       [ ] 0084 Action Queue
+                                       [x] 0084 Action Queue
                                                   |
                                                   v
                                        [~] 0085 Dashboard shell
@@ -311,11 +311,11 @@ its minor-league level/affiliate half as 0062, both drawn below):
 | [0042](0042-contract-arbitration-analyzer.md) | Contract & Arbitration Analyzer (epic tracker) | feat | Closed | 0053, 0054 |
 | [0038](0038-gm-command-center.md) | GM Command Center (epic tracker) | feat | In-Progress | 0039, 0042, 0043, 0065 |
 | [0079](0079-dashboard-team-war-widget.md) | Command Center: team power ranking widget | feat | Closed | — |
-| [0080](0080-dashboard-over-underperformers-widget.md) | Command Center: over/underperformers widget | feat | Open | — |
+| [0080](0080-dashboard-over-underperformers-widget.md) | Command Center: over/underperformers widget | feat | Closed | — |
 | [0081](0081-dashboard-roster-weaknesses-widget.md) | Command Center: roster weaknesses/surpluses widget | feat | Closed | — |
 | [0082](0082-dashboard-contract-arbitration-widget.md) | Command Center: contract & arbitration decisions widget | feat | Closed | — |
 | [0083](0083-dashboard-prospect-promotion-widget.md) | Command Center: prospect promotion opportunities widget | feat | Closed | — |
-| [0084](0084-dashboard-action-queue.md) | Command Center: Action Queue | feat | Open | 0079, 0080, 0081, 0082, 0083 |
+| [0084](0084-dashboard-action-queue.md) | Command Center: Action Queue | feat | Closed | 0079, 0080, 0081, 0082, 0083 |
 | [0085](0085-gm-command-center-dashboard.md) | GM Command Center dashboard shell | feat | In-Progress | 0079, 0080, 0081, 0082, 0083, 0084 |
 | [0086](0086-prospect-percentile-bars-potential-shadow.md) | Prospect percentile bars + current-vs-potential shadow | feat | Open | — |
 | [0065](0065-gm-org-selection-theming.md) | GM organization selection + app-wide color theming | feat | Closed | — |

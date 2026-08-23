@@ -32,6 +32,17 @@ ROSTER_STRENGTH_GROUP_ORDER = [
 ROSTER_STRENGTH_MEDIAN_CUTOFF = 50
 ROSTER_STRENGTH_SURPLUS_MIN_COUNT = 2
 
+# Notable-delta threshold for the over/underperformers widget (ticket
+# 0080) -- first-pass heuristic per the ticket's own Design choices
+# ("needs a first-pass heuristic during implementation, tunable later"),
+# chosen by inspecting real actual-vs-projected WAR deltas across a real
+# roster (post qualifying-sample filtering -- see
+# get_team_performance_deltas.sql): observed deltas ranged roughly
+# -2.6..+4.1 WAR, and 1.0 WAR (a real, standalone win of value) is a
+# natural line that surfaces a meaningful subset rather than either the
+# whole roster or almost nobody.
+PERFORMANCE_DELTA_NOTABLE_THRESHOLD = 1.0
+
 
 @bp.route("", methods=["GET"])
 def get_mlb_teams():
@@ -483,6 +494,86 @@ def get_team_contract_decisions(team_id):
                     "last_name": row["last_name"],
                     "recommendation": result["recommendation"],
                     "total_surplus": result["total_surplus"],
+                }
+            )
+
+        return jsonify({"team_id": team_id, "players": players})
+    finally:
+        close_db()
+
+
+@bp.route("/<int:team_id>/performance-deltas", methods=["GET"])
+def get_team_performance_deltas(team_id):
+    """
+    List an MLB team's active roster players whose real current-season
+    actual WAR notably over/underperforms their latest projected WAR
+    (ticket 0080), for the GM Command Center dashboard. "Notable" is
+    |actual - projected| >= PERFORMANCE_DELTA_NOTABLE_THRESHOLD -- a
+    first-pass heuristic, tunable later (ticket's own Design choices).
+    Only players with a qualifying real sample this season (PA >= 50
+    batting, outs >= 60 pitching) are even considered -- see
+    get_team_performance_deltas.sql's docstring for why a player who
+    hasn't played (yet) this season is excluded outright rather than
+    compared against a fabricated zero.
+
+    Args:
+        team_id (int): The MLB team's id. Must be a level-1 (MLB) team --
+            an individual affiliate's own team_id is not valid here.
+
+    Returns:
+        JSON response:
+            - 404 if team_id isn't a real level-1 MLB team.
+            - {"team_id": ..., "players": [...]} otherwise, where each
+              entry is {"player_id", "first_name", "last_name",
+              "actual_war", "projected_war", "delta"} for every
+              qualifying roster player whose |delta| >=
+              PERFORMANCE_DELTA_NOTABLE_THRESHOLD, sorted by delta
+              descending (overperformers first). A qualifying player
+              inside the threshold, or with no qualifying sample at all,
+              simply doesn't appear. actual_war/delta sum batting +
+              pitching for a two-way player, same convention as
+              get_team_war_summary.sql.
+    """
+    con = get_db()
+    try:
+        with con.cursor() as cursor:
+            cursor.execute(
+                "SELECT level, city_id FROM teams WHERE team_id = %(team_id)s",
+                {"team_id": team_id},
+            )
+            team_row = cursor.fetchone()
+
+        if (
+            team_row is None
+            or team_row["level"] != 1
+            or team_row["city_id"] == 0
+        ):
+            return jsonify({"error": "Team not found"}), 404
+
+        sql_path = os.path.join(
+            "db", "sql_scripts", "api", "get_team_performance_deltas.sql"
+        )
+        with current_app.open_resource(sql_path, "r") as f:
+            sql = f.read()
+
+        with con.cursor() as cursor:
+            cursor.execute(sql, {"team_id": team_id})
+            rows = cursor.fetchall()
+
+        players = []
+        for row in rows:
+            delta = row["delta"]
+            if abs(delta) < PERFORMANCE_DELTA_NOTABLE_THRESHOLD:
+                continue
+            actual_war = (row["actual_batting_war"] or 0) + (row["actual_pitching_war"] or 0)
+            players.append(
+                {
+                    "player_id": row["player_id"],
+                    "first_name": row["first_name"],
+                    "last_name": row["last_name"],
+                    "actual_war": actual_war,
+                    "projected_war": row["projected_war"],
+                    "delta": delta,
                 }
             )
 

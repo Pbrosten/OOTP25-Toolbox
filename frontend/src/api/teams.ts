@@ -94,3 +94,25 @@ export async function fetchTeamContractDecisions(teamId: number): Promise<Contra
   }
   return response.json()
 }
+
+export interface PerformanceDeltaPlayer {
+  player_id: number
+  first_name: string
+  last_name: string
+  actual_war: number
+  projected_war: number
+  delta: number
+}
+
+export interface PerformanceDeltas {
+  team_id: number
+  players: PerformanceDeltaPlayer[]
+}
+
+export async function fetchTeamPerformanceDeltas(teamId: number): Promise<PerformanceDeltas> {
+  const response = await fetch(`/api/teams/${teamId}/performance-deltas`)
+  if (!response.ok) {
+    throw new Error('Failed to load team performance deltas.')
+  }
+  return response.json()
+}
