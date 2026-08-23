@@ -189,18 +189,118 @@ def calculate_surplus_value(
     }
 
 
+def compute_surplus_value_and_recommendation(row):
+    """
+    Shared by GET /api/players/<id>/surplus-value (ticket 0056/0058) and
+    GET /api/teams/<id>/contract-decisions (ticket 0082) -- both need the
+    same "row from get_player_contract_inputs.sql (or its team-scoped
+    counterpart, get_team_contract_inputs.sql) -> surplus-value
+    breakdown, plus a recommendation label if the player is currently
+    arbitration-eligible" logic; factored out here so the second caller
+    doesn't duplicate it.
+
+    row: dict with age, prone_overall, batting_war, pitching_war,
+    pitching_role, mlb_service_years, current_year/years/salary0..14,
+    war_dollar_value, recommendation_extend_threshold (same shape both
+    SQL scripts return).
+
+    Returns None if there's nothing to project (no current WAR, or
+    neither a contract nor a service-time record on file) -- the "not
+    available" case. Otherwise, calculate_surplus_value's result dict,
+    plus a "recommendation" key only when mlb_service_years currently
+    falls in the arbitration window (ARB_ELIGIBLE_SERVICE_YEARS <= years
+    < FA_SERVICE_YEARS) -- a player outside that window still gets their
+    full surplus-value breakdown back, just without a recommendation
+    label (ticket 0058's original behavior, unchanged by this refactor).
+
+    A two-way player's batting and pitching WAR are summed into a single
+    base_war for the whole projection (per user request) -- a deliberate
+    change from 0056's original "exclude two-way players entirely"
+    precedent, scoped to this calculation.
+    """
+    batting_war = row["batting_war"]
+    pitching_war = row["pitching_war"]
+    is_twp = batting_war is not None and pitching_war is not None
+    if is_twp:
+        base_war = batting_war + pitching_war
+    else:
+        base_war = batting_war if batting_war is not None else pitching_war
+
+    # years=0/current_year=0 is a real row OOTP writes for every unsigned
+    # player (a placeholder, not a 1-year $0 contract) --
+    # current_year=0 would also wrap Python's salaries[-1] indexing in
+    # calculate_surplus_value, so this must be filtered here, not just
+    # treated as "no row".
+    has_contract = row["years"] is not None and row["years"] > 0
+    has_service_time = row["mlb_service_years"] is not None
+
+    if base_war is None or row["age"] is None or not (has_contract or has_service_time):
+        return None
+
+    mlb_service_years = row["mlb_service_years"] or 0
+    result = calculate_surplus_value(
+        base_war=base_war,
+        current_age=row["age"],
+        mlb_service_years=mlb_service_years,
+        contract=row if has_contract else None,
+        prone_overall=row["prone_overall"],
+        # A TWP's injury-durability lookup uses the batter multiplier, not
+        # the pitcher one -- their primary defensive workload (games
+        # played/batted) is typically far larger than their pitching
+        # innings share, so is_pitcher is only True for a player who is a
+        # pitcher and *not* also a hitter.
+        is_pitcher=pitching_war is not None and batting_war is None,
+        pitching_role=row["pitching_role"],
+        war_dollar_value=row["war_dollar_value"],
+    )
+    if result is None:
+        return None
+
+    # Recommendation labels only apply to a player's current
+    # arbitration-eligibility window -- pre-arb rookies and players
+    # already past free-agency service (whether on a long-term deal or
+    # otherwise) aren't the "should we tender/extend/non-tender him"
+    # decision this label set describes (ticket 0058, per user report).
+    if ARB_ELIGIBLE_SERVICE_YEARS <= mlb_service_years < FA_SERVICE_YEARS:
+        recommendation = recommend_contract_action(
+            result, recommendation_extend_threshold=row["recommendation_extend_threshold"]
+        )
+        # recommend_contract_action returns None when the player is
+        # already fully extended through their whole projected horizon
+        # (ticket 0082 fix) -- no "recommendation" key at all in that
+        # case, same absent-key convention as the pre-arb/post-FA cases
+        # above, not a null value.
+        if recommendation is not None:
+            result = {**result, "recommendation": recommendation}
+
+    return result
+
+
 def recommend_contract_action(result, recommendation_extend_threshold=None):
     """
     result: calculate_surplus_value's return value (not None). Two-axis
     decision: years-of-control-remaining x average-surplus-per-year tier,
     with "guaranteed vs. discretionary" (is there any point in the horizon
-    the team could walk away for free) gating Non-tender. Checks the whole
-    horizon, not just years[0] -- years[0] is often already a signed,
-    already-tendered season (e.g. a real years=1 arb-1 deal), which the
-    team is committed to regardless; what actually makes "Non-tender" a
-    live option is a *later* projected year reverting to an
-    arbitration/pre-arb estimate once that signed year runs out. See
-    ticket 0058.
+    the team could walk away for free) gating both Non-tender and
+    "Extend"/"Keep short-term" entirely. Checks the whole horizon, not
+    just years[0] -- years[0] is often already a signed, already-tendered
+    season (e.g. a real years=1 arb-1 deal), which the team is committed
+    to regardless. See ticket 0058.
+
+    Returns None -- no live decision -- when every remaining projected
+    year is already locked in under a signed contract (ticket 0082
+    fix): a player already extended for their whole relevant horizon has
+    nothing left to extend, no matter how large their surplus value is.
+    The bug this fixed: a fully-extended star with high projected surplus
+    (e.g. a real 7-year, all-"contract"-sourced deal) was returning
+    "Extend" -- confusing/wrong, since the team already made that exact
+    decision and there's no action left to take. Discretionary (at least
+    one remaining year *not* already under contract, i.e. relies on an
+    arbitration/pre-arb estimate) is what actually makes any of
+    Extend/Keep short-term/Non-tender a live option -- once discretionary
+    is True, "Non-tender" specifically needs a later year to *revert* to
+    a non-contract estimate after an earlier signed year runs out, not
+    just any non-contract year.
 
     recommendation_extend_threshold (ticket 0066): this save's own
     recalibrated $/yr cutoff (app/db/update.py::compute_market_constants),
@@ -220,8 +320,10 @@ def recommend_contract_action(result, recommendation_extend_threshold=None):
 
     if years_remaining <= 1:
         return "Trade before free agency" if avg_surplus >= 0 else "Let walk"
+    if not discretionary:
+        return None
     if avg_surplus >= recommendation_extend_threshold:
         return "Extend"
     if avg_surplus >= 0:
         return "Keep short-term"
-    return "Non-tender" if discretionary else "Let walk"
+    return "Non-tender"

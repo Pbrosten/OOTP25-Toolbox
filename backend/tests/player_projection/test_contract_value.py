@@ -242,7 +242,33 @@ def test_recommend_strong_surplus_multiyear_extend():
         base_war=3.0, current_age=25, mlb_service_years=2, contract=contract
     )
     assert len(result["years"]) >= 2
+    # mlb_service_years=2 is well short of free agency (6), so team
+    # control -- and thus this player's projection -- extends past the
+    # 3-year contract into arbitration-estimated years the team doesn't
+    # have locked in yet (discretionary=True): a real "should we extend
+    # him further" decision, unlike the fully-signed case below.
+    assert result["years"][-1]["source"] != "contract"
     assert recommend_contract_action(result) == "Extend"
+
+
+def test_recommend_strong_surplus_fully_signed_contract_no_recommendation():
+    # Ticket 0082 fix, regression for the exact bug reported: a player
+    # already extended for their *entire* projected horizon (every year
+    # "contract"-sourced) was returning "Extend" purely off a high
+    # average surplus -- wrong, since the team already made that
+    # decision and there's nothing left to extend. mlb_service_years=8
+    # (already past free-agency service) plus a contract exactly as long
+    # as the projection horizon it produces means no year reverts to an
+    # arbitration/pre-arb estimate.
+    contract = make_contract(
+        current_year=0, years=3, salary0=1_000_000, salary1=1_000_000, salary2=1_000_000
+    )
+    result = calculate_surplus_value(
+        base_war=6.0, current_age=27, mlb_service_years=8, contract=contract
+    )
+    assert len(result["years"]) == 3
+    assert all(yr["source"] == "contract" for yr in result["years"])
+    assert recommend_contract_action(result) is None
 
 
 def test_recommend_mild_surplus_multiyear_keep_short_term():
@@ -283,7 +309,14 @@ def test_recommend_negative_surplus_signed_current_year_still_non_tender():
     assert recommend_contract_action(result) == "Non-tender"
 
 
-def test_recommend_negative_surplus_guaranteed_contract_let_walk():
+def test_recommend_negative_surplus_fully_signed_contract_no_recommendation():
+    # Ticket 0082 fix: every remaining projected year is already
+    # "contract"-sourced (not discretionary) -- the team is stuck with
+    # this albatross deal regardless of surplus sign, same as a
+    # fully-signed *positive*-surplus player has nothing left to
+    # "Extend." Previously returned "Let walk," which is nonsensical for
+    # a player already locked into a signed contract -- the team can't
+    # just let him walk.
     contract = make_contract(
         current_year=0, years=3, salary0=50_000_000, salary1=50_000_000, salary2=50_000_000
     )
@@ -291,5 +324,5 @@ def test_recommend_negative_surplus_guaranteed_contract_let_walk():
         base_war=-1.0, current_age=25, mlb_service_years=10, contract=contract
     )
     assert len(result["years"]) >= 2
-    assert result["years"][0]["source"] == "contract"
-    assert recommend_contract_action(result) == "Let walk"
+    assert all(yr["source"] == "contract" for yr in result["years"])
+    assert recommend_contract_action(result) is None

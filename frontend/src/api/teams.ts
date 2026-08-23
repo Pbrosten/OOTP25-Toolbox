@@ -66,3 +66,31 @@ export async function fetchTeamRosterStrength(teamId: number): Promise<RosterStr
   }
   return response.json()
 }
+
+export type ContractRecommendation =
+  | 'Extend'
+  | 'Keep short-term'
+  | 'Trade before free agency'
+  | 'Let walk'
+  | 'Non-tender'
+
+export interface ContractDecisionPlayer {
+  player_id: number
+  first_name: string
+  last_name: string
+  recommendation: ContractRecommendation
+  total_surplus: number
+}
+
+export interface ContractDecisions {
+  team_id: number
+  players: ContractDecisionPlayer[]
+}
+
+export async function fetchTeamContractDecisions(teamId: number): Promise<ContractDecisions> {
+  const response = await fetch(`/api/teams/${teamId}/contract-decisions`)
+  if (!response.ok) {
+    throw new Error('Failed to load team contract decisions.')
+  }
+  return response.json()
+}

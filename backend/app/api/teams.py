@@ -2,6 +2,7 @@ import os
 
 from flask import Blueprint, jsonify, current_app
 from app.db.connection import get_db, close_db
+from app.player_projection.contract_value import compute_surplus_value_and_recommendation
 
 bp = Blueprint("teams", __name__, url_prefix="/api/teams")
 
@@ -410,5 +411,81 @@ def get_team_roster_strength(team_id):
         )
 
         return jsonify({"team_id": team_id, "groups": groups})
+    finally:
+        close_db()
+
+
+@bp.route("/<int:team_id>/contract-decisions", methods=["GET"])
+def get_team_contract_decisions(team_id):
+    """
+    List an MLB team's players with a live contract/arbitration decision
+    (ticket 0082), for the GM Command Center dashboard -- reuses
+    0056/0058's surplus-value/recommendation calculation
+    (compute_surplus_value_and_recommendation) across the team's roster
+    in one query instead of the frontend looping
+    GET /api/players/<id>/surplus-value once per player, an N+1 fetch
+    pattern for a 25-40+ player roster.
+
+    Args:
+        team_id (int): The MLB team's id. Must be a level-1 (MLB) team --
+            an individual affiliate's own team_id is not valid here.
+
+    Returns:
+        JSON response:
+            - 404 if team_id isn't a real level-1 MLB team.
+            - {"team_id": ..., "players": [...]} otherwise, where each
+              entry is {"player_id", "first_name", "last_name",
+              "recommendation", "total_surplus"} for every roster player
+              compute_surplus_value_and_recommendation actually returned
+              a recommendation for -- currently arbitration-eligible,
+              with a computable surplus value, *and* not already
+              extended through their entire projected horizon (ticket
+              0082 fix -- see that function's docstring for why a
+              fully-signed player has no live decision to surface here).
+              A player missing any of those simply doesn't appear.
+              Grouping by recommendation type is left to the frontend.
+    """
+    con = get_db()
+    try:
+        with con.cursor() as cursor:
+            cursor.execute(
+                "SELECT level, city_id FROM teams WHERE team_id = %(team_id)s",
+                {"team_id": team_id},
+            )
+            team_row = cursor.fetchone()
+
+        if (
+            team_row is None
+            or team_row["level"] != 1
+            or team_row["city_id"] == 0
+        ):
+            return jsonify({"error": "Team not found"}), 404
+
+        sql_path = os.path.join(
+            "db", "sql_scripts", "api", "get_team_contract_inputs.sql"
+        )
+        with current_app.open_resource(sql_path, "r") as f:
+            sql = f.read()
+
+        with con.cursor() as cursor:
+            cursor.execute(sql, {"team_id": team_id})
+            rows = cursor.fetchall()
+
+        players = []
+        for row in rows:
+            result = compute_surplus_value_and_recommendation(row)
+            if result is None or "recommendation" not in result:
+                continue
+            players.append(
+                {
+                    "player_id": row["player_id"],
+                    "first_name": row["first_name"],
+                    "last_name": row["last_name"],
+                    "recommendation": result["recommendation"],
+                    "total_surplus": result["total_surplus"],
+                }
+            )
+
+        return jsonify({"team_id": team_id, "players": players})
     finally:
         close_db()

@@ -4,12 +4,7 @@ import pandas as pd
 
 from flask import Blueprint, jsonify, current_app, request
 from app.db.connection import get_db, close_db
-from app.player_projection.contract_value import (
-    calculate_surplus_value,
-    recommend_contract_action,
-    ARB_ELIGIBLE_SERVICE_YEARS,
-    FA_SERVICE_YEARS,
-)
+from app.player_projection.contract_value import compute_surplus_value_and_recommendation
 
 bp = Blueprint("players", __name__, url_prefix="/api/players")
 
@@ -324,7 +319,13 @@ def get_player_surplus_value(player_id):
               "total_cost": ..., "total_surplus": ...} otherwise, plus
               "recommendation" only when the player's current
               mlb_service_years falls in the arbitration window
-              (ARB_ELIGIBLE_SERVICE_YEARS <= years < FA_SERVICE_YEARS).
+              (ARB_ELIGIBLE_SERVICE_YEARS <= years < FA_SERVICE_YEARS)
+              *and* at least one projected year isn't already locked in
+              under a signed contract (ticket 0082 fix) -- a player
+              already extended through their entire projected horizon
+              has no live decision left to recommend, no matter how
+              large their surplus value is. See
+              compute_surplus_value_and_recommendation's docstring.
 
     A two-way player's batting and pitching WAR are summed into a single
     base_war for the whole projection (per user request) -- a deliberate
@@ -346,63 +347,10 @@ def get_player_surplus_value(player_id):
         if row is None:
             return jsonify({"available": False})
 
-        batting_war = row["batting_war"]
-        pitching_war = row["pitching_war"]
-        is_twp = batting_war is not None and pitching_war is not None
-        # A two-way player's base_war is the sum of both sides (per user
-        # request) -- same approach as the depth chart's roster_war,
-        # ticket 0067's post-close correction. Everyone else keeps a
-        # single side.
-        if is_twp:
-            base_war = batting_war + pitching_war
-        else:
-            base_war = batting_war if batting_war is not None else pitching_war
-
-        # years=0/current_year=0 is a real row OOTP writes for every
-        # unsigned player (a placeholder, not a 1-year $0 contract) --
-        # current_year=0 would also wrap Python's salaries[-1] indexing in
-        # calculate_surplus_value, so this must be filtered here, not just
-        # treated as "no row".
-        has_contract = row["years"] is not None and row["years"] > 0
-        has_service_time = row["mlb_service_years"] is not None
-
-        if (
-            base_war is None
-            or row["age"] is None
-            or not (has_contract or has_service_time)
-        ):
-            return jsonify({"available": False})
-
-        mlb_service_years = row["mlb_service_years"] or 0
-        result = calculate_surplus_value(
-            base_war=base_war,
-            current_age=row["age"],
-            mlb_service_years=mlb_service_years,
-            contract=row if has_contract else None,
-            prone_overall=row["prone_overall"],
-            # A TWP's injury-durability lookup uses the batter multiplier,
-            # not the pitcher one -- their primary defensive workload
-            # (games played/batted) is typically far larger than their
-            # pitching innings share, so is_pitcher is only True for a
-            # player who is a pitcher and *not* also a hitter.
-            is_pitcher=pitching_war is not None and batting_war is None,
-            pitching_role=row["pitching_role"],
-            war_dollar_value=row["war_dollar_value"],
-        )
+        result = compute_surplus_value_and_recommendation(row)
         if result is None:
             return jsonify({"available": False})
 
-        response = {"available": True, **result}
-        # Recommendation labels only apply to a player's current
-        # arbitration-eligibility window -- pre-arb rookies and players
-        # already past free-agency service (whether on a long-term deal or
-        # otherwise) aren't the "should we tender/extend/non-tender him"
-        # decision this label set describes (ticket 0058, per user report).
-        if ARB_ELIGIBLE_SERVICE_YEARS <= mlb_service_years < FA_SERVICE_YEARS:
-            response["recommendation"] = recommend_contract_action(
-                result, recommendation_extend_threshold=row["recommendation_extend_threshold"]
-            )
-
-        return jsonify(response)
+        return jsonify({"available": True, **result})
     finally:
         close_db()

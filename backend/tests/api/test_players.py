@@ -238,7 +238,16 @@ def _contract_row(**overrides):
         "pitching_role": None,
         "mlb_service_years": 4,
         "current_year": 2,
-        "years": 4,
+        # years=3 (not 4): remaining_contract_years=1 -- one more signed
+        # year, then a genuine discretionary arbitration-estimate year
+        # before free agency (service 4+1=5 < FA_SERVICE_YEARS=6). A
+        # contract covering the player's *entire* remaining horizon
+        # (e.g. years=4 here, remaining=2, exactly reaching FA at
+        # service 4+2=6) has no discretionary year at all -- ticket 0082
+        # fix -- and recommend_contract_action correctly returns no
+        # recommendation for that case, which isn't what most of these
+        # tests are checking.
+        "years": 3,
         # Ticket 0066: LEFT JOINed from the latest market_baselines row --
         # NULL/None until the save's first long heap has computed one.
         "war_dollar_value": None,

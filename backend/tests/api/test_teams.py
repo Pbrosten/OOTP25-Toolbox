@@ -655,3 +655,201 @@ def test_get_team_roster_strength_orders_groups(
     response = client.get("/api/teams/1/roster-strength")
     body = response.get_json()
     assert [g["group"] for g in body["groups"]] == ["C", "SS", "XX"]
+
+
+def _contract_decisions_row(**overrides):
+    # Same shape as get_player_contract_inputs.sql's row
+    # (tests/api/test_players.py's _contract_row), plus the identity
+    # fields get_team_contract_inputs.sql adds for a roster-wide query.
+    row = {
+        "player_id": 1,
+        "first_name": "Alice",
+        "last_name": "Ace",
+        "age": 30,
+        "prone_overall": None,
+        "batting_war": 3.0,
+        "pitching_war": None,
+        "pitching_role": None,
+        "mlb_service_years": 4,
+        "current_year": 2,
+        # years=3 (not 4): remaining_contract_years=1, leaving a genuine
+        # discretionary arbitration-estimate year before free agency
+        # (service 4+1=5 < FA_SERVICE_YEARS=6) -- see
+        # test_players.py's _contract_row for why a fully-signed
+        # remaining horizon (ticket 0082) would return no recommendation
+        # here instead.
+        "years": 3,
+        "war_dollar_value": None,
+        "recommendation_extend_threshold": None,
+    }
+    row.update({f"salary{i}": 0 for i in range(15)})
+    row["salary1"] = 10_000_000
+    row["salary2"] = 12_000_000
+    row.update(overrides)
+    return row
+
+
+# Test GET /api/teams/<id>/contract-decisions - not an MLB team (level != 1)
+@patch("app.api.teams.get_db")
+@patch("app.api.teams.close_db")
+def test_get_team_contract_decisions_non_mlb_team_not_found(mock_close_db, mock_get_db, client):
+    mock_con = MagicMock()
+    mock_cursor = MagicMock()
+    mock_cursor.fetchone.return_value = {"level": 2, "city_id": 12345}
+    mock_con.cursor.return_value.__enter__.return_value = mock_cursor
+    mock_get_db.return_value = mock_con
+
+    response = client.get("/api/teams/59/contract-decisions")
+    assert response.status_code == 404
+
+
+# Test GET /api/teams/<id>/contract-decisions - level=1 exhibition team
+@patch("app.api.teams.get_db")
+@patch("app.api.teams.close_db")
+def test_get_team_contract_decisions_exhibition_team_not_found(mock_close_db, mock_get_db, client):
+    mock_con = MagicMock()
+    mock_cursor = MagicMock()
+    mock_cursor.fetchone.return_value = {"level": 1, "city_id": 0}
+    mock_con.cursor.return_value.__enter__.return_value = mock_cursor
+    mock_get_db.return_value = mock_con
+
+    response = client.get("/api/teams/31/contract-decisions")
+    assert response.status_code == 404
+
+
+# Test GET /api/teams/<id>/contract-decisions - unknown team_id
+@patch("app.api.teams.get_db")
+@patch("app.api.teams.close_db")
+def test_get_team_contract_decisions_unknown_team_not_found(mock_close_db, mock_get_db, client):
+    mock_con = MagicMock()
+    mock_cursor = MagicMock()
+    mock_cursor.fetchone.return_value = None
+    mock_con.cursor.return_value.__enter__.return_value = mock_cursor
+    mock_get_db.return_value = mock_con
+
+    response = client.get("/api/teams/99999/contract-decisions")
+    assert response.status_code == 404
+
+
+# An arbitration-eligible player (mlb_service_years=4, within the
+# 3<=years<6 window) is included with their recommendation and
+# total_surplus.
+@patch("app.api.teams.get_db")
+@patch("app.api.teams.close_db")
+@patch("app.api.teams.current_app.open_resource")
+def test_get_team_contract_decisions_includes_arb_eligible_player(
+    mock_open_resource, mock_close_db, mock_get_db, client
+):
+    mock_con = MagicMock()
+    mock_cursor = MagicMock()
+    mock_cursor.fetchone.return_value = {"level": 1, "city_id": 58739}
+    mock_cursor.fetchall.return_value = [
+        _contract_decisions_row(player_id=7, first_name="Ruben", last_name="Santana"),
+    ]
+    mock_con.cursor.return_value.__enter__.return_value = mock_cursor
+    mock_get_db.return_value = mock_con
+    mock_open_resource.return_value.__enter__.return_value.read.return_value = "SELECT ..."
+
+    response = client.get("/api/teams/1/contract-decisions")
+    assert response.status_code == 200
+    body = response.get_json()
+    assert len(body["players"]) == 1
+    player = body["players"][0]
+    assert player["player_id"] == 7
+    assert player["first_name"] == "Ruben"
+    assert player["last_name"] == "Santana"
+    assert "recommendation" in player
+    assert "total_surplus" in player
+
+
+# A pre-arb rookie (mlb_service_years=1) has no recommendation -- 0058's
+# rule -- so doesn't appear in the list at all.
+@patch("app.api.teams.get_db")
+@patch("app.api.teams.close_db")
+@patch("app.api.teams.current_app.open_resource")
+def test_get_team_contract_decisions_excludes_pre_arb_player(
+    mock_open_resource, mock_close_db, mock_get_db, client
+):
+    mock_con = MagicMock()
+    mock_cursor = MagicMock()
+    mock_cursor.fetchone.return_value = {"level": 1, "city_id": 58739}
+    mock_cursor.fetchall.return_value = [
+        _contract_decisions_row(mlb_service_years=1),
+    ]
+    mock_con.cursor.return_value.__enter__.return_value = mock_cursor
+    mock_get_db.return_value = mock_con
+    mock_open_resource.return_value.__enter__.return_value.read.return_value = "SELECT ..."
+
+    response = client.get("/api/teams/1/contract-decisions")
+    assert response.get_json()["players"] == []
+
+
+# A player already past free-agency service (mlb_service_years=8) also
+# has no recommendation, same exclusion.
+@patch("app.api.teams.get_db")
+@patch("app.api.teams.close_db")
+@patch("app.api.teams.current_app.open_resource")
+def test_get_team_contract_decisions_excludes_past_free_agency_player(
+    mock_open_resource, mock_close_db, mock_get_db, client
+):
+    mock_con = MagicMock()
+    mock_cursor = MagicMock()
+    mock_cursor.fetchone.return_value = {"level": 1, "city_id": 58739}
+    mock_cursor.fetchall.return_value = [
+        _contract_decisions_row(mlb_service_years=8),
+    ]
+    mock_con.cursor.return_value.__enter__.return_value = mock_cursor
+    mock_get_db.return_value = mock_con
+    mock_open_resource.return_value.__enter__.return_value.read.return_value = "SELECT ..."
+
+    response = client.get("/api/teams/1/contract-decisions")
+    assert response.get_json()["players"] == []
+
+
+# A player with no computable surplus value at all (OOTP's years=0/
+# current_year=0 unsigned placeholder contract, and no service-time
+# record) is excluded, not a crash.
+@patch("app.api.teams.get_db")
+@patch("app.api.teams.close_db")
+@patch("app.api.teams.current_app.open_resource")
+def test_get_team_contract_decisions_excludes_unavailable_player(
+    mock_open_resource, mock_close_db, mock_get_db, client
+):
+    mock_con = MagicMock()
+    mock_cursor = MagicMock()
+    mock_cursor.fetchone.return_value = {"level": 1, "city_id": 58739}
+    mock_cursor.fetchall.return_value = [
+        _contract_decisions_row(years=0, current_year=0, mlb_service_years=None),
+    ]
+    mock_con.cursor.return_value.__enter__.return_value = mock_cursor
+    mock_get_db.return_value = mock_con
+    mock_open_resource.return_value.__enter__.return_value.read.return_value = "SELECT ..."
+
+    response = client.get("/api/teams/1/contract-decisions")
+    assert response.status_code == 200
+    assert response.get_json()["players"] == []
+
+
+# Multiple roster players are filtered independently -- only the
+# arb-eligible one survives.
+@patch("app.api.teams.get_db")
+@patch("app.api.teams.close_db")
+@patch("app.api.teams.current_app.open_resource")
+def test_get_team_contract_decisions_filters_independently_per_player(
+    mock_open_resource, mock_close_db, mock_get_db, client
+):
+    mock_con = MagicMock()
+    mock_cursor = MagicMock()
+    mock_cursor.fetchone.return_value = {"level": 1, "city_id": 58739}
+    mock_cursor.fetchall.return_value = [
+        _contract_decisions_row(player_id=1, mlb_service_years=1),
+        _contract_decisions_row(player_id=2, mlb_service_years=4),
+        _contract_decisions_row(player_id=3, mlb_service_years=8),
+    ]
+    mock_con.cursor.return_value.__enter__.return_value = mock_cursor
+    mock_get_db.return_value = mock_con
+    mock_open_resource.return_value.__enter__.return_value.read.return_value = "SELECT ..."
+
+    response = client.get("/api/teams/1/contract-decisions")
+    body = response.get_json()
+    assert [p["player_id"] for p in body["players"]] == [2]
