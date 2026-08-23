@@ -1,7 +1,7 @@
 # 0038 — GM Command Center
 
 - **Tag:** feat
-- **Status:** In-Progress
+- **Status:** Closed
 - **Depends on:** [0039](0039-roster-optimization-org-depth.md), [0042](0042-contract-arbitration-analyzer.md), [0043](0043-prospect-pipeline.md), [0065](0065-gm-org-selection-theming.md)
 - **Blocks:** [0079](0079-dashboard-team-war-widget.md), [0080](0080-dashboard-over-underperformers-widget.md), [0081](0081-dashboard-roster-weaknesses-widget.md), [0082](0082-dashboard-contract-arbitration-widget.md), [0083](0083-dashboard-prospect-promotion-widget.md), [0084](0084-dashboard-action-queue.md), [0085](0085-gm-command-center-dashboard.md)
 

@@ -15,7 +15,7 @@ This toolbox hopes to provide a one-stop shop for any data and analytics a GM wo
 - Player Profiles – Visualize player expected performance relative to league and position cohorts.
 
 ## Installation
-This app is run using the `docker-compose.yml`. There are some configuration steps needed before the app can fully run.
+This app is run using `docker-compose.yml` (`docker-compose up --build`, or `podman compose up -d` — bind mounts already use the `:Z` SELinux relabel flag required for rootless Podman on SELinux-enforcing hosts like Fedora). There are some configuration steps needed before the app can fully run.
 ### Set OOTP25 Dump Files
 The OOTP25 Toolbox relies on parsing OOTP dump files. Both the yearly and monthly dump files are expected as MySQL files. In order to configure the OOTP dump files do the following:
 
@@ -28,15 +28,32 @@ Your OOTP dump files will be found in the OOTP25 `saved_games/{save_name}/dump` 
 
 > **Note**: Before using the application, ensure at least one `yearly` dump is in the folder and delete all prior `monthly` files. This is in order to optimize OOTP dump wait time while playing.
 
-### Connect the Toolbox to the Dump Files
-Copy the `.env-template` file from the `backend/template/` folder. Move this template into the `backend/` directory, rename it `.env`. Set `GAME_PATH` as the path to the OOTP 25 saved_game file and the `GAME_STATE` as the save file name.
+### Point the Toolbox at Your Dump Files
+The backend container reads dump files from a bind mount, not from `.env`. In `docker-compose.yml`, edit the `backend` service's second `volumes` entry to point at the `dump` folder from the previous step:
 
-This will give the app all the information needed to connect the appropriate dump files.
+```yaml
+services:
+  backend:
+    volumes:
+      - ./backend:/app:Z
+      - "/absolute/path/to/saved_games/{save_name}/dump:/data/dumps:Z"
+```
+
+The container-side path (`/data/dumps`) must stay as-is — it matches `DUMP_PATH` in `.env` (see below).
+
+### Configure the Backend Environment
+Copy the `.env-template` file from `backend/templates/` into `backend/`, and rename it `.env`:
+
+```bash
+cp backend/templates/.env-template backend/.env
+```
+
+The defaults (`DB_HOST=mariadb`, `DB_PORT=3306`, `DUMP_PATH=/data/dumps`, etc.) already match the services and bind mount defined in `docker-compose.yml`, so no edits are required to run the containerized stack. Set `ADMIN_API_TOKEN` if you need to call the `/api/admin/*` routes (generate a value with `python -c "import secrets; print(secrets.token_hex(32))"`).
 
 ### Create Backend Virtual Environment
-Enter the `backend/` directory. This project used `uv` as its python package manager. Take a quick look at the [uv documentation](https://docs.astral.sh/uv/getting-started/) if you are unfamiliar with the package manager.
+Enter the `backend/` directory. This project uses `uv` as its python package manager. Take a quick look at the [uv documentation](https://docs.astral.sh/uv/getting-started/) if you are unfamiliar with the package manager.
 
-Once `uv` is installed, run `uv venv`.
+Once `uv` is installed, run `uv venv` followed by `uv pip install --system .` (or `uv sync`) to install dependencies.
 
 ## Usage
 ### Update the Database
