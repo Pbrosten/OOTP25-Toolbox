@@ -1,7 +1,7 @@
 # 0079 — Command Center: team power ranking widget
 
 - **Tag:** feat
-- **Status:** In-Progress
+- **Status:** Closed
 - **Depends on:** —
 - **Blocks:** [0085](0085-gm-command-center-dashboard.md)
 

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useCurrentTeam } from '@/composables/useCurrentTeam'
 import TeamWarWidget from '@/components/dashboard/TeamWarWidget.vue'
+import RosterWeaknessesWidget from '@/components/dashboard/RosterWeaknessesWidget.vue'
 
 // GM Command Center dashboard shell (ticket 0085), replacing the old
 // ToolCard launcher -- Sidebar.vue already carries tool nav (ticket 0065),
@@ -41,13 +42,17 @@ const { currentTeam } = useCurrentTeam()
       <!-- Widget grid: 0080 (over/underperformers), 0081 (roster
            weaknesses/surpluses), 0082 (contract & arbitration), 0083
            (prospect promotion) each drop their widget in here as they
-           close. -->
+           close. RosterWeaknessesWidget renders full-width (its own
+           internal two-column weakness/surplus layout doesn't fit a
+           compact stat-tile grid cell) -- 0080/0082/0083's tiles go in
+           the grid below it. -->
       <section class="mb-8">
         <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-400 mb-3">
           Roster Insights
         </h2>
+        <RosterWeaknessesWidget class="mb-4" />
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <p class="text-sm text-gray-400 italic">More widgets land here as 0080-0083 close.</p>
+          <p class="text-sm text-gray-400 italic">More widgets land here as 0080/0082/0083 close.</p>
         </div>
       </section>
 

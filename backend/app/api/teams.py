@@ -15,6 +15,22 @@ bp = Blueprint("teams", __name__, url_prefix="/api/teams")
 # count per position instead of a ranked player list.
 COUNT_ONLY_LEVELS = {4, 6}
 
+# Display order for the roster-strength widget (ticket 0081) -- position
+# players only, per the user 2026-08-23 (pitchers excluded, see
+# get_team_roster_strength.sql's docstring). An unrecognized group_code
+# (shouldn't happen; defensive only) sorts last via .get()'s default
+# rather than raising.
+ROSTER_STRENGTH_GROUP_ORDER = [
+    "C", "1B", "2B", "3B", "SS", "LF", "CF", "RF", "DH",
+]
+
+# The 50th-percentile "average" cutoff (ticket 0081, resolved with the
+# user 2026-08-23): a position is a weakness if this team's best player
+# there ranks below league-average at that position; a surplus if 2+ of
+# this team's players there rank at/above league-average.
+ROSTER_STRENGTH_MEDIAN_CUTOFF = 50
+ROSTER_STRENGTH_SURPLUS_MIN_COUNT = 2
+
 
 @bp.route("", methods=["GET"])
 def get_mlb_teams():
@@ -240,5 +256,159 @@ def get_team_war_summary(team_id):
                 "total_teams": row["total_teams"],
             }
         )
+    finally:
+        close_db()
+
+
+@bp.route("/<int:team_id>/roster-strength", methods=["GET"])
+def get_team_roster_strength(team_id):
+    """
+    Classify each of an MLB team's batting position groups as a
+    "weakness," "surplus," or neither (ticket 0081), for the GM Command
+    Center dashboard. Position players only -- pitchers are excluded
+    entirely, per the user 2026-08-23 (see get_team_roster_strength.sql's
+    docstring). A group is a weakness if this team's best player there
+    ranks below the 50th percentile against every real MLB team's players
+    at that same group; a surplus if 2+ of this team's players there rank
+    at/above the 50th percentile (ROSTER_STRENGTH_MEDIAN_CUTOFF/
+    ROSTER_STRENGTH_SURPLUS_MIN_COUNT, resolved with the user
+    2026-08-23). Named players are included (post-close revision) so the
+    widget can say *who* is thin/deep at a position, not just the raw
+    number.
+
+    Args:
+        team_id (int): The MLB team's id. Must be a level-1 (MLB) team --
+            an individual affiliate's own team_id is not valid here.
+
+    Returns:
+        JSON response:
+            - 404 if team_id isn't a real level-1 MLB team.
+            - {"team_id": ..., "groups": [...]} otherwise, where each
+              group entry is {"group": ..., "classification": "weakness"
+              | "surplus" | "neutral", "best_war": ... | null,
+              "best_percentile": ... | null, "best_player": {"player_id",
+              "first_name", "last_name", "league_rank"} | null,
+              "league_pool_size": ..., "surplus_count": ...,
+              "surplus_players": [{"player_id", "first_name",
+              "last_name", "war", "league_rank"}, ...]}. best_war/
+              best_percentile/best_player are null when the team has no
+              rated player at that group at all (always a weakness).
+              league_rank is each named player's 1-indexed ordinal rank
+              by WAR against every real MLB team's players at that same
+              group (ties share a rank -- same convention as
+              get_team_war_summary.sql's team power ranking);
+              league_pool_size is the group's total rated-player count
+              league-wide, i.e. what league_rank is "out of." surplus_players
+              lists every one of this team's players at/above the 50th
+              percentile at that group (only 2+ of them makes it an
+              actual "surplus" classification, but the list is returned
+              regardless of classification). Groups are ordered by
+              ROSTER_STRENGTH_GROUP_ORDER.
+    """
+    con = get_db()
+    try:
+        with con.cursor() as cursor:
+            cursor.execute(
+                "SELECT level, city_id FROM teams WHERE team_id = %(team_id)s",
+                {"team_id": team_id},
+            )
+            team_row = cursor.fetchone()
+
+        if (
+            team_row is None
+            or team_row["level"] != 1
+            or team_row["city_id"] == 0
+        ):
+            return jsonify({"error": "Team not found"}), 404
+
+        sql_path = os.path.join(
+            "db", "sql_scripts", "api", "get_team_roster_strength.sql"
+        )
+        with current_app.open_resource(sql_path, "r") as f:
+            sql = f.read()
+
+        with con.cursor() as cursor:
+            cursor.execute(sql, {"team_id": team_id})
+            rows = cursor.fetchall()
+
+        # One row per (group, this team's player) pair, plus a single
+        # all-NULL-player placeholder row for a group with nobody
+        # rostered there -- see get_team_roster_strength.sql's docstring.
+        rows_by_group: dict = {}
+        for row in rows:
+            rows_by_group.setdefault(row["group_code"], []).append(row)
+
+        groups = []
+        for group_code, group_rows in rows_by_group.items():
+            rated_rows = [
+                r for r in group_rows if r["player_id"] is not None and r["war"] is not None
+            ]
+
+            # league_pool_size is the same for every row in a group
+            # (including the all-NULL placeholder row) -- see
+            # get_team_roster_strength.sql.
+            league_pool_size = group_rows[0]["league_pool_size"]
+
+            if rated_rows:
+                best_row = max(rated_rows, key=lambda r: r["war"])
+                best_war = best_row["war"]
+                # SQL's ROUND() over a division returns a DECIMAL, which
+                # pymysql/Flask would otherwise serialize as a numeric
+                # *string* -- cast back to a real int for the frontend.
+                best_percentile = int(best_row["league_percentile"])
+                best_player = {
+                    "player_id": best_row["player_id"],
+                    "first_name": best_row["first_name"],
+                    "last_name": best_row["last_name"],
+                    "league_rank": best_row["league_rank"],
+                }
+            else:
+                best_war = None
+                best_percentile = None
+                best_player = None
+
+            surplus_players = sorted(
+                (
+                    {
+                        "player_id": r["player_id"],
+                        "first_name": r["first_name"],
+                        "last_name": r["last_name"],
+                        "war": r["war"],
+                        "league_rank": r["league_rank"],
+                    }
+                    for r in rated_rows
+                    if int(r["league_percentile"]) >= ROSTER_STRENGTH_MEDIAN_CUTOFF
+                ),
+                key=lambda p: p["war"],
+                reverse=True,
+            )
+
+            if best_war is None or best_percentile < ROSTER_STRENGTH_MEDIAN_CUTOFF:
+                classification = "weakness"
+            elif len(surplus_players) >= ROSTER_STRENGTH_SURPLUS_MIN_COUNT:
+                classification = "surplus"
+            else:
+                classification = "neutral"
+
+            groups.append(
+                {
+                    "group": group_code,
+                    "classification": classification,
+                    "best_war": best_war,
+                    "best_percentile": best_percentile,
+                    "best_player": best_player,
+                    "league_pool_size": league_pool_size,
+                    "surplus_count": len(surplus_players),
+                    "surplus_players": surplus_players,
+                }
+            )
+
+        groups.sort(
+            key=lambda g: ROSTER_STRENGTH_GROUP_ORDER.index(g["group"])
+            if g["group"] in ROSTER_STRENGTH_GROUP_ORDER
+            else len(ROSTER_STRENGTH_GROUP_ORDER)
+        )
+
+        return jsonify({"team_id": team_id, "groups": groups})
     finally:
         close_db()
