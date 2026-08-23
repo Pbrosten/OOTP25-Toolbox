@@ -3,6 +3,7 @@ import { useCurrentTeam } from '@/composables/useCurrentTeam'
 import TeamWarWidget from '@/components/dashboard/TeamWarWidget.vue'
 import RosterWeaknessesWidget from '@/components/dashboard/RosterWeaknessesWidget.vue'
 import ContractDecisionsWidget from '@/components/dashboard/ContractDecisionsWidget.vue'
+import PromotionReadyWidget from '@/components/dashboard/PromotionReadyWidget.vue'
 
 // GM Command Center dashboard shell (ticket 0085), replacing the old
 // ToolCard launcher -- Sidebar.vue already carries tool nav (ticket 0065),
@@ -40,13 +41,10 @@ const { currentTeam } = useCurrentTeam()
         <TeamWarWidget />
       </div>
 
-      <!-- Widget grid: 0080 (over/underperformers), 0081 (roster
-           weaknesses/surpluses), 0082 (contract & arbitration), 0083
-           (prospect promotion) each drop their widget in here as they
-           close. RosterWeaknessesWidget/ContractDecisionsWidget render
-           full-width (each has its own internal multi-column layout that
-           doesn't fit a compact stat-tile grid cell) -- 0080/0083's
-           tiles go in the grid below them. -->
+      <!-- Widget grid: 0080's tile drops in here as it closes.
+           RosterWeaknessesWidget/ContractDecisionsWidget render
+           full-width instead (each has its own internal multi-item list
+           layout that doesn't fit a compact stat-tile grid cell). -->
       <section class="mb-8">
         <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-400 mb-3">
           Roster Insights
@@ -54,8 +52,16 @@ const { currentTeam } = useCurrentTeam()
         <RosterWeaknessesWidget class="mb-4" />
         <ContractDecisionsWidget class="mb-4" />
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <p class="text-sm text-gray-400 italic">More widgets land here as 0080/0083 close.</p>
+          <p class="text-sm text-gray-400 italic">More widgets land here as 0080 closes.</p>
         </div>
+      </section>
+
+      <!-- Prospect Watch: 0083's promotion-ready prospects. -->
+      <section class="mb-8">
+        <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-400 mb-3">
+          Prospect Watch
+        </h2>
+        <PromotionReadyWidget />
       </section>
 
       <!-- Action Queue (ticket 0084). -->

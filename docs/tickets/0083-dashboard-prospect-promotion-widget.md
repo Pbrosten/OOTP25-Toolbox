@@ -1,7 +1,7 @@
 # 0083 — Command Center: prospect promotion opportunities widget
 
 - **Tag:** feat
-- **Status:** Open
+- **Status:** Closed
 - **Depends on:** —
 - **Blocks:** [0085](0085-gm-command-center-dashboard.md)
 
@@ -22,10 +22,24 @@ in exactly the shape this widget needs.
 
 ## 3. Approach
 
-Frontend widget calling `GET /api/prospects?team_id=<currentTeamId>`,
-filtering to `mlb_promotion_ready` prospects, rendering them similarly to
-`ProspectPipeline.vue`'s existing promotion-ready badge
-(`ArrowUpCircleIcon`), linking each to the player's profile.
+`frontend/src/api/prospects.ts` (new, no such module existed yet --
+other prospect-related views fetch inline) adds `fetchTeamProspects`,
+typed to just the fields this widget needs (`value.available`/
+`value.fv`/`value.mlb_promotion_ready`, not the full row shape
+`ProspectPipeline.vue` renders). `PromotionReadyWidget.vue` calls it with
+`useCurrentTeam().currentTeamId`, filters to `value.available &&
+value.mlb_promotion_ready`, sorts by FV descending, and renders each
+with the same `ArrowUpCircleIcon` badge/tooltip and FV-tier coloring
+(`fvClass`) as `ProspectPipeline.vue`'s table, linking to the player's
+profile page. Scoping via `team_id` already includes every affiliate
+(existing endpoint behavior), so no additional level filtering is
+needed beyond the flag itself. Wired into `LandingPage.vue` (ticket
+0085) under its own "Prospect Watch" section heading, separate from
+0081/0082's "Roster Insights" section (per the user, 2026-08-23).
 
 **Files involved:**
+- `frontend/src/api/prospects.ts` (new) — `fetchTeamProspects` +
+  `Prospect`/`ProspectValue` types.
 - `frontend/src/components/dashboard/PromotionReadyWidget.vue` (new).
+- `frontend/src/views/LandingPage.vue` (modified) — widget wired into
+  the dashboard shell's own "Prospect Watch" section.
